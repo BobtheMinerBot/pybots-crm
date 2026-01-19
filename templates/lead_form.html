@@ -12,72 +12,146 @@
             <div class="form-grid">
                 <div class="form-group">
                     <label class="form-label">Name *</label>
-                    <input type="text" name="name" class="form-control" required 
-                           value="{{ lead['name'] if lead else '' }}">
+                    <input type="text" name="name" class="form-control" required
+                        value="{{ lead['name'] if lead else '' }}">
                 </div>
-                
+
                 <div class="form-group">
                     <label class="form-label">Email</label>
-                    <input type="email" name="email" class="form-control" 
-                           value="{{ lead['email'] if lead else '' }}">
+                    <input type="email" name="email" class="form-control" value="{{ lead['email'] if lead else '' }}">
                 </div>
-                
+
                 <div class="form-group">
                     <label class="form-label">Phone</label>
-                    <input type="tel" name="phone" class="form-control" 
-                           value="{{ lead['phone'] if lead else '' }}">
+                    <input type="tel" name="phone" class="form-control" value="{{ lead['phone'] if lead else '' }}">
                 </div>
-                
+
                 <div class="form-group">
                     <label class="form-label">Status</label>
                     <select name="status" class="form-control">
                         {% for status in statuses %}
-                        <option value="{{ status }}" 
-                                {% if (lead and lead['status'] == status) or (not lead and status == 'New Lead') %}selected{% endif %}>
+                        <option value="{{ status }}" {% if (lead and lead['status']==status) or (not lead and
+                            status=='New Lead' ) %}selected{% endif %}>
                             {{ status }}
                         </option>
                         {% endfor %}
                     </select>
                 </div>
-                
+
                 <div class="form-group full-width">
                     <label class="form-label">Address</label>
-                    <input type="text" name="address" class="form-control" 
-                           value="{{ lead['address'] if lead else '' }}"
-                           placeholder="123 Main St, Key West, FL 33040">
+                    <input type="text" name="address" class="form-control" value="{{ lead['address'] if lead else '' }}"
+                        placeholder="123 Main St, Key West, FL 33040">
                 </div>
-                
+
                 <div class="form-group">
                     <label class="form-label">Job Type</label>
                     <select name="job_type" class="form-control">
                         <option value="">Select...</option>
                         {% for jt in job_types %}
-                        <option value="{{ jt }}" {% if lead and lead['job_type'] == jt %}selected{% endif %}>
+                        <option value="{{ jt }}" {% if lead and lead['job_type']==jt %}selected{% endif %}>
                             {{ jt }}
                         </option>
                         {% endfor %}
                     </select>
                 </div>
-                
+
                 <div class="form-group">
                     <label class="form-label">Property Type</label>
                     <select name="property_type" class="form-control">
                         <option value="">Select...</option>
                         {% for pt in property_types %}
-                        <option value="{{ pt }}" {% if lead and lead['property_type'] == pt %}selected{% endif %}>
+                        <option value="{{ pt }}" {% if lead and lead['property_type']==pt %}selected{% endif %}>
                             {{ pt }}
                         </option>
                         {% endfor %}
                     </select>
                 </div>
-                
+
+                {% for cf in custom_fields %}
+                <div
+                    class="form-group {% if cf['field_type'] in ['text', 'contact'] and loop.index % 2 == 1 %}{% endif %}">
+                    <label class="form-label">{{ cf['name'] }}{% if cf['is_required'] %} *{% endif %}</label>
+
+                    {% set field_val = field_values.get(cf['field_key'], {}).get('value', cf['default_value'] or '') %}
+
+                    {% if cf['field_type'] == 'text' %}
+                    <input type="text" name="custom_{{ cf['field_key'] }}" class="form-control" value="{{ field_val }}"
+                        {% if cf['is_required'] %}required{% endif %}>
+
+                    {% elif cf['field_type'] == 'number' %}
+                    <input type="number" name="custom_{{ cf['field_key'] }}" class="form-control"
+                        value="{{ field_val }}" step="any" {% if cf['is_required'] %}required{% endif %}>
+
+                    {% elif cf['field_type'] == 'date' %}
+                    <input type="date" name="custom_{{ cf['field_key'] }}" class="form-control" value="{{ field_val }}"
+                        {% if cf['is_required'] %}required{% endif %}>
+
+                    {% elif cf['field_type'] == 'dropdown' %}
+                    <select name="custom_{{ cf['field_key'] }}" class="form-control" {% if cf['is_required']
+                        %}required{% endif %}>
+                        <option value="">Select...</option>
+                        {% for opt in cf['options'].split('\n') if cf['options'] %}
+                        <option value="{{ opt.strip() }}" {% if field_val==opt.strip() %}selected{% endif %}>
+                            {{ opt.strip() }}
+                        </option>
+                        {% endfor %}
+                    </select>
+
+                    {% elif cf['field_type'] == 'multi_select' %}
+                    <select name="custom_{{ cf['field_key'] }}" class="form-control" multiple style="min-height: 80px;">
+                        {% set selected_vals = field_val | default('[]', true) %}
+                        {% for opt in cf['options'].split('\n') if cf['options'] %}
+                        <option value="{{ opt.strip() }}" {% if opt.strip() in selected_vals %}selected{% endif %}>
+                            {{ opt.strip() }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                    <p class="text-muted text-sm">Hold Ctrl/Cmd to select multiple</p>
+
+                    {% elif cf['field_type'] == 'checkbox' %}
+                    <label style="display: flex; align-items: center; gap: 0.5rem;">
+                        <input type="checkbox" name="custom_{{ cf['field_key'] }}" value="1" {% if field_val=='1'
+                            %}checked{% endif %}>
+                        <span>Yes</span>
+                    </label>
+
+                    {% elif cf['field_type'] == 'contact' %}
+                    <input type="text" name="custom_{{ cf['field_key'] }}" class="form-control" value="{{ field_val }}"
+                        placeholder="Name or contact info" {% if cf['is_required'] %}required{% endif %}>
+
+                    {% elif cf['field_type'] == 'duration' %}
+                    <input type="text" name="custom_{{ cf['field_key'] }}" class="form-control" value="{{ field_val }}"
+                        placeholder="e.g., 2h 30m" {% if cf['is_required'] %}required{% endif %}>
+
+                    {% elif cf['field_type'] == 'auto_number' %}
+                    <input type="text" name="custom_{{ cf['field_key'] }}" class="form-control" value="{{ field_val }}"
+                        readonly style="background: var(--gray-100);">
+
+                    {% elif cf['field_type'] == 'symbol' %}
+                    <select name="custom_{{ cf['field_key'] }}" class="form-control">
+                        <option value="">Select...</option>
+                        {% for opt in cf['options'].split('\n') if cf['options'] %}
+                        <option value="{{ opt.strip() }}" {% if field_val==opt.strip() %}selected{% endif %}>
+                            {{ opt.strip() }}
+                        </option>
+                        {% endfor %}
+                    </select>
+
+                    {% else %}
+                    <input type="text" name="custom_{{ cf['field_key'] }}" class="form-control" value="{{ field_val }}"
+                        {% if cf['is_required'] %}required{% endif %}>
+                    {% endif %}
+                </div>
+                {% endfor %}
+
                 <div class="form-group full-width">
                     <label class="form-label">Notes</label>
-                    <textarea name="notes" class="form-control" rows="4" 
-                              placeholder="Any additional notes about this lead...">{{ lead['notes'] if lead else '' }}</textarea>
+                    <textarea name="notes" class="form-control" rows="4"
+                        placeholder="Any additional notes about this lead...">{{ lead['notes'] if lead else '' }}</textarea>
                 </div>
             </div>
-            
+
             <div style="display: flex; gap: 0.75rem; margin-top: 1rem;">
                 <button type="submit" class="btn btn-primary">
                     {{ 'Update' if lead else 'Add' }} Lead

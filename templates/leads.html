@@ -5,24 +5,33 @@
 {% block content %}
 <div class="toolbar">
     <div class="search-box">
-        <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            stroke-width="2">
             <circle cx="11" cy="11" r="8"></circle>
             <path d="m21 21-4.35-4.35"></path>
         </svg>
         <input type="text" class="form-control" placeholder="Search leads..." id="searchInput" value="{{ search }}">
     </div>
-    
+
     <div class="filter-group">
         <label>Filter:</label>
         <select class="form-control" id="statusFilter" style="width: auto;">
             <option value="">All Stages</option>
             {% for status in statuses %}
-            <option value="{{ status }}" {% if status_filter == status %}selected{% endif %}>{{ status }}</option>
+            <option value="{{ status }}" {% if status_filter==status %}selected{% endif %}>{{ status }}</option>
             {% endfor %}
         </select>
     </div>
-    
-    <div style="margin-left: auto;">
+
+    <div style="margin-left: auto; display: flex; gap: 0.5rem;">
+        <a href="{{ url_for('field_visibility') }}" class="btn btn-secondary">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path
+                    d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707">
+                </path>
+            </svg>
+            Fields
+        </a>
         <a href="{{ url_for('add_lead') }}" class="btn btn-primary">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M12 5v14M5 12h14"></path>
@@ -45,7 +54,7 @@
         <h3>{{ status }}</h3>
         <span class="grid-section-count">{{ leads | length }}</span>
     </div>
-    
+
     <div class="grid-table-wrapper">
         {% if leads %}
         <table class="grid-table">
@@ -56,6 +65,9 @@
                     <th>Address</th>
                     <th>Job Type</th>
                     <th>Property</th>
+                    {% for cf in custom_fields %}
+                    <th>{{ cf['name'] }}</th>
+                    {% endfor %}
                     <th>Created</th>
                     <th>Stage</th>
                 </tr>
@@ -73,11 +85,24 @@
                     <td>{{ lead['address'] or '-' }}</td>
                     <td>{{ lead['job_type'] or '-' }}</td>
                     <td>{{ lead['property_type'] or '-' }}</td>
+                    {% for cf in custom_fields %}
+                    <td>
+                        {% set lead_vals = field_values.get(lead['id'], {}) %}
+                        {% set val = lead_vals.get(cf['field_key'], {}).get('value', '') %}
+                        {% if cf['field_type'] == 'checkbox' %}
+                        {% if val == '1' %}✓{% else %}-{% endif %}
+                        {% elif cf['field_type'] == 'multi_select' and val %}
+                        {{ val | replace('[', '') | replace(']', '') | replace('"', '') }}
+                        {% else %}
+                        {{ val or '-' }}
+                        {% endif %}
+                    </td>
+                    {% endfor %}
                     <td class="text-muted text-sm">{{ lead['created_at'] | strftime }}</td>
                     <td class="actions-cell">
                         <select class="status-select" onchange="updateStatus({{ lead['id'] }}, this.value)">
                             {% for s in statuses %}
-                            <option value="{{ s }}" {% if lead['status'] == s %}selected{% endif %}>{{ s }}</option>
+                            <option value="{{ s }}" {% if lead['status']==s %}selected{% endif %}>{{ s }}</option>
                             {% endfor %}
                         </select>
                     </td>
@@ -99,45 +124,45 @@
 
 {% block scripts %}
 <script>
-function toggleSection(section) {
-    section.classList.toggle('collapsed');
-}
+    function toggleSection(section) {
+        section.classList.toggle('collapsed');
+    }
 
-function updateStatus(leadId, status) {
-    fetch(`/leads/${leadId}/status`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-            'X-Requested-With': 'XMLHttpRequest'
-        },
-        body: `status=${encodeURIComponent(status)}`
-    }).then(response => {
-        if (response.ok) {
-            window.location.reload();
-        }
+    function updateStatus(leadId, status) {
+        fetch(`/leads/${leadId}/status`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: `status=${encodeURIComponent(status)}`
+        }).then(response => {
+            if (response.ok) {
+                window.location.reload();
+            }
+        });
+    }
+
+    // Search functionality
+    let searchTimeout;
+    document.getElementById('searchInput').addEventListener('input', function (e) {
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(() => {
+            updateFilters();
+        }, 300);
     });
-}
 
-// Search functionality
-let searchTimeout;
-document.getElementById('searchInput').addEventListener('input', function(e) {
-    clearTimeout(searchTimeout);
-    searchTimeout = setTimeout(() => {
-        updateFilters();
-    }, 300);
-});
+    document.getElementById('statusFilter').addEventListener('change', updateFilters);
 
-document.getElementById('statusFilter').addEventListener('change', updateFilters);
+    function updateFilters() {
+        const search = document.getElementById('searchInput').value;
+        const status = document.getElementById('statusFilter').value;
 
-function updateFilters() {
-    const search = document.getElementById('searchInput').value;
-    const status = document.getElementById('statusFilter').value;
-    
-    let url = '/leads?';
-    if (search) url += `search=${encodeURIComponent(search)}&`;
-    if (status) url += `status=${encodeURIComponent(status)}`;
-    
-    window.location.href = url;
-}
+        let url = '/leads?';
+        if (search) url += `search=${encodeURIComponent(search)}&`;
+        if (status) url += `status=${encodeURIComponent(status)}`;
+
+        window.location.href = url;
+    }
 </script>
 {% endblock %}

@@ -80,6 +80,39 @@ def init_db():
                 FOREIGN KEY (lead_id) REFERENCES leads (id) ON DELETE CASCADE,
                 FOREIGN KEY (user_id) REFERENCES users (id)
             );
+            
+            CREATE TABLE IF NOT EXISTS custom_fields (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL,
+                field_key TEXT UNIQUE NOT NULL,
+                field_type TEXT NOT NULL,
+                options TEXT,
+                is_required BOOLEAN DEFAULT 0,
+                default_value TEXT,
+                sequence INTEGER DEFAULT 0,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+            
+            CREATE TABLE IF NOT EXISTS field_values (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                lead_id INTEGER NOT NULL,
+                field_id INTEGER NOT NULL,
+                value TEXT,
+                FOREIGN KEY (lead_id) REFERENCES leads (id) ON DELETE CASCADE,
+                FOREIGN KEY (field_id) REFERENCES custom_fields (id) ON DELETE CASCADE,
+                UNIQUE(lead_id, field_id)
+            );
+            
+            CREATE TABLE IF NOT EXISTS field_visibility (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                field_id INTEGER NOT NULL,
+                is_visible BOOLEAN DEFAULT 1,
+                sequence INTEGER DEFAULT 0,
+                FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
+                FOREIGN KEY (field_id) REFERENCES custom_fields (id) ON DELETE CASCADE,
+                UNIQUE(user_id, field_id)
+            );
         ''')
         
         # Create default admin if no users exist
@@ -117,6 +150,20 @@ PROPERTY_TYPES = [
     'Commercial',
     'Other'
 ]
+
+# Custom field types
+FIELD_TYPES = {
+    'text': {'label': 'Text', 'icon': '📝'},
+    'number': {'label': 'Number', 'icon': '🔢'},
+    'date': {'label': 'Date', 'icon': '📅'},
+    'dropdown': {'label': 'Dropdown', 'icon': '📋'},
+    'multi_select': {'label': 'Multi-Select', 'icon': '☑️'},
+    'checkbox': {'label': 'Checkbox', 'icon': '✓'},
+    'contact': {'label': 'Contact', 'icon': '👤'},
+    'duration': {'label': 'Duration', 'icon': '⏱️'},
+    'auto_number': {'label': 'Auto-Number', 'icon': '#'},
+    'symbol': {'label': 'Symbol', 'icon': '⭐'}
+}
 
 # Auth decorator
 def login_required(f):
@@ -201,13 +248,25 @@ def leads():
         query += ' ORDER BY created_at DESC'
         leads_by_status[status] = query_db(query, args)
     
+    # Get visible custom fields for current user
+    user_id = session.get('user_id')
+    visible_fields = [f for f in get_visible_fields(user_id) if f['is_visible']]
+    
+    # Get custom field values for all leads
+    all_lead_values = {}
+    for status_leads in leads_by_status.values():
+        for lead in status_leads:
+            all_lead_values[lead['id']] = get_field_values(lead['id'])
+    
     return render_template('leads.html', 
                          leads_by_status=leads_by_status, 
                          statuses=STATUSES,
                          job_types=JOB_TYPES,
                          property_types=PROPERTY_TYPES,
                          status_filter=status_filter,
-                         search=search)
+                         search=search,
+                         custom_fields=visible_fields,
+                         field_values=all_lead_values)
 
 @app.route('/leads/add', methods=['GET', 'POST'])
 @login_required
@@ -235,6 +294,9 @@ def add_lead():
         # Send to Zapier
         send_to_zapier(lead_to_dict(lead))
         
+        # Save custom field values
+        save_field_values(lead_id, request.form)
+        
         # Log activity
         execute_db(
             'INSERT INTO activities (lead_id, user_id, note) VALUES (?, ?, ?)',
@@ -244,11 +306,14 @@ def add_lead():
         flash('Lead added successfully', 'success')
         return redirect(url_for('leads'))
     
+    custom_fields = get_custom_fields()
     return render_template('lead_form.html', 
                          lead=None, 
                          statuses=STATUSES,
                          job_types=JOB_TYPES,
-                         property_types=PROPERTY_TYPES)
+                         property_types=PROPERTY_TYPES,
+                         custom_fields=custom_fields,
+                         field_values={})
 
 @app.route('/leads/<int:id>')
 @login_required
@@ -263,12 +328,17 @@ def view_lead(id):
         [id]
     )
     
+    custom_fields = get_custom_fields()
+    field_values = get_field_values(id)
+    
     return render_template('lead_detail.html', 
                          lead=lead, 
                          activities=activities,
                          statuses=STATUSES,
                          job_types=JOB_TYPES,
-                         property_types=PROPERTY_TYPES)
+                         property_types=PROPERTY_TYPES,
+                         custom_fields=custom_fields,
+                         field_values=field_values)
 
 @app.route('/leads/<int:id>/edit', methods=['GET', 'POST'])
 @login_required
@@ -306,18 +376,27 @@ def edit_lead(id):
                 (id, session.get('user_id'), f'Status changed from "{old_status}" to "{new_status}"')
             )
         
+        # Save custom field values
+        save_field_values(id, request.form)
+        
         flash('Lead updated successfully', 'success')
         return redirect(url_for('view_lead', id=id))
+    
+    custom_fields = get_custom_fields()
+    field_values = get_field_values(id)
     
     return render_template('lead_form.html', 
                          lead=lead, 
                          statuses=STATUSES,
                          job_types=JOB_TYPES,
-                         property_types=PROPERTY_TYPES)
+                         property_types=PROPERTY_TYPES,
+                         custom_fields=custom_fields,
+                         field_values=field_values)
 
 @app.route('/leads/<int:id>/delete', methods=['POST'])
 @login_required
 def delete_lead(id):
+    execute_db('DELETE FROM field_values WHERE lead_id = ?', [id])
     execute_db('DELETE FROM activities WHERE lead_id = ?', [id])
     execute_db('DELETE FROM leads WHERE id = ?', [id])
     flash('Lead deleted successfully', 'success')
@@ -381,6 +460,219 @@ def settings():
         ZAPIER_WEBHOOK_URL = request.form.get('zapier_webhook', '')
         flash('Settings saved', 'success')
     return render_template('settings.html', zapier_webhook=ZAPIER_WEBHOOK_URL)
+
+# ==================== CUSTOM FIELDS ====================
+
+def slugify(text):
+    """Convert text to a URL-safe slug"""
+    import re
+    text = text.lower().strip()
+    text = re.sub(r'[^\w\s-]', '', text)
+    text = re.sub(r'[-\s]+', '_', text)
+    return text
+
+def get_custom_fields():
+    """Get all custom fields ordered by sequence"""
+    return query_db('SELECT * FROM custom_fields ORDER BY sequence, id')
+
+def get_visible_fields(user_id):
+    """Get fields visible to a specific user with their visibility settings"""
+    fields = query_db('''
+        SELECT cf.*, 
+               COALESCE(fv.is_visible, 1) as is_visible,
+               COALESCE(fv.sequence, cf.sequence) as user_sequence
+        FROM custom_fields cf
+        LEFT JOIN field_visibility fv ON cf.id = fv.field_id AND fv.user_id = ?
+        ORDER BY COALESCE(fv.sequence, cf.sequence), cf.id
+    ''', [user_id])
+    return fields
+
+def get_field_values(lead_id):
+    """Get all custom field values for a lead as a dictionary"""
+    values = query_db('''
+        SELECT cf.field_key, fv.value, cf.field_type
+        FROM field_values fv
+        JOIN custom_fields cf ON fv.field_id = cf.id
+        WHERE fv.lead_id = ?
+    ''', [lead_id])
+    return {v['field_key']: {'value': v['value'], 'type': v['field_type']} for v in values}
+
+def save_field_values(lead_id, form_data):
+    """Save custom field values from form submission"""
+    fields = get_custom_fields()
+    for field in fields:
+        field_key = f"custom_{field['field_key']}"
+        value = form_data.get(field_key, '')
+        
+        # Handle multi-select (comes as list)
+        if field['field_type'] == 'multi_select':
+            values = form_data.getlist(field_key)
+            value = json.dumps(values) if values else ''
+        
+        # Handle checkbox
+        if field['field_type'] == 'checkbox':
+            value = '1' if value else '0'
+        
+        # Upsert the value
+        existing = query_db(
+            'SELECT id FROM field_values WHERE lead_id = ? AND field_id = ?',
+            [lead_id, field['id']], one=True
+        )
+        
+        if existing:
+            execute_db(
+                'UPDATE field_values SET value = ? WHERE lead_id = ? AND field_id = ?',
+                [value, lead_id, field['id']]
+            )
+        else:
+            execute_db(
+                'INSERT INTO field_values (lead_id, field_id, value) VALUES (?, ?, ?)',
+                [lead_id, field['id'], value]
+            )
+
+# Custom Fields Management Routes
+@app.route('/fields')
+@login_required
+def list_fields():
+    fields = get_custom_fields()
+    return render_template('fields.html', fields=fields, field_types=FIELD_TYPES)
+
+@app.route('/fields/add', methods=['GET', 'POST'])
+@login_required
+def add_field():
+    if request.method == 'POST':
+        name = request.form.get('name', '').strip()
+        field_type = request.form.get('field_type', 'text')
+        options = request.form.get('options', '')
+        is_required = 1 if request.form.get('is_required') else 0
+        default_value = request.form.get('default_value', '')
+        
+        if not name:
+            flash('Field name is required', 'error')
+            return redirect(url_for('add_field'))
+        
+        field_key = slugify(name)
+        
+        # Check for duplicate key
+        existing = query_db('SELECT id FROM custom_fields WHERE field_key = ?', [field_key], one=True)
+        if existing:
+            flash('A field with this name already exists', 'error')
+            return redirect(url_for('add_field'))
+        
+        # Get next sequence number
+        max_seq = query_db('SELECT MAX(sequence) as max_seq FROM custom_fields', one=True)
+        next_seq = (max_seq['max_seq'] or 0) + 1
+        
+        execute_db('''
+            INSERT INTO custom_fields (name, field_key, field_type, options, is_required, default_value, sequence)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        ''', [name, field_key, field_type, options, is_required, default_value, next_seq])
+        
+        flash(f'Field "{name}" created successfully', 'success')
+        return redirect(url_for('list_fields'))
+    
+    return render_template('field_form.html', field=None, field_types=FIELD_TYPES)
+
+@app.route('/fields/<int:id>/edit', methods=['GET', 'POST'])
+@login_required
+def edit_field(id):
+    field = query_db('SELECT * FROM custom_fields WHERE id = ?', [id], one=True)
+    if not field:
+        flash('Field not found', 'error')
+        return redirect(url_for('list_fields'))
+    
+    if request.method == 'POST':
+        name = request.form.get('name', '').strip()
+        options = request.form.get('options', '')
+        is_required = 1 if request.form.get('is_required') else 0
+        default_value = request.form.get('default_value', '')
+        
+        if not name:
+            flash('Field name is required', 'error')
+            return redirect(url_for('edit_field', id=id))
+        
+        execute_db('''
+            UPDATE custom_fields 
+            SET name = ?, options = ?, is_required = ?, default_value = ?
+            WHERE id = ?
+        ''', [name, options, is_required, default_value, id])
+        
+        flash('Field updated successfully', 'success')
+        return redirect(url_for('list_fields'))
+    
+    return render_template('field_form.html', field=field, field_types=FIELD_TYPES)
+
+@app.route('/fields/<int:id>/delete', methods=['POST'])
+@login_required
+def delete_field(id):
+    execute_db('DELETE FROM field_values WHERE field_id = ?', [id])
+    execute_db('DELETE FROM field_visibility WHERE field_id = ?', [id])
+    execute_db('DELETE FROM custom_fields WHERE id = ?', [id])
+    flash('Field deleted successfully', 'success')
+    return redirect(url_for('list_fields'))
+
+# Field Visibility Routes
+@app.route('/fields/visibility', methods=['GET', 'POST'])
+@login_required
+def field_visibility():
+    user_id = session.get('user_id')
+    
+    if request.method == 'POST':
+        fields = get_custom_fields()
+        for field in fields:
+            is_visible = 1 if request.form.get(f'visible_{field["id"]}') else 0
+            sequence = int(request.form.get(f'sequence_{field["id"]}', field['sequence']))
+            
+            # Upsert visibility setting
+            existing = query_db(
+                'SELECT id FROM field_visibility WHERE user_id = ? AND field_id = ?',
+                [user_id, field['id']], one=True
+            )
+            
+            if existing:
+                execute_db('''
+                    UPDATE field_visibility SET is_visible = ?, sequence = ?
+                    WHERE user_id = ? AND field_id = ?
+                ''', [is_visible, sequence, user_id, field['id']])
+            else:
+                execute_db('''
+                    INSERT INTO field_visibility (user_id, field_id, is_visible, sequence)
+                    VALUES (?, ?, ?, ?)
+                ''', [user_id, field['id'], is_visible, sequence])
+        
+        flash('Field visibility settings saved', 'success')
+        return redirect(url_for('leads'))
+    
+    fields = get_visible_fields(user_id)
+    return render_template('field_visibility.html', fields=fields)
+
+@app.route('/api/fields/reorder', methods=['POST'])
+@login_required
+def reorder_fields():
+    user_id = session.get('user_id')
+    data = request.get_json()
+    
+    if not data or 'order' not in data:
+        return jsonify({'success': False, 'error': 'Invalid data'}), 400
+    
+    for idx, field_id in enumerate(data['order']):
+        existing = query_db(
+            'SELECT id FROM field_visibility WHERE user_id = ? AND field_id = ?',
+            [user_id, field_id], one=True
+        )
+        
+        if existing:
+            execute_db(
+                'UPDATE field_visibility SET sequence = ? WHERE user_id = ? AND field_id = ?',
+                [idx, user_id, field_id]
+            )
+        else:
+            execute_db(
+                'INSERT INTO field_visibility (user_id, field_id, is_visible, sequence) VALUES (?, ?, 1, ?)',
+                [user_id, field_id, idx]
+            )
+    
+    return jsonify({'success': True})
 
 # Template filters
 @app.template_filter('strftime')

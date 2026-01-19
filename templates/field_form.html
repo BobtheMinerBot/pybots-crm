@@ -1,0 +1,77 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ 'Edit' if field else 'Add' }} Field - CRM{% endblock %}
+
+{% block content %}
+<div class="card" style="max-width: 600px;">
+    <div class="card-header">
+        <h2>{{ 'Edit' if field else 'New' }} Field</h2>
+    </div>
+    <div class="card-body">
+        <form method="POST">
+            <div class="form-group">
+                <label class="form-label">Field Name *</label>
+                <input type="text" name="name" class="form-control" required
+                    value="{{ field['name'] if field else '' }}" placeholder="e.g., Estimated Value">
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Field Type</label>
+                <select name="field_type" class="form-control" id="fieldType" onchange="toggleOptions()" {% if field
+                    %}disabled{% endif %}>
+                    {% for key, type_info in field_types.items() %}
+                    <option value="{{ key }}" {% if field and field['field_type']==key %}selected{% endif %}>
+                        {{ type_info['icon'] }} {{ type_info['label'] }}
+                    </option>
+                    {% endfor %}
+                </select>
+                {% if field %}
+                <p class="text-muted text-sm" style="margin-top: 0.25rem;">
+                    Field type cannot be changed after creation.
+                </p>
+                {% endif %}
+            </div>
+
+            <div class="form-group" id="optionsGroup" style="display: none;">
+                <label class="form-label">Options</label>
+                <textarea name="options" class="form-control" rows="3"
+                    placeholder="Enter each option on a new line, e.g.:&#10;Option 1&#10;Option 2&#10;Option 3">{{ field['options'] if field else '' }}</textarea>
+                <p class="text-muted text-sm" style="margin-top: 0.25rem;">
+                    Enter each option on a separate line.
+                </p>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Default Value</label>
+                <input type="text" name="default_value" class="form-control"
+                    value="{{ field['default_value'] if field else '' }}" placeholder="Optional default value">
+            </div>
+
+            <div class="form-group">
+                <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                    <input type="checkbox" name="is_required" {% if field and field['is_required'] %}checked{% endif %}>
+                    <span>Required field</span>
+                </label>
+            </div>
+
+            <div style="display: flex; gap: 0.75rem; margin-top: 1.5rem;">
+                <button type="submit" class="btn btn-primary">
+                    {{ 'Update' if field else 'Create' }} Field
+                </button>
+                <a href="{{ url_for('list_fields') }}" class="btn btn-secondary">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    function toggleOptions() {
+        const fieldType = document.getElementById('fieldType').value;
+        const optionsGroup = document.getElementById('optionsGroup');
+        const needsOptions = ['dropdown', 'multi_select', 'symbol'].includes(fieldType);
+        optionsGroup.style.display = needsOptions ? 'block' : 'none';
+    }
+    // Initialize on page load
+    toggleOptions();
+</script>
+{% endblock %}
