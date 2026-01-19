@@ -24,6 +24,38 @@
         </select>
     </div>
 
+    <!-- Group By Dropdown -->
+    <div class="filter-group dropdown-container">
+        <button class="btn btn-secondary dropdown-toggle" onclick="toggleGroupPanel(event)" id="groupByBtn">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="3" width="18" height="6" rx="1"></rect>
+                <rect x="3" y="12" width="18" height="6" rx="1"></rect>
+            </svg>
+            Group
+            <span class="badge-count group-badge" id="groupCount" {% if group_prefs|length == 0 or (group_prefs|length == 1 and group_prefs[0].field_name == 'status') %}style="display:none"{% endif %}>{{ group_prefs|length }}</span>
+        </button>
+        <div id="groupPanel" class="dropdown-menu group-panel">
+            <div class="group-panel-header">
+                <h4>Group By</h4>
+            </div>
+            <div class="group-panel-body" id="groupLevelsList">
+                <!-- Group levels rendered by JS -->
+            </div>
+            <div class="group-panel-footer">
+                <button class="btn btn-secondary btn-sm" onclick="addGroupLevel()" id="addGroupBtn">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 5v14M5 12h14"></path>
+                    </svg>
+                    Add Group By
+                </button>
+                <div class="group-panel-actions">
+                    <button class="btn btn-link btn-sm" onclick="collapseAllGroups()">Collapse All</button>
+                    <button class="btn btn-link btn-sm" onclick="clearAllGroups()">Clear All</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Fields Dropdown -->
     <div class="filter-group dropdown-container">
         <button class="btn btn-secondary dropdown-toggle" onclick="toggleFieldsDropdown(event)">
@@ -127,195 +159,260 @@
     <div id="recentlyViewedList" class="recently-viewed-list"></div>
 </div>
 
-{% for status in statuses %}
-{% set leads = leads_by_status[status] %}
-{% if not status_filter or status_filter == status %}
-<div class="grid-section" id="section-{{ status | replace(' ', '-') | lower }}" data-stage="{{ status | replace(' ', '-') | lower }}">
+{# Macro for rendering the leads table #}
+{% macro render_leads_table(leads) %}
+<table class="grid-table">
+    <thead>
+        <tr>
+            <th class="checkbox-col">
+                <input type="checkbox" class="row-checkbox select-all-checkbox" onchange="toggleSelectAll(this)" title="Select all">
+            </th>
+            <th class="actions-col-header"></th>
+            <th data-column="name" oncontextmenu="showColumnContextMenu(event, this)">Name</th>
+            <th data-column="email" oncontextmenu="showColumnContextMenu(event, this)" {% if 'email' not in visible_default_fields %}style="display:none"{% endif %}>Contact</th>
+            <th data-column="address" oncontextmenu="showColumnContextMenu(event, this)" {% if 'address' not in visible_default_fields %}style="display:none"{% endif %}>Address</th>
+            <th data-column="job_type" oncontextmenu="showColumnContextMenu(event, this)" {% if 'job_type' not in visible_default_fields %}style="display:none"{% endif %}>Job Type</th>
+            <th data-column="property_type" oncontextmenu="showColumnContextMenu(event, this)" {% if 'property_type' not in visible_default_fields %}style="display:none"{% endif %}>Property</th>
+            {% for cf in all_custom_fields %}
+            <th class="custom-field-header"
+                data-column="custom_{{ cf['id'] }}"
+                data-field-id="{{ cf['id'] }}"
+                data-field-name="{{ cf['name'] }}"
+                oncontextmenu="showFieldContextMenu(event, this)"
+                {% if cf['id'] not in visible_custom_field_ids %}style="display:none"{% endif %}>
+                {{ cf['name'] }}
+            </th>
+            {% endfor %}
+            <th data-column="created" oncontextmenu="showColumnContextMenu(event, this)">Created</th>
+            <th data-column="stage" oncontextmenu="showColumnContextMenu(event, this)">Stage</th>
+            <th class="add-field-header" onclick="openAddFieldModal()" title="Add new field">
+                <span class="add-field-btn">+</span>
+            </th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for lead in leads %}
+        <tr data-lead-id="{{ lead['id'] }}" data-lead-name="{{ lead['name'] }}">
+            <td class="checkbox-col">
+                <input type="checkbox" class="row-checkbox lead-checkbox" data-lead-id="{{ lead['id'] }}" onchange="updateBulkSelection()">
+            </td>
+            <td class="actions-col">
+                <div class="quick-actions">
+                    <a href="{{ url_for('edit_lead', id=lead['id']) }}" class="quick-action-btn" title="Edit">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                        </svg>
+                    </a>
+                    {% if lead['phone'] %}
+                    <a href="tel:{{ lead['phone'] }}" class="quick-action-btn" title="Call">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path>
+                        </svg>
+                    </a>
+                    {% endif %}
+                    {% if lead['email'] %}
+                    <a href="mailto:{{ lead['email'] }}" class="quick-action-btn" title="Email">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+                            <polyline points="22,6 12,13 2,6"></polyline>
+                        </svg>
+                    </a>
+                    {% endif %}
+                    <button class="quick-action-btn danger" title="Delete" data-lead-id="{{ lead['id'] }}" data-lead-name="{{ lead['name'] }}" onclick="deleteLead(this)">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                        </svg>
+                    </button>
+                </div>
+            </td>
+            <td class="lead-name" data-column="name">
+                <a href="{{ url_for('view_lead', id=lead['id']) }}">{{ lead['name'] }}</a>
+            </td>
+            <td data-column="email" {% if 'email' not in visible_default_fields %}style="display:none"{% endif %}>
+                <div class="editable-cell inline-cell"
+                     data-lead-id="{{ lead['id'] }}"
+                     data-field-name="email"
+                     data-field-type="email"
+                     data-value="{{ lead['email'] or '' }}"
+                     onclick="startDefaultEdit(this)">
+                    <span class="cell-display">{{ lead['email'] or '-' }}</span>
+                </div>
+                <div class="editable-cell inline-cell text-muted text-sm"
+                     data-lead-id="{{ lead['id'] }}"
+                     data-field-name="phone"
+                     data-field-type="phone"
+                     data-value="{{ lead['phone'] or '' }}"
+                     onclick="startDefaultEdit(this)">
+                    <span class="cell-display">{{ lead['phone'] or '' }}</span>
+                </div>
+            </td>
+            <td class="editable-cell"
+                data-column="address"
+                data-lead-id="{{ lead['id'] }}"
+                data-field-name="address"
+                data-field-type="text"
+                data-value="{{ lead['address'] or '' }}"
+                onclick="startDefaultEdit(this)"
+                {% if 'address' not in visible_default_fields %}style="display:none"{% endif %}>
+                <span class="cell-display">{{ lead['address'] or '-' }}</span>
+            </td>
+            <td class="editable-cell"
+                data-column="job_type"
+                data-lead-id="{{ lead['id'] }}"
+                data-field-name="job_type"
+                data-field-type="dropdown"
+                data-field-options="{{ job_types | join('\n') }}"
+                data-value="{{ lead['job_type'] or '' }}"
+                onclick="startDefaultEdit(this)"
+                {% if 'job_type' not in visible_default_fields %}style="display:none"{% endif %}>
+                <span class="cell-display">{{ lead['job_type'] or '-' }}</span>
+            </td>
+            <td class="editable-cell"
+                data-column="property_type"
+                data-lead-id="{{ lead['id'] }}"
+                data-field-name="property_type"
+                data-field-type="dropdown"
+                data-field-options="{{ property_types | join('\n') }}"
+                data-value="{{ lead['property_type'] or '' }}"
+                onclick="startDefaultEdit(this)"
+                {% if 'property_type' not in visible_default_fields %}style="display:none"{% endif %}>
+                <span class="cell-display">{{ lead['property_type'] or '-' }}</span>
+            </td>
+            {% for cf in all_custom_fields %}
+            {% set lead_vals = field_values.get(lead['id'], {}) %}
+            {% set val = lead_vals.get(cf['field_key'], {}).get('value', '') %}
+            <td class="editable-cell"
+                data-column="custom_{{ cf['id'] }}"
+                data-lead-id="{{ lead['id'] }}"
+                data-field-id="{{ cf['id'] }}"
+                data-field-type="{{ cf['field_type'] }}"
+                data-field-options="{{ cf['options'] or '' }}"
+                data-value="{{ val }}"
+                onclick="startEdit(this)"
+                {% if cf['id'] not in visible_custom_field_ids %}style="display:none"{% endif %}>
+                <span class="cell-display">
+                {% if cf['field_type'] == 'checkbox' %}
+                {% if val == '1' %}✓{% else %}-{% endif %}
+                {% elif cf['field_type'] == 'multi_select' and val %}
+                {{ val | replace('[', '') | replace(']', '') | replace('"', '') }}
+                {% else %}
+                {{ val or '-' }}
+                {% endif %}
+                </span>
+            </td>
+            {% endfor %}
+            <td class="text-muted text-sm" data-column="created">{{ lead['created_at'] | strftime }}</td>
+            <td data-column="stage">
+                <select class="status-select" onchange="updateStatus({{ lead['id'] }}, this.value)">
+                    {% for s in statuses %}
+                    <option value="{{ s }}" {% if lead['status']==s %}selected{% endif %}>{{ s }}</option>
+                    {% endfor %}
+                </select>
+            </td>
+            <td class="add-field-cell"></td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endmacro %}
+
+{# Render grouped or flat leads #}
+{% if grouped_leads.__flat__ is defined %}
+{# No grouping - flat table #}
+<div class="grid-table-wrapper">
+    {% if grouped_leads.__flat__ %}
+    {{ render_leads_table(grouped_leads.__flat__) }}
+    {% else %}
+    <div class="empty-state">
+        <div class="empty-state-icon">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M20 7H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z"></path>
+                <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
+            </svg>
+        </div>
+        <div>No leads found</div>
+        <a href="{{ url_for('add_lead') }}" class="btn btn-secondary btn-sm" style="margin-top: 0.75rem;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 5v14M5 12h14"></path>
+            </svg>
+            Add Lead
+        </a>
+    </div>
+    {% endif %}
+</div>
+{% else %}
+{# Grouped display #}
+{% for group in grouped_leads %}
+<div class="grid-section" id="section-{{ group.label | replace(' ', '-') | lower }}"
+     data-stage="{{ group.label | replace(' ', '-') | lower }}"
+     data-group-field="{{ group.field }}"
+     data-group-level="{{ group.level }}">
     <div class="grid-section-header" onclick="toggleSection(this.parentElement)">
         <span class="grid-section-toggle">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="m6 9 6 6 6-6"></path>
             </svg>
         </span>
-        <h3>{{ status }}</h3>
-        <span class="grid-section-count">{{ leads | length }}</span>
+        <h3>{{ group.label }}</h3>
+        <span class="grid-section-count">{{ group.count }}</span>
     </div>
 
     <div class="grid-table-wrapper">
-        {% if leads %}
-        <table class="grid-table">
-            <thead>
-                <tr>
-                    <th class="checkbox-col">
-                        <input type="checkbox" class="row-checkbox select-all-checkbox" onchange="toggleSelectAll(this)" title="Select all">
-                    </th>
-                    <th data-column="name">Name</th>
-                    <th data-column="email" {% if 'email' not in visible_default_fields %}style="display:none"{% endif %}>Contact</th>
-                    <th data-column="address" {% if 'address' not in visible_default_fields %}style="display:none"{% endif %}>Address</th>
-                    <th data-column="job_type" {% if 'job_type' not in visible_default_fields %}style="display:none"{% endif %}>Job Type</th>
-                    <th data-column="property_type" {% if 'property_type' not in visible_default_fields %}style="display:none"{% endif %}>Property</th>
-                    {% for cf in all_custom_fields %}
-                    <th class="custom-field-header"
-                        data-column="custom_{{ cf['id'] }}"
-                        data-field-id="{{ cf['id'] }}"
-                        data-field-name="{{ cf['name'] }}"
-                        oncontextmenu="showFieldContextMenu(event, this)"
-                        {% if cf['id'] not in visible_custom_field_ids %}style="display:none"{% endif %}>
-                        {{ cf['name'] }}
-                    </th>
-                    {% endfor %}
-                    <th data-column="created">Created</th>
-                    <th data-column="stage">Stage</th>
-                    <th class="add-field-header" onclick="openAddFieldModal()" title="Add new field">
-                        <span class="add-field-btn">+</span>
-                    </th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for lead in leads %}
-                <tr data-lead-id="{{ lead['id'] }}" data-lead-name="{{ lead['name'] }}">
-                    <td class="checkbox-col">
-                        <input type="checkbox" class="row-checkbox lead-checkbox" data-lead-id="{{ lead['id'] }}" onchange="updateBulkSelection()">
-                    </td>
-                    <td class="lead-name" data-column="name">
-                        <a href="{{ url_for('view_lead', id=lead['id']) }}">{{ lead['name'] }}</a>
-                    </td>
-                    <td data-column="email" {% if 'email' not in visible_default_fields %}style="display:none"{% endif %}>
-                        <div class="editable-cell inline-cell"
-                             data-lead-id="{{ lead['id'] }}"
-                             data-field-name="email"
-                             data-field-type="email"
-                             data-value="{{ lead['email'] or '' }}"
-                             onclick="startDefaultEdit(this)">
-                            <span class="cell-display">{{ lead['email'] or '-' }}</span>
-                        </div>
-                        <div class="editable-cell inline-cell text-muted text-sm"
-                             data-lead-id="{{ lead['id'] }}"
-                             data-field-name="phone"
-                             data-field-type="phone"
-                             data-value="{{ lead['phone'] or '' }}"
-                             onclick="startDefaultEdit(this)">
-                            <span class="cell-display">{{ lead['phone'] or '' }}</span>
-                        </div>
-                    </td>
-                    <td class="editable-cell"
-                        data-column="address"
-                        data-lead-id="{{ lead['id'] }}"
-                        data-field-name="address"
-                        data-field-type="text"
-                        data-value="{{ lead['address'] or '' }}"
-                        onclick="startDefaultEdit(this)"
-                        {% if 'address' not in visible_default_fields %}style="display:none"{% endif %}>
-                        <span class="cell-display">{{ lead['address'] or '-' }}</span>
-                    </td>
-                    <td class="editable-cell"
-                        data-column="job_type"
-                        data-lead-id="{{ lead['id'] }}"
-                        data-field-name="job_type"
-                        data-field-type="dropdown"
-                        data-field-options="{{ job_types | join('\n') }}"
-                        data-value="{{ lead['job_type'] or '' }}"
-                        onclick="startDefaultEdit(this)"
-                        {% if 'job_type' not in visible_default_fields %}style="display:none"{% endif %}>
-                        <span class="cell-display">{{ lead['job_type'] or '-' }}</span>
-                    </td>
-                    <td class="editable-cell"
-                        data-column="property_type"
-                        data-lead-id="{{ lead['id'] }}"
-                        data-field-name="property_type"
-                        data-field-type="dropdown"
-                        data-field-options="{{ property_types | join('\n') }}"
-                        data-value="{{ lead['property_type'] or '' }}"
-                        onclick="startDefaultEdit(this)"
-                        {% if 'property_type' not in visible_default_fields %}style="display:none"{% endif %}>
-                        <span class="cell-display">{{ lead['property_type'] or '-' }}</span>
-                    </td>
-                    {% for cf in all_custom_fields %}
-                    {% set lead_vals = field_values.get(lead['id'], {}) %}
-                    {% set val = lead_vals.get(cf['field_key'], {}).get('value', '') %}
-                    <td class="editable-cell"
-                        data-column="custom_{{ cf['id'] }}"
-                        data-lead-id="{{ lead['id'] }}"
-                        data-field-id="{{ cf['id'] }}"
-                        data-field-type="{{ cf['field_type'] }}"
-                        data-field-options="{{ cf['options'] or '' }}"
-                        data-value="{{ val }}"
-                        onclick="startEdit(this)"
-                        {% if cf['id'] not in visible_custom_field_ids %}style="display:none"{% endif %}>
-                        <span class="cell-display">
-                        {% if cf['field_type'] == 'checkbox' %}
-                        {% if val == '1' %}✓{% else %}-{% endif %}
-                        {% elif cf['field_type'] == 'multi_select' and val %}
-                        {{ val | replace('[', '') | replace(']', '') | replace('"', '') }}
-                        {% else %}
-                        {{ val or '-' }}
-                        {% endif %}
+        {% if group.children and group.children[0] is mapping and group.children[0].label is defined %}
+        {# Nested groups - render recursively #}
+        {% for subgroup in group.children %}
+        <div class="grid-section nested-group" id="section-{{ subgroup.label | replace(' ', '-') | lower }}"
+             data-group-field="{{ subgroup.field }}"
+             data-group-level="{{ subgroup.level }}"
+             style="margin-left: {{ (subgroup.level - 1) * 1.5 }}rem;">
+            <div class="grid-section-header nested" onclick="toggleSection(this.parentElement)">
+                <span class="grid-section-toggle">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="m6 9 6 6 6-6"></path>
+                    </svg>
+                </span>
+                <h4>{{ subgroup.label }}</h4>
+                <span class="grid-section-count">{{ subgroup.count }}</span>
+            </div>
+            <div class="grid-table-wrapper">
+                {% if subgroup.children and subgroup.children[0] is mapping and subgroup.children[0].label is defined %}
+                {# Third level of nesting #}
+                {% for subsubgroup in subgroup.children %}
+                <div class="grid-section nested-group" style="margin-left: {{ (subsubgroup.level - 1) * 1.5 }}rem;">
+                    <div class="grid-section-header nested" onclick="toggleSection(this.parentElement)">
+                        <span class="grid-section-toggle">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="m6 9 6 6 6-6"></path>
+                            </svg>
                         </span>
-                    </td>
-                    {% endfor %}
-                    <td class="text-muted text-sm" data-column="created">{{ lead['created_at'] | strftime }}</td>
-                    <td class="actions-cell" data-column="stage">
-                        <select class="status-select" onchange="updateStatus({{ lead['id'] }}, this.value)">
-                            {% for s in statuses %}
-                            <option value="{{ s }}" {% if lead['status']==s %}selected{% endif %}>{{ s }}</option>
-                            {% endfor %}
-                        </select>
-                        <!-- Quick Actions Overlay -->
-                        <div class="quick-actions">
-                            <a href="{{ url_for('edit_lead', id=lead['id']) }}" class="quick-action-btn" title="Edit">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-                                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-                                </svg>
-                            </a>
-                            {% if lead['phone'] %}
-                            <a href="tel:{{ lead['phone'] }}" class="quick-action-btn" title="Call">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path>
-                                </svg>
-                            </a>
-                            {% endif %}
-                            {% if lead['email'] %}
-                            <a href="mailto:{{ lead['email'] }}" class="quick-action-btn" title="Email">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
-                                    <polyline points="22,6 12,13 2,6"></polyline>
-                                </svg>
-                            </a>
-                            {% endif %}
-                            <button class="quick-action-btn danger" title="Delete" data-lead-id="{{ lead['id'] }}" data-lead-name="{{ lead['name'] }}" onclick="deleteLead(this)">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                                </svg>
-                            </button>
-                        </div>
-                    </td>
-                    <td class="add-field-cell"></td>
-                </tr>
+                        <h5>{{ subsubgroup.label }}</h5>
+                        <span class="grid-section-count">{{ subsubgroup.count }}</span>
+                    </div>
+                    <div class="grid-table-wrapper">
+                        {% if subsubgroup.children %}
+                        {{ render_leads_table(subsubgroup.children) }}
+                        {% endif %}
+                    </div>
+                </div>
                 {% endfor %}
-            </tbody>
-        </table>
+                {% else %}
+                {{ render_leads_table(subgroup.children) }}
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+        {% elif group.children %}
+        {{ render_leads_table(group.children) }}
         {% else %}
         <div class="empty-state">
-            <div class="empty-state-icon">
-                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                    <path d="M20 7H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z"></path>
-                    <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
-                </svg>
-            </div>
-            <div>No leads in this stage</div>
-            <a href="{{ url_for('add_lead') }}?status={{ status | urlencode }}" class="btn btn-secondary btn-sm" style="margin-top: 0.75rem;">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M12 5v14M5 12h14"></path>
-                </svg>
-                Add Lead
-            </a>
+            <div>No leads in this group</div>
         </div>
         {% endif %}
     </div>
 </div>
-{% endif %}
 {% endfor %}
+{% endif %}
 
 <!-- Bulk Actions Bar -->
 <div id="bulkActionsBar" class="bulk-actions-bar">
@@ -340,7 +437,7 @@
     </button>
 </div>
 
-<!-- Context Menu for Column Headers -->
+<!-- Context Menu for Custom Field Headers -->
 <div id="fieldContextMenu" class="context-menu">
     <div class="context-menu-item" onclick="addFieldToRight()">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -360,6 +457,25 @@
             <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
         </svg>
         Delete field
+    </div>
+</div>
+
+<!-- Context Menu for Default Column Headers -->
+<div id="columnContextMenu" class="context-menu">
+    <div class="context-menu-item" onclick="groupByColumn()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="3" width="18" height="6" rx="1"></rect>
+            <rect x="3" y="12" width="18" height="6" rx="1"></rect>
+        </svg>
+        Group by this Field
+    </div>
+    <div class="context-menu-divider"></div>
+    <div class="context-menu-item" onclick="hideColumnFromDisplay()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+            <line x1="1" y1="1" x2="23" y2="23"></line>
+        </svg>
+        Remove from Display
     </div>
 </div>
 
@@ -496,6 +612,83 @@
     .field-checkbox input {
         width: 16px;
         height: 16px;
+    }
+
+    /* Group Panel */
+    .group-panel {
+        min-width: 320px;
+        padding: 0;
+    }
+    .group-panel-header {
+        padding: 0.75rem 1rem;
+        border-bottom: 1px solid var(--gray-200);
+    }
+    .group-panel-header h4 {
+        margin: 0;
+        font-size: 0.9375rem;
+        font-weight: 600;
+    }
+    .group-panel-body {
+        max-height: 250px;
+        overflow-y: auto;
+    }
+    .group-panel-footer {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.75rem 1rem;
+        border-top: 1px solid var(--gray-200);
+        background: var(--gray-50);
+    }
+    .group-panel-actions {
+        display: flex;
+        gap: 0.25rem;
+    }
+    .btn-link {
+        background: none;
+        border: none;
+        color: var(--primary);
+        cursor: pointer;
+        font-size: 0.8125rem;
+        padding: 0.25rem 0.5rem;
+    }
+    .btn-link:hover {
+        text-decoration: underline;
+    }
+
+    /* Badge count on buttons */
+    .badge-count {
+        background: var(--primary);
+        color: white;
+        font-size: 0.6875rem;
+        font-weight: 600;
+        padding: 0.125rem 0.4rem;
+        border-radius: 9999px;
+        margin-left: 0.25rem;
+    }
+    .group-badge {
+        background: var(--primary);
+    }
+
+    /* Nested group styles */
+    .nested-group .grid-section-header {
+        padding: 0.5rem 1rem;
+    }
+    .nested-group .grid-section-header.nested h4,
+    .nested-group .grid-section-header.nested h5 {
+        margin: 0;
+        font-size: 0.875rem;
+        font-weight: 500;
+    }
+    .nested-group .grid-section-count {
+        font-size: 0.75rem;
+    }
+
+    /* Context menu divider */
+    .context-menu-divider {
+        height: 1px;
+        background: var(--gray-200);
+        margin: 0.25rem 0;
     }
 
     /* Views dropdown */
@@ -870,6 +1063,222 @@
     document.addEventListener('click', function(e) {
         if (!e.target.closest('.dropdown-container')) {
             closeAllDropdowns();
+        }
+    });
+
+    // ========== Group By Panel ==========
+    let groupSettings = {{ group_prefs | tojson }};
+    const MAX_GROUP_LEVELS = 3;
+
+    const GROUPABLE_FIELDS = [
+        { key: 'status', name: 'Status' },
+        { key: 'job_type', name: 'Job Type' },
+        { key: 'property_type', name: 'Property Type' },
+        { key: 'created_at', name: 'Created Date' },
+        {% for cf in all_custom_fields %}
+        {% if cf['field_type'] in ['dropdown', 'multi_select', 'checkbox', 'date'] %}
+        { key: 'custom_{{ cf["id"] }}', name: '{{ cf["name"] }}' },
+        {% endif %}
+        {% endfor %}
+    ];
+
+    function toggleGroupPanel(e) {
+        e.stopPropagation();
+        closeAllDropdowns();
+        const panel = document.getElementById('groupPanel');
+        panel.classList.toggle('visible');
+        if (panel.classList.contains('visible')) {
+            renderGroupPanel();
+        }
+    }
+
+    function renderGroupPanel() {
+        const container = document.getElementById('groupLevelsList');
+
+        if (groupSettings.length === 0) {
+            container.innerHTML = `
+                <div class="group-empty-state" style="padding: 1rem; text-align: center; color: var(--gray-500);">
+                    <p style="margin: 0;">No grouping applied</p>
+                    <p style="margin: 0.25rem 0 0; font-size: 0.75rem;">Click "Add Group By" below</p>
+                </div>
+            `;
+        } else {
+            container.innerHTML = groupSettings.map((group, index) => `
+                <div class="group-level" data-level="${index}" style="display: flex; align-items: center; gap: 0.5rem; padding: 0.75rem 1rem; border-bottom: 1px solid var(--gray-100);">
+                    <span class="group-level-number" style="width: 20px; height: 20px; background: var(--gray-200); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.7rem; font-weight: 600;">${index + 1}</span>
+                    <select class="form-control" style="flex: 1; font-size: 0.875rem;" onchange="updateGroupField(${index}, this.value)">
+                        <option value="">Select field...</option>
+                        ${GROUPABLE_FIELDS.map(f => `
+                            <option value="${f.key}" ${group.field_name === f.key ? 'selected' : ''}>
+                                ${f.name}
+                            </option>
+                        `).join('')}
+                    </select>
+                    <div class="group-level-sort" style="display: flex; gap: 0.25rem;">
+                        <button class="btn btn-sm ${group.sort_direction === 'asc' ? 'btn-primary' : 'btn-secondary'}"
+                                onclick="updateGroupSort(${index}, 'asc')" title="A to Z" style="padding: 0.25rem 0.5rem; font-size: 0.7rem;">
+                            A→Z
+                        </button>
+                        <button class="btn btn-sm ${group.sort_direction === 'desc' ? 'btn-primary' : 'btn-secondary'}"
+                                onclick="updateGroupSort(${index}, 'desc')" title="Z to A" style="padding: 0.25rem 0.5rem; font-size: 0.7rem;">
+                            Z→A
+                        </button>
+                    </div>
+                    <button class="group-level-remove" onclick="removeGroupLevel(${index})" title="Remove" style="background: none; border: none; color: var(--gray-400); cursor: pointer; padding: 0.25rem; font-size: 1.25rem; line-height: 1;">
+                        &times;
+                    </button>
+                </div>
+            `).join('');
+        }
+
+        // Update add button state
+        const addBtn = document.getElementById('addGroupBtn');
+        addBtn.disabled = groupSettings.length >= MAX_GROUP_LEVELS;
+        addBtn.style.opacity = groupSettings.length >= MAX_GROUP_LEVELS ? '0.5' : '1';
+
+        // Update badge
+        updateGroupBadge();
+    }
+
+    function addGroupLevel() {
+        if (groupSettings.length >= MAX_GROUP_LEVELS) return;
+
+        // Find first unused field
+        const usedFields = new Set(groupSettings.map(g => g.field_name));
+        const availableField = GROUPABLE_FIELDS.find(f => !usedFields.has(f.key));
+
+        groupSettings.push({
+            field_name: availableField ? availableField.key : '',
+            sort_direction: 'asc'
+        });
+
+        renderGroupPanel();
+    }
+
+    function removeGroupLevel(index) {
+        groupSettings.splice(index, 1);
+        renderGroupPanel();
+        saveGroupSettings();
+    }
+
+    function updateGroupField(index, fieldKey) {
+        groupSettings[index].field_name = fieldKey;
+        saveGroupSettings();
+    }
+
+    function updateGroupSort(index, direction) {
+        groupSettings[index].sort_direction = direction;
+        renderGroupPanel();
+        saveGroupSettings();
+    }
+
+    function clearAllGroups() {
+        groupSettings = [];
+        renderGroupPanel();
+        saveGroupSettings();
+    }
+
+    function collapseAllGroups() {
+        document.querySelectorAll('.grid-section').forEach(section => {
+            section.classList.add('collapsed');
+        });
+        closeAllDropdowns();
+    }
+
+    function saveGroupSettings() {
+        const validGroups = groupSettings.filter(g => g.field_name);
+
+        fetch('/api/user/group-preferences', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify({ groups: validGroups })
+        }).then(response => {
+            if (response.ok) {
+                showToast('Grouping updated', 'success');
+                setTimeout(() => window.location.reload(), 500);
+            }
+        });
+    }
+
+    function updateGroupBadge() {
+        const badge = document.getElementById('groupCount');
+        const count = groupSettings.filter(g => g.field_name).length;
+        const isDefaultStatusOnly = count === 1 && groupSettings[0].field_name === 'status';
+
+        if (count > 0 && !isDefaultStatusOnly) {
+            badge.textContent = count;
+            badge.style.display = '';
+        } else {
+            badge.style.display = 'none';
+        }
+    }
+
+    // Initialize group panel on page load
+    document.addEventListener('DOMContentLoaded', () => {
+        updateGroupBadge();
+    });
+
+    // ========== Column Context Menu ==========
+    let contextColumn = null;
+
+    function showColumnContextMenu(event, element) {
+        event.preventDefault();
+
+        const columnKey = element.dataset.column;
+
+        contextColumn = {
+            key: columnKey,
+            element: element,
+            name: element.textContent.trim()
+        };
+
+        const menu = document.getElementById('columnContextMenu');
+        menu.style.left = event.clientX + 'px';
+        menu.style.top = event.clientY + 'px';
+        menu.classList.add('visible');
+    }
+
+    function hideColumnContextMenu() {
+        const menu = document.getElementById('columnContextMenu');
+        if (menu) menu.classList.remove('visible');
+    }
+
+    function groupByColumn() {
+        hideColumnContextMenu();
+        if (!contextColumn) return;
+
+        const existingIdx = groupSettings.findIndex(g => g.field_name === contextColumn.key);
+        if (existingIdx === -1 && groupSettings.length < MAX_GROUP_LEVELS) {
+            groupSettings.push({ field_name: contextColumn.key, sort_direction: 'asc' });
+            saveGroupSettings();
+        } else if (existingIdx === -1) {
+            showToast('Maximum 3 group levels allowed', 'warning');
+        } else {
+            showToast('Already grouping by this field', 'info');
+        }
+    }
+
+    function hideColumnFromDisplay() {
+        hideColumnContextMenu();
+        if (!contextColumn || contextColumn.key === 'name') return;
+
+        // Hide the column
+        toggleColumn(contextColumn.key, false);
+
+        // Update checkbox in Fields dropdown
+        const checkbox = document.querySelector(`#fieldsDropdown input[data-column="${contextColumn.key}"]`);
+        if (checkbox) checkbox.checked = false;
+
+        showToast(`"${contextColumn.name}" hidden`, 'success');
+    }
+
+    // Close column context menu on click outside
+    document.addEventListener('click', (e) => {
+        if (!e.target.closest('#columnContextMenu')) {
+            hideColumnContextMenu();
         }
     });
 

@@ -147,6 +147,25 @@ def init_db():
                 key TEXT UNIQUE NOT NULL,
                 value TEXT
             );
+
+            CREATE TABLE IF NOT EXISTS user_field_preferences (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                field_name TEXT NOT NULL,
+                display_order INTEGER DEFAULT 0,
+                is_visible BOOLEAN DEFAULT 1,
+                FOREIGN KEY (user_id) REFERENCES users (id),
+                UNIQUE(user_id, field_name)
+            );
+
+            CREATE TABLE IF NOT EXISTS user_group_preferences (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                group_level INTEGER DEFAULT 1,
+                field_name TEXT NOT NULL,
+                sort_direction TEXT DEFAULT 'asc',
+                FOREIGN KEY (user_id) REFERENCES users (id)
+            );
         ''')
 
         # Migration: Add default_fields column to views if it doesn't exist
@@ -277,35 +296,47 @@ def logout():
 def leads():
     status_filter = request.args.get('status', '')
     search = request.args.get('search', '')
-    
-    # Group leads by status
-    leads_by_status = {}
-    for status in STATUSES:
-        if status_filter and status_filter != status:
-            leads_by_status[status] = []
-            continue
-            
-        query = 'SELECT * FROM leads WHERE status = ? AND deleted_at IS NULL'
-        args = [status]
-
-        if search:
-            query += ' AND (name LIKE ? OR email LIKE ? OR address LIKE ? OR phone LIKE ?)'
-            search_term = f'%{search}%'
-            args.extend([search_term, search_term, search_term, search_term])
-
-        query += ' ORDER BY created_at DESC'
-        leads_by_status[status] = query_db(query, args)
-    
-    # Get all custom fields for the field selector
     user_id = session.get('user_id')
+
+    # Get user's grouping preferences
+    group_prefs = get_user_group_preferences(user_id)
+
+    # If no group preferences, default to grouping by status
+    if not group_prefs:
+        group_prefs = [{'field_name': 'status', 'sort_direction': 'asc'}]
+
+    # Build query for all leads
+    query = 'SELECT * FROM leads WHERE deleted_at IS NULL'
+    args = []
+
+    if status_filter:
+        query += ' AND status = ?'
+        args.append(status_filter)
+
+    if search:
+        query += ' AND (name LIKE ? OR email LIKE ? OR address LIKE ? OR phone LIKE ?)'
+        search_term = f'%{search}%'
+        args.extend([search_term, search_term, search_term, search_term])
+
+    query += ' ORDER BY created_at DESC'
+    all_leads = query_db(query, args)
+
+    # Get all custom fields for the field selector
     all_custom_fields = get_custom_fields()
+
+    # Get custom field values for all leads first (needed for grouping)
+    all_lead_values = {}
+    for lead in all_leads:
+        all_lead_values[lead['id']] = get_field_values(lead['id'])
+
+    # Group leads using user preferences
+    grouped_leads = group_leads_by_fields(all_leads, group_prefs, all_lead_values)
 
     # Check if user has a view selected
     current_view = get_user_current_view(user_id)
     all_views = get_all_views()
 
     # Determine visible fields based on view or default (show all)
-    import json
     if current_view:
         # Get default fields from view
         visible_default_fields = json.loads(current_view['default_fields'] or '[]')
@@ -317,14 +348,9 @@ def leads():
         visible_default_fields = ['email', 'phone', 'address', 'job_type', 'property_type']
         visible_custom_field_ids = [f['id'] for f in all_custom_fields]
 
-    # Get custom field values for all leads
-    all_lead_values = {}
-    for status_leads in leads_by_status.values():
-        for lead in status_leads:
-            all_lead_values[lead['id']] = get_field_values(lead['id'])
-
     return render_template('leads.html',
-                         leads_by_status=leads_by_status,
+                         grouped_leads=grouped_leads,
+                         group_prefs=group_prefs,
                          statuses=STATUSES,
                          job_types=JOB_TYPES,
                          property_types=PROPERTY_TYPES,
@@ -974,6 +1000,77 @@ def set_user_current_view(user_id, view_id):
             [user_id, view_id]
         )
 
+# Grouping Helper Functions
+def get_user_group_preferences(user_id):
+    """Get user's grouping preferences"""
+    prefs = query_db('''
+        SELECT group_level, field_name, sort_direction
+        FROM user_group_preferences
+        WHERE user_id = ?
+        ORDER BY group_level
+    ''', [user_id])
+    return [dict(p) for p in prefs] if prefs else []
+
+def group_leads_by_fields(leads, group_prefs, all_field_values):
+    """
+    Groups leads recursively by user's group preferences.
+    Returns a nested structure for template rendering.
+    """
+    if not group_prefs or not group_prefs[0].get('field_name'):
+        # No grouping - return flat list
+        return {'__flat__': list(leads)}
+
+    def get_group_value(lead, field_name):
+        """Get the value for a field from a lead"""
+        if field_name.startswith('custom_'):
+            # Custom field - look up in field_values
+            field_id = int(field_name.replace('custom_', ''))
+            # Find the custom field
+            cf = query_db('SELECT field_key FROM custom_fields WHERE id = ?', [field_id], one=True)
+            if cf:
+                values = all_field_values.get(lead['id'], {})
+                val = values.get(cf['field_key'], {}).get('value', '')
+                return val if val else 'Uncategorized'
+            return 'Uncategorized'
+        else:
+            # Default field
+            val = lead.get(field_name, '')
+            return val if val else 'Uncategorized'
+
+    def recursive_group(leads_list, level):
+        if level >= len(group_prefs):
+            return list(leads_list)
+
+        pref = group_prefs[level]
+        field_name = pref['field_name']
+        sort_dir = pref.get('sort_direction', 'asc')
+
+        # Group by field value
+        groups = {}
+        for lead in leads_list:
+            key = get_group_value(lead, field_name)
+            if key not in groups:
+                groups[key] = []
+            groups[key].append(lead)
+
+        # Sort group keys
+        sorted_keys = sorted(groups.keys(), reverse=(sort_dir == 'desc'))
+
+        # Build result with recursive children
+        result = []
+        for key in sorted_keys:
+            result.append({
+                'label': key,
+                'field': field_name,
+                'level': level + 1,
+                'count': len(groups[key]),
+                'children': recursive_group(groups[key], level + 1)
+            })
+
+        return result
+
+    return recursive_group(list(leads), 0)
+
 # Custom Fields Management Routes
 @app.route('/fields')
 @login_required
@@ -1358,6 +1455,88 @@ def select_view():
             })
 
     return jsonify({'success': True, 'view': None})
+
+@app.route('/api/user/field-preferences', methods=['GET', 'POST'])
+@login_required
+def api_field_preferences():
+    """Get or save user's field display preferences"""
+    user_id = session.get('user_id')
+
+    if request.method == 'GET':
+        prefs = query_db('''
+            SELECT field_name, display_order, is_visible
+            FROM user_field_preferences
+            WHERE user_id = ?
+            ORDER BY display_order
+        ''', [user_id])
+
+        return jsonify({
+            'success': True,
+            'preferences': [dict(p) for p in prefs]
+        })
+
+    else:  # POST
+        data = request.get_json()
+        fields = data.get('fields', [])
+
+        # Clear existing preferences
+        execute_db('DELETE FROM user_field_preferences WHERE user_id = ?', [user_id])
+
+        # Insert new preferences
+        for field in fields:
+            execute_db('''
+                INSERT INTO user_field_preferences (user_id, field_name, display_order, is_visible)
+                VALUES (?, ?, ?, ?)
+            ''', [
+                user_id,
+                field['field_name'],
+                field['display_order'],
+                1 if field['is_visible'] else 0
+            ])
+
+        return jsonify({'success': True})
+
+@app.route('/api/user/group-preferences', methods=['GET', 'POST'])
+@login_required
+def api_group_preferences():
+    """Get or save user's grouping preferences"""
+    user_id = session.get('user_id')
+
+    if request.method == 'GET':
+        prefs = query_db('''
+            SELECT group_level, field_name, sort_direction
+            FROM user_group_preferences
+            WHERE user_id = ?
+            ORDER BY group_level
+        ''', [user_id])
+
+        return jsonify({
+            'success': True,
+            'preferences': [dict(p) for p in prefs]
+        })
+
+    else:  # POST
+        data = request.get_json()
+        groups = data.get('groups', [])
+
+        # Clear existing preferences
+        execute_db('DELETE FROM user_group_preferences WHERE user_id = ?', [user_id])
+
+        # Insert new preferences
+        for i, group in enumerate(groups):
+            if group.get('field_name'):
+                execute_db('''
+                    INSERT INTO user_group_preferences
+                    (user_id, group_level, field_name, sort_direction)
+                    VALUES (?, ?, ?, ?)
+                ''', [
+                    user_id,
+                    i + 1,
+                    group['field_name'],
+                    group.get('sort_direction', 'asc')
+                ])
+
+        return jsonify({'success': True})
 
 # Template filters
 @app.template_filter('strftime')
