@@ -3,298 +3,350 @@
 {% block title %}Settings - CRM{% endblock %}
 
 {% block content %}
-<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; max-width: 1000px;">
-    <!-- Left Column -->
-    <div>
-        <!-- Account Settings -->
-        <div class="card">
-            <div class="card-header">
-                <h2>Account</h2>
-            </div>
-            <div class="card-body">
-                <p class="text-muted" style="margin-bottom: 1.5rem;">
-                    Logged in as <strong>{{ user['name'] }}</strong> ({{ user['email'] }})
-                </p>
+<div class="settings-layout">
+    <!-- Settings Navigation -->
+    <nav class="settings-nav">
+        <a href="#account" class="settings-nav-item active" data-section="account">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                <circle cx="12" cy="7" r="4"></circle>
+            </svg>
+            Account
+        </a>
+        <a href="#integrations" class="settings-nav-item" data-section="integrations">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M18 20V10"></path>
+                <path d="M12 20V4"></path>
+                <path d="M6 20v-6"></path>
+            </svg>
+            API & Integrations
+        </a>
+        <a href="#data" class="settings-nav-item" data-section="data">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="7 10 12 15 17 10"></polyline>
+                <line x1="12" y1="15" x2="12" y2="3"></line>
+            </svg>
+            Data & Backups
+        </a>
+        <a href="#users" class="settings-nav-item" data-section="users">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                <circle cx="9" cy="7" r="4"></circle>
+                <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+            </svg>
+            Users
+        </a>
+    </nav>
 
-                <!-- Change Name -->
-                <form method="POST" action="{{ url_for('change_name') }}" style="margin-bottom: 1.5rem;">
-                    <div class="form-group">
-                        <label class="form-label">Display Name</label>
-                        <div style="display: flex; gap: 0.5rem;">
-                            <input type="text" name="new_name" class="form-control" value="{{ user['name'] }}" required>
-                            <button type="submit" class="btn btn-secondary">Update</button>
+    <!-- Settings Content -->
+    <div class="settings-content">
+        <!-- Account Section -->
+        <section id="account" class="settings-section active">
+            <div class="settings-section-header">
+                <h2>Account Settings</h2>
+                <p class="text-muted">Manage your profile and security</p>
+            </div>
+
+            <div class="card">
+                <div class="card-body">
+                    <p class="text-muted" style="margin-bottom: 1.5rem;">
+                        Logged in as <strong>{{ user['name'] }}</strong> ({{ user['email'] }})
+                    </p>
+
+                    <!-- Change Name -->
+                    <form method="POST" action="{{ url_for('change_name') }}" style="margin-bottom: 1.5rem;">
+                        <div class="form-group">
+                            <label class="form-label">Display Name</label>
+                            <div style="display: flex; gap: 0.5rem;">
+                                <input type="text" name="new_name" class="form-control" value="{{ user['name'] }}" required>
+                                <button type="submit" class="btn btn-secondary">Update</button>
+                            </div>
                         </div>
-                    </div>
-                </form>
+                    </form>
 
-                <!-- Change Email -->
-                <form method="POST" action="{{ url_for('change_email') }}" style="margin-bottom: 1.5rem;">
-                    <div class="form-group">
-                        <label class="form-label">Email Address</label>
-                        <input type="email" name="new_email" class="form-control" value="{{ user['email'] }}" required>
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Confirm with Password</label>
-                        <input type="password" name="password_for_email" class="form-control" placeholder="Enter your password" required>
-                    </div>
-                    <button type="submit" class="btn btn-secondary">Update Email</button>
-                </form>
+                    <!-- Change Email -->
+                    <form method="POST" action="{{ url_for('change_email') }}" style="margin-bottom: 1.5rem;">
+                        <div class="form-group">
+                            <label class="form-label">Email Address</label>
+                            <input type="email" name="new_email" class="form-control" value="{{ user['email'] }}" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Confirm with Password</label>
+                            <input type="password" name="password_for_email" class="form-control" placeholder="Enter your password" required>
+                        </div>
+                        <button type="submit" class="btn btn-secondary">Update Email</button>
+                    </form>
 
-                <hr style="margin: 1.5rem 0; border: none; border-top: 1px solid var(--gray-200);">
+                    <hr style="margin: 1.5rem 0; border: none; border-top: 1px solid var(--gray-200);">
 
-                <!-- Change Password -->
-                <h3 style="font-size: 1rem; margin-bottom: 1rem;">Change Password</h3>
-                <form method="POST" action="{{ url_for('change_password') }}">
-                    <div class="form-group">
-                        <label class="form-label">Current Password</label>
-                        <input type="password" name="current_password" class="form-control" required>
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">New Password</label>
-                        <input type="password" name="new_password" class="form-control" required minlength="6">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Confirm New Password</label>
-                        <input type="password" name="confirm_password" class="form-control" required minlength="6">
-                    </div>
-                    <button type="submit" class="btn btn-primary">Change Password</button>
-                </form>
+                    <!-- Change Password -->
+                    <h3 style="font-size: 1rem; margin-bottom: 1rem;">Change Password</h3>
+                    <form method="POST" action="{{ url_for('change_password') }}">
+                        <div class="form-group">
+                            <label class="form-label">Current Password</label>
+                            <input type="password" name="current_password" class="form-control" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">New Password</label>
+                            <input type="password" name="new_password" class="form-control" required minlength="6">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Confirm New Password</label>
+                            <input type="password" name="confirm_password" class="form-control" required minlength="6">
+                        </div>
+                        <button type="submit" class="btn btn-primary">Change Password</button>
+                    </form>
+                </div>
             </div>
-        </div>
+        </section>
 
-        <!-- API & Integrations -->
-        <div class="card" style="margin-top: 1.5rem;">
-            <div class="card-header">
+        <!-- API & Integrations Section -->
+        <section id="integrations" class="settings-section">
+            <div class="settings-section-header">
                 <h2>API & Integrations</h2>
+                <p class="text-muted">Connect external services and manage API access</p>
             </div>
-            <div class="card-body">
-                <!-- API Key Section -->
-                <h3 style="font-size: 1rem; margin-bottom: 1rem;">API Key</h3>
-                {% if api_key %}
-                <div class="form-group">
-                    <label class="form-label">Your API Key</label>
-                    <div style="display: flex; gap: 0.5rem;">
-                        <input type="text" class="form-control" value="{{ api_key }}" readonly id="apiKeyInput" style="font-family: monospace; font-size: 0.875rem;">
-                        <button type="button" class="btn btn-secondary" onclick="copyApiKey()" title="Copy to clipboard">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-                                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-                            </svg>
-                        </button>
-                    </div>
-                    <p class="text-muted text-sm" style="margin-top: 0.5rem;">
-                        Use this key in the <code>X-API-Key</code> header or <code>?api_key=</code> query parameter.
-                    </p>
-                </div>
-                <div style="display: flex; gap: 0.5rem; margin-bottom: 1.5rem;">
-                    <form method="POST" action="{{ url_for('generate_api_key') }}" style="display: inline;">
-                        <button type="submit" class="btn btn-secondary" onclick="return confirm('Generate a new API key? The old key will stop working.')">Regenerate Key</button>
-                    </form>
-                    <form method="POST" action="{{ url_for('revoke_api_key') }}" style="display: inline;">
-                        <button type="submit" class="btn btn-danger" onclick="return confirm('Revoke API key? All API access will be disabled.')">Revoke Key</button>
-                    </form>
-                </div>
-                {% else %}
-                <p class="text-muted" style="margin-bottom: 1rem;">No API key configured. Generate one to enable API access.</p>
-                <form method="POST" action="{{ url_for('generate_api_key') }}" style="margin-bottom: 1.5rem;">
-                    <button type="submit" class="btn btn-primary">Generate API Key</button>
-                </form>
-                {% endif %}
 
-                <hr style="margin: 1.5rem 0; border: none; border-top: 1px solid var(--gray-200);">
-
-                <!-- API Endpoints -->
-                <h3 style="font-size: 1rem; margin-bottom: 1rem;">API Endpoints</h3>
-
-                <div class="form-group">
-                    <label class="form-label">GET Leads (fetch all leads)</label>
-                    <code style="display: block; background: var(--gray-100); padding: 0.5rem; border-radius: 4px; font-size: 0.8125rem;">
-                        GET {{ request.url_root }}api/leads
-                    </code>
-                    <p class="text-muted text-sm" style="margin-top: 0.25rem;">
-                        Returns JSON array of all leads.
-                    </p>
-                </div>
-
-                <div class="form-group">
-                    <label class="form-label">POST Lead (create new lead)</label>
-                    <code style="display: block; background: var(--gray-100); padding: 0.5rem; border-radius: 4px; font-size: 0.8125rem;">
-                        POST {{ request.url_root }}api/leads
-                    </code>
-                    <p class="text-muted text-sm" style="margin-top: 0.25rem;">
-                        Send JSON body with: <code>name</code> (required), <code>email</code>, <code>phone</code>, <code>address</code>, <code>job_type</code>, <code>property_type</code>, <code>status</code>, <code>notes</code>
-                    </p>
-                </div>
-
-                <hr style="margin: 1.5rem 0; border: none; border-top: 1px solid var(--gray-200);">
-
-                <!-- Outgoing Webhook -->
-                <h3 style="font-size: 1rem; margin-bottom: 1rem;">Outgoing Webhook (Zapier)</h3>
-                <form method="POST">
+            <div class="card">
+                <div class="card-body">
+                    <!-- API Key Section -->
+                    <h3 style="font-size: 1rem; margin-bottom: 1rem;">API Key</h3>
+                    {% if api_key %}
                     <div class="form-group">
-                        <label class="form-label">Webhook URL</label>
-                        <input type="url" name="zapier_webhook" class="form-control"
-                               value="{{ zapier_webhook }}"
-                               placeholder="https://hooks.zapier.com/hooks/catch/...">
+                        <label class="form-label">Your API Key</label>
+                        <div style="display: flex; gap: 0.5rem;">
+                            <input type="text" class="form-control" value="{{ api_key }}" readonly id="apiKeyInput" style="font-family: monospace; font-size: 0.875rem;">
+                            <button type="button" class="btn btn-secondary" onclick="copyApiKey()" title="Copy to clipboard">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                                </svg>
+                            </button>
+                        </div>
                         <p class="text-muted text-sm" style="margin-top: 0.5rem;">
-                            A POST request will be sent to this URL whenever a new lead is added.
+                            Use this key in the <code>X-API-Key</code> header or <code>?api_key=</code> query parameter.
                         </p>
                     </div>
-                    <button type="submit" class="btn btn-primary">Save Webhook</button>
-                </form>
-            </div>
-        </div>
-    </div>
+                    <div style="display: flex; gap: 0.5rem; margin-bottom: 1.5rem;">
+                        <form method="POST" action="{{ url_for('generate_api_key') }}" style="display: inline;">
+                            <button type="submit" class="btn btn-secondary" onclick="return confirm('Generate a new API key? The old key will stop working.')">Regenerate Key</button>
+                        </form>
+                        <form method="POST" action="{{ url_for('revoke_api_key') }}" style="display: inline;">
+                            <button type="submit" class="btn btn-danger" onclick="return confirm('Revoke API key? All API access will be disabled.')">Revoke Key</button>
+                        </form>
+                    </div>
+                    {% else %}
+                    <p class="text-muted" style="margin-bottom: 1rem;">No API key configured. Generate one to enable API access.</p>
+                    <form method="POST" action="{{ url_for('generate_api_key') }}" style="margin-bottom: 1.5rem;">
+                        <button type="submit" class="btn btn-primary">Generate API Key</button>
+                    </form>
+                    {% endif %}
 
-    <!-- Right Column -->
-    <div>
-        <!-- Data & Backups -->
-        <div class="card">
-            <div class="card-header">
-                <h2>Data & Backups</h2>
-            </div>
-            <div class="card-body">
-                <!-- Backup Status -->
-                <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem; padding: 1rem; background: var(--gray-50); border-radius: 8px;">
-                    <div style="width: 48px; height: 48px; background: var(--success-light, #dcfce7); border-radius: 50%; display: flex; align-items: center; justify-content: center;">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--success)" stroke-width="2">
-                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                            <polyline points="7 10 12 15 17 10"></polyline>
-                            <line x1="12" y1="15" x2="12" y2="3"></line>
-                        </svg>
+                    <hr style="margin: 1.5rem 0; border: none; border-top: 1px solid var(--gray-200);">
+
+                    <!-- API Endpoints -->
+                    <h3 style="font-size: 1rem; margin-bottom: 1rem;">API Endpoints</h3>
+
+                    <div class="form-group">
+                        <label class="form-label">GET Leads (fetch all leads)</label>
+                        <code style="display: block; background: var(--gray-100); padding: 0.5rem; border-radius: 4px; font-size: 0.8125rem;">
+                            GET {{ request.url_root }}api/leads
+                        </code>
+                        <p class="text-muted text-sm" style="margin-top: 0.25rem;">
+                            Returns JSON array of all leads.
+                        </p>
                     </div>
-                    <div>
-                        {% if last_backup %}
-                        <div style="font-weight: 500;">Last backup: {{ last_backup | strftime('%b %d, %Y at %I:%M %p') }}</div>
-                        {% else %}
-                        <div style="font-weight: 500;">No backups yet</div>
-                        {% endif %}
-                        <div class="text-muted text-sm">{{ backup_count }} backup(s) stored</div>
+
+                    <div class="form-group">
+                        <label class="form-label">POST Lead (create new lead)</label>
+                        <code style="display: block; background: var(--gray-100); padding: 0.5rem; border-radius: 4px; font-size: 0.8125rem;">
+                            POST {{ request.url_root }}api/leads
+                        </code>
+                        <p class="text-muted text-sm" style="margin-top: 0.25rem;">
+                            Send JSON body with: <code>name</code> (required), <code>email</code>, <code>phone</code>, <code>address</code>, <code>job_type</code>, <code>property_type</code>, <code>status</code>, <code>notes</code>
+                        </p>
                     </div>
+
+                    <hr style="margin: 1.5rem 0; border: none; border-top: 1px solid var(--gray-200);">
+
+                    <!-- Outgoing Webhook -->
+                    <h3 style="font-size: 1rem; margin-bottom: 1rem;">Outgoing Webhook (Zapier)</h3>
+                    <form method="POST">
+                        <div class="form-group">
+                            <label class="form-label">Webhook URL</label>
+                            <input type="url" name="zapier_webhook" class="form-control"
+                                   value="{{ zapier_webhook }}"
+                                   placeholder="https://hooks.zapier.com/hooks/catch/...">
+                            <p class="text-muted text-sm" style="margin-top: 0.5rem;">
+                                A POST request will be sent to this URL whenever a new lead is added.
+                            </p>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Save Webhook</button>
+                    </form>
                 </div>
+            </div>
+        </section>
 
-                <!-- Manual Backup -->
-                <div style="display: flex; gap: 0.5rem; margin-bottom: 1rem;">
-                    <form method="POST" action="{{ url_for('manual_backup') }}" style="display: inline;">
-                        <button type="submit" class="btn btn-primary">
+        <!-- Data & Backups Section -->
+        <section id="data" class="settings-section">
+            <div class="settings-section-header">
+                <h2>Data & Backups</h2>
+                <p class="text-muted">Manage your database backups and deleted leads</p>
+            </div>
+
+            <div class="card">
+                <div class="card-body">
+                    <!-- Backup Status -->
+                    <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem; padding: 1rem; background: var(--gray-50); border-radius: 8px;">
+                        <div style="width: 48px; height: 48px; background: var(--success-light, #dcfce7); border-radius: 50%; display: flex; align-items: center; justify-content: center;">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--success)" stroke-width="2">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                <polyline points="7 10 12 15 17 10"></polyline>
+                                <line x1="12" y1="15" x2="12" y2="3"></line>
+                            </svg>
+                        </div>
+                        <div>
+                            {% if last_backup %}
+                            <div style="font-weight: 500;">Last backup: {{ last_backup | strftime('%b %d, %Y at %I:%M %p') }}</div>
+                            {% else %}
+                            <div style="font-weight: 500;">No backups yet</div>
+                            {% endif %}
+                            <div class="text-muted text-sm">{{ backup_count }} backup(s) stored</div>
+                        </div>
+                    </div>
+
+                    <!-- Manual Backup -->
+                    <div style="display: flex; gap: 0.5rem; margin-bottom: 1rem;">
+                        <form method="POST" action="{{ url_for('manual_backup') }}" style="display: inline;">
+                            <button type="submit" class="btn btn-primary">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                    <polyline points="7 10 12 15 17 10"></polyline>
+                                    <line x1="12" y1="15" x2="12" y2="3"></line>
+                                </svg>
+                                Create Backup Now
+                            </button>
+                        </form>
+                        {% if backup_count > 0 %}
+                        <a href="{{ url_for('download_backup') }}" class="btn btn-secondary">
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
                                 <polyline points="7 10 12 15 17 10"></polyline>
                                 <line x1="12" y1="15" x2="12" y2="3"></line>
                             </svg>
-                            Create Backup Now
-                        </button>
-                    </form>
-                    {% if backup_count > 0 %}
-                    <a href="{{ url_for('download_backup') }}" class="btn btn-secondary">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                            <polyline points="7 10 12 15 17 10"></polyline>
-                            <line x1="12" y1="15" x2="12" y2="3"></line>
-                        </svg>
-                        Download Latest
-                    </a>
-                    {% endif %}
-                </div>
-
-                <hr style="margin: 1.5rem 0; border: none; border-top: 1px solid var(--gray-200);">
-
-                <!-- Email Backup Settings -->
-                <h3 style="font-size: 1rem; margin-bottom: 1rem;">Email Backups</h3>
-                <form method="POST" action="{{ url_for('save_backup_email') }}">
-                    <div class="form-group">
-                        <label class="form-label">Send backups to email</label>
-                        <input type="email" name="backup_email" class="form-control"
-                               value="{{ backup_email }}"
-                               placeholder="your@email.com">
-                        <p class="text-muted text-sm" style="margin-top: 0.5rem;">
-                            Requires SMTP configuration (see backup.py for setup instructions).
-                        </p>
+                            Download Latest
+                        </a>
+                        {% endif %}
                     </div>
-                    <button type="submit" class="btn btn-secondary">Save Email</button>
-                </form>
 
-                <hr style="margin: 1.5rem 0; border: none; border-top: 1px solid var(--gray-200);">
+                    <hr style="margin: 1.5rem 0; border: none; border-top: 1px solid var(--gray-200);">
 
-                <!-- Trash Info -->
-                <h3 style="font-size: 1rem; margin-bottom: 1rem;">Trash</h3>
-                <p class="text-muted" style="margin-bottom: 0.75rem;">
-                    {% if trash_count > 0 %}
-                    <strong>{{ trash_count }}</strong> lead(s) in trash.
-                    {% else %}
-                    Trash is empty.
-                    {% endif %}
-                    Deleted leads can be restored from the trash.
-                </p>
-                <a href="{{ url_for('trash') }}" class="btn btn-secondary btn-sm">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                    </svg>
-                    View Trash
-                </a>
+                    <!-- Email Backup Settings -->
+                    <h3 style="font-size: 1rem; margin-bottom: 1rem;">Email Backups</h3>
+                    <form method="POST" action="{{ url_for('save_backup_email') }}">
+                        <div class="form-group">
+                            <label class="form-label">Send backups to email</label>
+                            <input type="email" name="backup_email" class="form-control"
+                                   value="{{ backup_email }}"
+                                   placeholder="your@email.com">
+                            <p class="text-muted text-sm" style="margin-top: 0.5rem;">
+                                Requires SMTP configuration (see backup.py for setup instructions).
+                            </p>
+                        </div>
+                        <button type="submit" class="btn btn-secondary">Save Email</button>
+                    </form>
+
+                    <hr style="margin: 1.5rem 0; border: none; border-top: 1px solid var(--gray-200);">
+
+                    <!-- Trash Info -->
+                    <h3 style="font-size: 1rem; margin-bottom: 1rem;">Trash</h3>
+                    <p class="text-muted" style="margin-bottom: 0.75rem;">
+                        {% if trash_count > 0 %}
+                        <strong>{{ trash_count }}</strong> lead(s) in trash.
+                        {% else %}
+                        Trash is empty.
+                        {% endif %}
+                        Deleted leads can be restored from the trash.
+                    </p>
+                    <a href="{{ url_for('trash') }}" class="btn btn-secondary btn-sm">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                        </svg>
+                        View Trash
+                    </a>
+                </div>
             </div>
-        </div>
+        </section>
 
-        <!-- User Management -->
-        <div class="card" style="margin-top: 1.5rem;">
-            <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
-                <h2>Users</h2>
-                <button class="btn btn-primary btn-sm" onclick="document.getElementById('addUserModal').classList.add('visible')">
-                    + Add User
-                </button>
+        <!-- Users Section -->
+        <section id="users" class="settings-section">
+            <div class="settings-section-header">
+                <h2>User Management</h2>
+                <p class="text-muted">Add and manage users who can access the CRM</p>
             </div>
-            <div class="card-body" style="padding: 0;">
-                <table class="grid-table" style="margin: 0;">
-                    <thead>
-                        <tr>
-                            <th>Name</th>
-                            <th>Email</th>
-                            <th>Role</th>
-                            <th style="width: 100px;">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for u in users %}
-                        <tr>
-                            <td>
-                                <strong>{{ u['name'] }}</strong>
-                                {% if u['id'] == session.user_id %}
-                                <span class="text-muted text-sm">(you)</span>
-                                {% endif %}
-                            </td>
-                            <td class="text-muted">{{ u['email'] }}</td>
-                            <td>
-                                <span class="badge" style="background: {% if u['role'] == 'admin' %}var(--primary){% else %}var(--gray-200){% endif %}; color: {% if u['role'] == 'admin' %}white{% else %}var(--gray-700){% endif %};">
-                                    {{ u['role'] }}
-                                </span>
-                            </td>
-                            <td>
-                                {% if u['id'] != session.user_id %}
-                                <div style="display: flex; gap: 0.25rem;">
-                                    <button class="btn btn-secondary btn-sm" onclick="openResetPassword({{ u['id'] }}, '{{ u['name'] }}')" title="Reset password">
-                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
-                                            <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
-                                        </svg>
-                                    </button>
-                                    <form method="POST" action="{{ url_for('delete_user', id=u['id']) }}" style="display: inline;">
-                                        <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Delete user {{ u['name'] }}?')" title="Delete user">
+
+            <div class="card">
+                <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+                    <h3 style="font-size: 1rem; margin: 0;">All Users</h3>
+                    <button class="btn btn-primary btn-sm" onclick="document.getElementById('addUserModal').classList.add('visible')">
+                        + Add User
+                    </button>
+                </div>
+                <div class="card-body" style="padding: 0;">
+                    <table class="grid-table" style="margin: 0;">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Email</th>
+                                <th>Role</th>
+                                <th style="width: 100px;">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for u in users %}
+                            <tr>
+                                <td>
+                                    <strong>{{ u['name'] }}</strong>
+                                    {% if u['id'] == session.user_id %}
+                                    <span class="text-muted text-sm">(you)</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-muted">{{ u['email'] }}</td>
+                                <td>
+                                    <span class="badge" style="background: {% if u['role'] == 'admin' %}var(--primary){% else %}var(--gray-200){% endif %}; color: {% if u['role'] == 'admin' %}white{% else %}var(--gray-700){% endif %};">
+                                        {{ u['role'] }}
+                                    </span>
+                                </td>
+                                <td>
+                                    {% if u['id'] != session.user_id %}
+                                    <div style="display: flex; gap: 0.25rem;">
+                                        <button class="btn btn-secondary btn-sm" onclick="openResetPassword({{ u['id'] }}, '{{ u['name'] }}')" title="Reset password">
                                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                                <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                                                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                                                <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
                                             </svg>
                                         </button>
-                                    </form>
-                                </div>
-                                {% else %}
-                                <span class="text-muted text-sm">-</span>
-                                {% endif %}
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+                                        <form method="POST" action="{{ url_for('delete_user', id=u['id']) }}" style="display: inline;">
+                                            <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Delete user {{ u['name'] }}?')" title="Delete user">
+                                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                    <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                                                </svg>
+                                            </button>
+                                        </form>
+                                    </div>
+                                    {% else %}
+                                    <span class="text-muted text-sm">-</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
             </div>
-        </div>
+        </section>
     </div>
 </div>
 
@@ -358,6 +410,72 @@
 </div>
 
 <style>
+    .settings-layout {
+        display: flex;
+        gap: 2rem;
+        max-width: 900px;
+    }
+
+    .settings-nav {
+        width: 220px;
+        flex-shrink: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+    }
+
+    .settings-nav-item {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 0.75rem 1rem;
+        border-radius: 8px;
+        color: var(--gray-600);
+        text-decoration: none;
+        font-weight: 500;
+        transition: all 0.15s ease;
+    }
+
+    .settings-nav-item:hover {
+        background: var(--gray-100);
+        color: var(--gray-900);
+    }
+
+    .settings-nav-item.active {
+        background: var(--primary);
+        color: white;
+    }
+
+    .settings-nav-item.active svg {
+        stroke: white;
+    }
+
+    .settings-content {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .settings-section {
+        display: none;
+    }
+
+    .settings-section.active {
+        display: block;
+    }
+
+    .settings-section-header {
+        margin-bottom: 1.5rem;
+    }
+
+    .settings-section-header h2 {
+        margin: 0 0 0.25rem 0;
+        font-size: 1.5rem;
+    }
+
+    .settings-section-header p {
+        margin: 0;
+    }
+
     .modal-overlay {
         display: none;
         position: fixed;
@@ -414,22 +532,73 @@
     }
 
     @media (max-width: 768px) {
-        div[style*="grid-template-columns: 1fr 1fr"] {
-            grid-template-columns: 1fr !important;
+        .settings-layout {
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .settings-nav {
+            width: 100%;
+            flex-direction: row;
+            overflow-x: auto;
+            padding-bottom: 0.5rem;
+            gap: 0.5rem;
+        }
+
+        .settings-nav-item {
+            flex-shrink: 0;
+            padding: 0.625rem 1rem;
+            font-size: 0.875rem;
+        }
+
+        .settings-nav-item svg {
+            width: 16px;
+            height: 16px;
         }
     }
 </style>
 
 <script>
+    // Settings navigation
+    document.querySelectorAll('.settings-nav-item').forEach(item => {
+        item.addEventListener('click', function(e) {
+            e.preventDefault();
+            const sectionId = this.dataset.section;
+
+            // Update nav active state
+            document.querySelectorAll('.settings-nav-item').forEach(nav => nav.classList.remove('active'));
+            this.classList.add('active');
+
+            // Show selected section
+            document.querySelectorAll('.settings-section').forEach(section => section.classList.remove('active'));
+            document.getElementById(sectionId).classList.add('active');
+
+            // Update URL hash
+            history.replaceState(null, null, '#' + sectionId);
+        });
+    });
+
+    // Handle initial hash
+    function showSectionFromHash() {
+        const hash = window.location.hash.slice(1);
+        if (hash) {
+            const navItem = document.querySelector(`.settings-nav-item[data-section="${hash}"]`);
+            if (navItem) {
+                navItem.click();
+            }
+        }
+    }
+    showSectionFromHash();
+
     function copyApiKey() {
         const input = document.getElementById('apiKeyInput');
         input.select();
         input.setSelectionRange(0, 99999);
         navigator.clipboard.writeText(input.value).then(() => {
-            alert('API key copied to clipboard');
+            showToast('API key copied to clipboard', 'success');
         }).catch(() => {
             document.execCommand('copy');
-            alert('API key copied to clipboard');
+            showToast('API key copied to clipboard', 'success');
         });
     }
 

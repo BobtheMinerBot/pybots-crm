@@ -1361,12 +1361,7 @@
         <a href="{{ url_for('leads') }}" class="navbar-brand">🏗️ CRM</a>
         <div class="navbar-nav">
             <a href="{{ url_for('leads') }}" class="{% if request.endpoint in ['leads', 'view_lead', 'add_lead', 'edit_lead'] %}active{% endif %}">Leads</a>
-            <a href="{{ url_for('trash') }}" class="{% if request.endpoint == 'trash' %}active{% endif %}" title="Trash">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle;">
-                    <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                </svg>
-            </a>
-            <a href="{{ url_for('settings') }}" class="{% if request.endpoint == 'settings' %}active{% endif %}">Settings</a>
+            <a href="{{ url_for('settings') }}" class="{% if request.endpoint in ['settings', 'trash'] %}active{% endif %}">Settings</a>
             <span class="user-info">{{ session.user_name }}</span>
             <a href="{{ url_for('logout') }}">Logout</a>
         </div>
