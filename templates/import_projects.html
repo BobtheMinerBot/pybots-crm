@@ -1,0 +1,249 @@
+{% extends 'base.html' %}
+
+{% block title %}Import Projects - CRM{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="card">
+        <div class="card-header">
+            <h2>📤 Import Projects from CSV</h2>
+            <a href="{{ url_for('projects') }}" class="btn btn-secondary">← Back to Projects</a>
+        </div>
+        <div class="card-body">
+            <!-- Instructions -->
+            <div class="import-instructions"
+                style="background: var(--gray-50); padding: 1rem; border-radius: 0.5rem; margin-bottom: 1.5rem;">
+                <h3 style="font-size: 1rem; margin-bottom: 0.5rem;">📋 How to Import Projects</h3>
+                <ol style="margin-left: 1.5rem; color: var(--gray-600); font-size: 0.875rem;">
+                    <li>Upload your Projects CSV file (e.g., from SmartSuite)</li>
+                    <li>Map CSV columns to project database fields</li>
+                    <li>Projects will be automatically linked to existing customers by name</li>
+                    <li>Preview your data before importing</li>
+                </ol>
+                <p style="color: var(--warning); font-size: 0.875rem; margin-top: 0.75rem;">
+                    ⚠️ <strong>Tip:</strong> Import customers first so projects can be linked correctly!
+                </p>
+            </div>
+
+            <!-- Upload Form -->
+            <form id="importForm" action="{{ url_for('import_projects') }}" method="POST" enctype="multipart/form-data">
+                <!-- Step 1: File Upload -->
+                <div class="form-group">
+                    <label class="form-label">Step 1: Upload CSV File</label>
+                    <div class="file-upload-area" id="dropZone"
+                        style="border: 2px dashed var(--gray-300); border-radius: 0.5rem; padding: 2rem; text-align: center; cursor: pointer; transition: all 0.2s;">
+                        <input type="file" name="csv_file" id="csvFile" accept=".csv" style="display: none;" required>
+                        <div class="upload-icon" style="font-size: 2rem; margin-bottom: 0.5rem;">📁</div>
+                        <p style="color: var(--gray-600); margin-bottom: 0.5rem;">Drag and drop your CSV file here, or
+                            click to browse</p>
+                        <p id="fileName" style="color: var(--primary); font-weight: 500;"></p>
+                    </div>
+                </div>
+
+                <!-- Step 2: Column Mapping -->
+                <div id="mappingSection" style="display: none;">
+                    <div class="form-group">
+                        <label class="form-label">Step 2: Map Columns</label>
+                        <p style="color: var(--gray-600); font-size: 0.875rem; margin-bottom: 1rem;">
+                            Match your CSV columns to project fields. The "customer_name" field will link projects to
+                            existing customers.
+                        </p>
+                        <div id="columnMappings" class="mapping-grid"
+                            style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem;">
+                        </div>
+                    </div>
+
+                    <!-- Step 3: Import Options -->
+                    <div class="form-group" style="margin-top: 1.5rem;">
+                        <label class="form-label">Step 3: Duplicate Handling</label>
+                        <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
+                            <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                                <input type="radio" name="duplicate_action" value="skip" checked>
+                                <span>Skip duplicates (same title + address)</span>
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                                <input type="radio" name="duplicate_action" value="update">
+                                <span>Update existing projects</span>
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                                <input type="radio" name="duplicate_action" value="create">
+                                <span>Create new (allow duplicates)</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Preview Table -->
+                    <div class="form-group" style="margin-top: 1.5rem;">
+                        <label class="form-label">Preview (first 5 rows)</label>
+                        <div style="overflow-x: auto; border: 1px solid var(--gray-200); border-radius: 0.5rem;">
+                            <table id="previewTable" class="grid-table">
+                                <thead id="previewHead"></thead>
+                                <tbody id="previewBody"></tbody>
+                            </table>
+                        </div>
+                        <p id="totalRows" style="color: var(--gray-600); font-size: 0.875rem; margin-top: 0.5rem;"></p>
+                    </div>
+
+                    <!-- Submit -->
+                    <div style="margin-top: 1.5rem; display: flex; gap: 1rem;">
+                        <button type="submit" class="btn btn-primary">
+                            📥 Import Projects
+                        </button>
+                        <button type="button" class="btn btn-secondary" onclick="resetForm()">
+                            Reset
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<style>
+    .file-upload-area:hover,
+    .file-upload-area.dragover {
+        border-color: var(--primary);
+        background: var(--primary-light);
+    }
+
+    .mapping-item {
+        background: white;
+        border: 1px solid var(--gray-200);
+        border-radius: 0.375rem;
+        padding: 0.75rem;
+    }
+
+    .mapping-item label {
+        font-size: 0.8125rem;
+        color: var(--gray-600);
+        margin-bottom: 0.25rem;
+    }
+
+    .mapping-item select {
+        width: 100%;
+    }
+</style>
+
+<script>
+    const dropZone = document.getElementById('dropZone');
+    const csvFile = document.getElementById('csvFile');
+    const fileName = document.getElementById('fileName');
+    const mappingSection = document.getElementById('mappingSection');
+    const columnMappings = document.getElementById('columnMappings');
+    const previewHead = document.getElementById('previewHead');
+    const previewBody = document.getElementById('previewBody');
+    const totalRows = document.getElementById('totalRows');
+
+    const projectFields = {{ project_fields | tojson }};
+    const defaultMappings = {{ default_mappings | tojson }};
+
+    // Drag and drop handling
+    dropZone.addEventListener('click', () => csvFile.click());
+    dropZone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dropZone.classList.add('dragover');
+    });
+    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+    dropZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropZone.classList.remove('dragover');
+        if (e.dataTransfer.files.length) {
+            csvFile.files = e.dataTransfer.files;
+            handleFileSelect();
+        }
+    });
+
+    csvFile.addEventListener('change', handleFileSelect);
+
+    function handleFileSelect() {
+        if (csvFile.files.length) {
+            const file = csvFile.files[0];
+            fileName.textContent = '✓ ' + file.name;
+            parseCSV(file);
+        }
+    }
+
+    function parseCSV(file) {
+        const reader = new FileReader();
+        reader.onload = function (e) {
+            const text = e.target.result;
+            const lines = text.split('\n').filter(line => line.trim());
+            if (lines.length === 0) return;
+
+            let headerLine = lines[0];
+            if (headerLine.charCodeAt(0) === 0xFEFF) {
+                headerLine = headerLine.slice(1);
+            }
+            const headers = parseCSVLine(headerLine);
+
+            const rows = [];
+            for (let i = 1; i < Math.min(6, lines.length); i++) {
+                const values = parseCSVLine(lines[i]);
+                const row = {};
+                headers.forEach((h, idx) => row[h] = values[idx] || '');
+                rows.push(row);
+            }
+
+            buildMappingUI(headers);
+            buildPreviewTable(headers, rows);
+
+            totalRows.textContent = `Total rows in file: ${lines.length - 1}`;
+            mappingSection.style.display = 'block';
+        };
+        reader.readAsText(file);
+    }
+
+    function parseCSVLine(line) {
+        const result = [];
+        let current = '';
+        let inQuotes = false;
+
+        for (let i = 0; i < line.length; i++) {
+            const char = line[i];
+            if (char === '"') {
+                inQuotes = !inQuotes;
+            } else if (char === ',' && !inQuotes) {
+                result.push(current.trim());
+                current = '';
+            } else {
+                current += char;
+            }
+        }
+        result.push(current.trim());
+        return result;
+    }
+
+    function buildMappingUI(headers) {
+        columnMappings.innerHTML = '';
+        headers.forEach(header => {
+            const autoMapping = defaultMappings[header] || 'skip';
+            const div = document.createElement('div');
+            div.className = 'mapping-item';
+            div.innerHTML = `
+                <label>${header}</label>
+                <select name="mapping_${header}" class="form-control">
+                    <option value="skip">-- Skip --</option>
+                    ${projectFields.map(f => `<option value="${f}" ${autoMapping === f ? 'selected' : ''}>${f}</option>`).join('')}
+                </select>
+            `;
+            columnMappings.appendChild(div);
+        });
+    }
+
+    function buildPreviewTable(headers, rows) {
+        previewHead.innerHTML = '<tr>' + headers.map(h => `<th>${h}</th>`).join('') + '</tr>';
+        previewBody.innerHTML = rows.map(row =>
+            '<tr>' + headers.map(h => `<td>${row[h] || ''}</td>`).join('') + '</tr>'
+        ).join('');
+    }
+
+    function resetForm() {
+        csvFile.value = '';
+        fileName.textContent = '';
+        mappingSection.style.display = 'none';
+        columnMappings.innerHTML = '';
+        previewHead.innerHTML = '';
+        previewBody.innerHTML = '';
+    }
+</script>
+{% endblock %}

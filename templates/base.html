@@ -325,13 +325,34 @@
         .badge-filled {
             color: white !important;
         }
-        .badge-new-lead.badge-filled { background: #0073EA; }
-        .badge-inspection-scheduled.badge-filled { background: #FDAB3D; }
-        .badge-estimating.badge-filled { background: #A25DDC; }
-        .badge-proposal-sent.badge-filled { background: #00C875; }
-        .badge-follow-up.badge-filled { background: #FF158A; }
-        .badge-nurturing.badge-filled { background: #579BFC; }
-        .badge-lost.badge-filled { background: #E2445C; }
+
+        .badge-new-lead.badge-filled {
+            background: #0073EA;
+        }
+
+        .badge-inspection-scheduled.badge-filled {
+            background: #FDAB3D;
+        }
+
+        .badge-estimating.badge-filled {
+            background: #A25DDC;
+        }
+
+        .badge-proposal-sent.badge-filled {
+            background: #00C875;
+        }
+
+        .badge-follow-up.badge-filled {
+            background: #FF158A;
+        }
+
+        .badge-nurturing.badge-filled {
+            background: #579BFC;
+        }
+
+        .badge-lost.badge-filled {
+            background: #E2445C;
+        }
 
         /* Priority badges */
         .badge-priority-high {
@@ -371,21 +392,27 @@
         .grid-section[data-stage="new-lead"] .grid-section-header {
             border-left-color: var(--stage-new-lead);
         }
+
         .grid-section[data-stage="inspection-scheduled"] .grid-section-header {
             border-left-color: var(--stage-inspection-scheduled);
         }
+
         .grid-section[data-stage="estimating"] .grid-section-header {
             border-left-color: var(--stage-estimating);
         }
+
         .grid-section[data-stage="proposal-sent"] .grid-section-header {
             border-left-color: var(--stage-proposal-sent);
         }
+
         .grid-section[data-stage="follow-up"] .grid-section-header {
             border-left-color: var(--stage-follow-up);
         }
+
         .grid-section[data-stage="nurturing"] .grid-section-header {
             border-left-color: var(--stage-nurturing);
         }
+
         .grid-section[data-stage="lost"] .grid-section-header {
             border-left-color: var(--stage-lost);
         }
@@ -722,13 +749,33 @@
         }
 
         /* Default status dot colors (overridden by dynamic CSS) */
-        .status-dot-new-lead { background: var(--monday-blue); }
-        .status-dot-inspection-scheduled { background: var(--monday-orange); }
-        .status-dot-estimating { background: var(--monday-purple); }
-        .status-dot-proposal-sent { background: var(--monday-green); }
-        .status-dot-follow-up { background: var(--monday-pink); }
-        .status-dot-nurturing { background: var(--monday-sky); }
-        .status-dot-lost { background: var(--monday-red); }
+        .status-dot-new-lead {
+            background: var(--monday-blue);
+        }
+
+        .status-dot-inspection-scheduled {
+            background: var(--monday-orange);
+        }
+
+        .status-dot-estimating {
+            background: var(--monday-purple);
+        }
+
+        .status-dot-proposal-sent {
+            background: var(--monday-green);
+        }
+
+        .status-dot-follow-up {
+            background: var(--monday-pink);
+        }
+
+        .status-dot-nurturing {
+            background: var(--monday-sky);
+        }
+
+        .status-dot-lost {
+            background: var(--monday-red);
+        }
 
         /* Login page */
         .login-container {
@@ -823,10 +870,21 @@
             animation: slideIn 0.3s ease;
         }
 
-        .toast.toast-success { border-left-color: var(--success); }
-        .toast.toast-error { border-left-color: var(--danger); }
-        .toast.toast-info { border-left-color: var(--primary); }
-        .toast.toast-warning { border-left-color: var(--warning); }
+        .toast.toast-success {
+            border-left-color: var(--success);
+        }
+
+        .toast.toast-error {
+            border-left-color: var(--danger);
+        }
+
+        .toast.toast-info {
+            border-left-color: var(--primary);
+        }
+
+        .toast.toast-warning {
+            border-left-color: var(--warning);
+        }
 
         .toast-icon {
             flex-shrink: 0;
@@ -834,10 +892,21 @@
             height: 20px;
         }
 
-        .toast-success .toast-icon { color: var(--success); }
-        .toast-error .toast-icon { color: var(--danger); }
-        .toast-info .toast-icon { color: var(--primary); }
-        .toast-warning .toast-icon { color: var(--warning); }
+        .toast-success .toast-icon {
+            color: var(--success);
+        }
+
+        .toast-error .toast-icon {
+            color: var(--danger);
+        }
+
+        .toast-info .toast-icon {
+            color: var(--primary);
+        }
+
+        .toast-warning .toast-icon {
+            color: var(--warning);
+        }
 
         .toast-content {
             flex: 1;
@@ -855,20 +924,36 @@
             line-height: 1;
         }
 
-        .toast-close:hover { color: var(--gray-600); }
+        .toast-close:hover {
+            color: var(--gray-600);
+        }
 
         .toast.removing {
             animation: slideOut 0.3s ease forwards;
         }
 
         @keyframes slideIn {
-            from { transform: translateX(100%); opacity: 0; }
-            to { transform: translateX(0); opacity: 1; }
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
         }
 
         @keyframes slideOut {
-            from { transform: translateX(0); opacity: 1; }
-            to { transform: translateX(100%); opacity: 0; }
+            from {
+                transform: translateX(0);
+                opacity: 1;
+            }
+
+            to {
+                transform: translateX(100%);
+                opacity: 0;
+            }
         }
 
         /* Confirmation Dialog */
@@ -941,13 +1026,25 @@
         }
 
         @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
+            from {
+                opacity: 0;
+            }
+
+            to {
+                opacity: 1;
+            }
         }
 
         @keyframes scaleIn {
-            from { transform: scale(0.95); opacity: 0; }
-            to { transform: scale(1); opacity: 1; }
+            from {
+                transform: scale(0.95);
+                opacity: 0;
+            }
+
+            to {
+                transform: scale(1);
+                opacity: 1;
+            }
         }
 
         /* Keyboard Shortcuts Modal */
@@ -1050,7 +1147,7 @@
         }
 
         tr:hover .actions-col,
-        .grid-table tbody tr:hover ~ tr .actions-col-header {
+        .grid-table tbody tr:hover~tr .actions-col-header {
             width: auto;
             padding: 0.5rem 0.25rem !important;
         }
@@ -1187,9 +1284,19 @@
         }
 
         @keyframes shake {
-            0%, 100% { transform: translateX(0); }
-            25% { transform: translateX(-5px); }
-            75% { transform: translateX(5px); }
+
+            0%,
+            100% {
+                transform: translateX(0);
+            }
+
+            25% {
+                transform: translateX(-5px);
+            }
+
+            75% {
+                transform: translateX(5px);
+            }
         }
 
         .shake {
@@ -1319,6 +1426,7 @@
 
         /* Mobile Touch Improvements */
         @media (max-width: 768px) {
+
             /* Larger touch targets */
             .btn {
                 min-height: 44px;
@@ -1332,7 +1440,8 @@
 
             .form-control {
                 min-height: 44px;
-                font-size: 16px; /* Prevents zoom on iOS */
+                font-size: 16px;
+                /* Prevents zoom on iOS */
             }
 
             select.form-control {
@@ -1479,20 +1588,78 @@
         }
 
         /* Dynamic status colors - injected from database */
-        {% if status_colors %}
-        {% for status_name, colors in status_colors.items() %}
-        .badge-{{ status_name | lower | replace(' ', '-') }} {
-            background: {{ colors.bg }};
-            color: {{ colors.color }};
+            {
+            % if status_colors %
         }
-        .status-dot-{{ status_name | lower | replace(' ', '-') }} {
-            background: {{ colors.color }};
+
+            {
+            % for status_name,
+            colors in status_colors.items() %
         }
-        .group-header-{{ status_name | lower | replace(' ', '-') }} {
-            border-left-color: {{ colors.color }};
+
+        .badge- {
+                {
+                status_name | lower | replace(' ', '-')
+            }
         }
-        {% endfor %}
-        {% endif %}
+
+            {
+            background: {
+                    {
+                    colors.bg
+                }
+            }
+
+            ;
+
+            color: {
+                    {
+                    colors.color
+                }
+            }
+
+            ;
+        }
+
+        .status-dot- {
+                {
+                status_name | lower | replace(' ', '-')
+            }
+        }
+
+            {
+            background: {
+                    {
+                    colors.color
+                }
+            }
+
+            ;
+        }
+
+        .group-header- {
+                {
+                status_name | lower | replace(' ', '-')
+            }
+        }
+
+            {
+            border-left-color: {
+                    {
+                    colors.color
+                }
+            }
+
+            ;
+        }
+
+            {
+            % endfor %
+        }
+
+            {
+            % endif %
+        }
     </style>
 </head>
 
@@ -1501,8 +1668,12 @@
     <nav class="navbar">
         <a href="{{ url_for('leads') }}" class="navbar-brand">🏗️ CRM</a>
         <div class="navbar-nav">
-            <a href="{{ url_for('leads') }}" class="{% if request.endpoint in ['leads', 'view_lead', 'add_lead', 'edit_lead'] %}active{% endif %}">Leads</a>
-            <a href="{{ url_for('settings') }}" class="{% if request.endpoint in ['settings', 'trash'] %}active{% endif %}">Settings</a>
+            <a href="{{ url_for('leads') }}"
+                class="{% if request.endpoint in ['leads', 'view_lead', 'add_lead', 'edit_lead', 'import_leads'] %}active{% endif %}">Leads</a>
+            <a href="{{ url_for('projects') }}"
+                class="{% if request.endpoint in ['projects', 'import_projects'] %}active{% endif %}">Projects</a>
+            <a href="{{ url_for('settings') }}"
+                class="{% if request.endpoint in ['settings', 'trash'] %}active{% endif %}">Settings</a>
             <span class="user-info">{{ session.user_name }}</span>
             <a href="{{ url_for('logout') }}">Logout</a>
         </div>
@@ -1540,7 +1711,8 @@
                     </div>
                     <div class="shortcut-row">
                         <span class="shortcut-desc">Focus search</span>
-                        <span class="shortcut-keys"><span class="shortcut-key">/</span> or <span class="shortcut-key">S</span></span>
+                        <span class="shortcut-keys"><span class="shortcut-key">/</span> or <span
+                                class="shortcut-key">S</span></span>
                     </div>
                     <div class="shortcut-row">
                         <span class="shortcut-desc">Close modal/dropdown</span>
@@ -1551,11 +1723,13 @@
                     <div class="shortcuts-group-title">Lead List</div>
                     <div class="shortcut-row">
                         <span class="shortcut-desc">Move up</span>
-                        <span class="shortcut-keys"><span class="shortcut-key">K</span> or <span class="shortcut-key">↑</span></span>
+                        <span class="shortcut-keys"><span class="shortcut-key">K</span> or <span
+                                class="shortcut-key">↑</span></span>
                     </div>
                     <div class="shortcut-row">
                         <span class="shortcut-desc">Move down</span>
-                        <span class="shortcut-keys"><span class="shortcut-key">J</span> or <span class="shortcut-key">↓</span></span>
+                        <span class="shortcut-keys"><span class="shortcut-key">J</span> or <span
+                                class="shortcut-key">↓</span></span>
                     </div>
                     <div class="shortcut-row">
                         <span class="shortcut-desc">Open selected lead</span>
@@ -1672,7 +1846,7 @@
             document.getElementById('shortcutsModal').classList.remove('visible');
         }
 
-        document.addEventListener('keydown', function(e) {
+        document.addEventListener('keydown', function (e) {
             // Skip if user is typing in an input
             if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') {
                 if (e.key === 'Escape') {
@@ -1765,7 +1939,7 @@
         });
 
         // Close shortcuts modal on click outside
-        document.getElementById('shortcutsModal').addEventListener('click', function(e) {
+        document.getElementById('shortcutsModal').addEventListener('click', function (e) {
             if (e.target === this) {
                 closeShortcutsModal();
             }

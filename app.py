@@ -1,6 +1,8 @@
 import os
 import json
 import sqlite3
+import csv
+import io
 from datetime import datetime
 from functools import wraps
 from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify, g
@@ -193,6 +195,33 @@ def init_db():
                 sequence INTEGER DEFAULT 0,
                 is_active BOOLEAN DEFAULT 1
             );
+
+            CREATE TABLE IF NOT EXISTS projects (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                title TEXT NOT NULL,
+                customer_id INTEGER,
+                stage TEXT,
+                current_stage TEXT,
+                address TEXT,
+                job_type TEXT,
+                job_number TEXT,
+                auto_number TEXT,
+                budget_cost REAL,
+                actual_cost REAL,
+                approved_orders REAL,
+                budget_variance REAL,
+                permit_required BOOLEAN DEFAULT 0,
+                permit_no TEXT,
+                jurisdiction TEXT,
+                engineering_plans_required BOOLEAN DEFAULT 0,
+                first_site_visit_date TEXT,
+                date_completed TEXT,
+                scope_of_work TEXT,
+                notes TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (customer_id) REFERENCES leads (id)
+            );
         ''')
 
         # Migration: Add default_fields column to views if it doesn't exist
@@ -267,6 +296,66 @@ def init_db():
                     (name, color, seq)
                 )
             print("Populated default property types with colors")
+
+        # Migration: Enhance activities table with activity_type and metadata
+        try:
+            db.execute("SELECT activity_type FROM activities LIMIT 1")
+        except:
+            db.execute("ALTER TABLE activities ADD COLUMN activity_type TEXT DEFAULT 'note'")
+            db.execute("ALTER TABLE activities ADD COLUMN metadata TEXT")
+            # Rename 'note' column to 'content' if it exists
+            try:
+                db.execute("ALTER TABLE activities RENAME COLUMN note TO content")
+            except:
+                pass
+            print("Enhanced activities table with activity_type and metadata")
+
+        # Create handoff_summaries table for department transitions
+        db.execute('''
+            CREATE TABLE IF NOT EXISTS handoff_summaries (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                lead_id INTEGER NOT NULL,
+                from_status TEXT,
+                to_status TEXT,
+                summary TEXT NOT NULL,
+                key_info TEXT,
+                created_by INTEGER,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (lead_id) REFERENCES leads (id) ON DELETE CASCADE,
+                FOREIGN KEY (created_by) REFERENCES users (id)
+            )
+        ''')
+
+        # Create handoff_statuses table to define which status transitions trigger handoffs
+        db.execute('''
+            CREATE TABLE IF NOT EXISTS handoff_triggers (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                from_status TEXT,
+                to_status TEXT NOT NULL,
+                department_name TEXT,
+                is_active BOOLEAN DEFAULT 1,
+                UNIQUE(from_status, to_status)
+            )
+        ''')
+
+        # Populate default handoff triggers
+        existing_triggers = db.execute("SELECT id FROM handoff_triggers LIMIT 1").fetchone()
+        if not existing_triggers:
+            default_triggers = [
+                (None, 'Proposal Sent', 'Sales to Estimating'),
+                ('Proposal Sent', 'Won', 'Sales to Project Management'),
+                (None, 'Permitting', 'Project to Permitting'),
+                (None, 'In Production', 'Permitting to Production'),
+            ]
+            for from_s, to_s, dept in default_triggers:
+                try:
+                    db.execute(
+                        'INSERT INTO handoff_triggers (from_status, to_status, department_name) VALUES (?, ?, ?)',
+                        (from_s, to_s, dept)
+                    )
+                except:
+                    pass
+            print("Populated default handoff triggers")
 
         # Create default admin if no users exist
         existing = query_db('SELECT id FROM users LIMIT 1', one=True)
@@ -1139,6 +1228,180 @@ def get_property_type_colors():
     types = get_property_types_with_colors()
     return {t['name']: t['color'] for t in types}
 
+# Activity & Timeline Helper Functions
+ACTIVITY_TYPES = {
+    'note': {'label': 'Note', 'icon': '📝', 'color': '#6b7280'},
+    'status_change': {'label': 'Status Change', 'icon': '🔄', 'color': '#0073EA'},
+    'field_update': {'label': 'Field Updated', 'icon': '✏️', 'color': '#A25DDC'},
+    'handoff': {'label': 'Handoff', 'icon': '🤝', 'color': '#00C875'},
+    'call': {'label': 'Call', 'icon': '📞', 'color': '#FDAB3D'},
+    'email': {'label': 'Email', 'icon': '📧', 'color': '#579BFC'},
+    'meeting': {'label': 'Meeting', 'icon': '📅', 'color': '#FF158A'},
+    'created': {'label': 'Created', 'icon': '✨', 'color': '#00D2D2'},
+}
+
+def log_activity(lead_id, activity_type, content, user_id=None, metadata=None):
+    """Log an activity for a lead"""
+    import json
+    meta_json = json.dumps(metadata) if metadata else None
+    execute_db('''
+        INSERT INTO activities (lead_id, user_id, activity_type, content, metadata)
+        VALUES (?, ?, ?, ?, ?)
+    ''', [lead_id, user_id, activity_type, content, meta_json])
+
+def get_lead_activities(lead_id, limit=50):
+    """Get activities for a lead, most recent first"""
+    import json
+    activities = query_db('''
+        SELECT a.*, u.name as user_name
+        FROM activities a
+        LEFT JOIN users u ON a.user_id = u.id
+        WHERE a.lead_id = ?
+        ORDER BY a.created_at DESC
+        LIMIT ?
+    ''', [lead_id, limit])
+
+    result = []
+    for act in activities:
+        a = dict(act)
+        # Parse metadata JSON
+        if a.get('metadata'):
+            try:
+                a['metadata'] = json.loads(a['metadata'])
+            except:
+                a['metadata'] = {}
+        else:
+            a['metadata'] = {}
+        # Add activity type info
+        a['type_info'] = ACTIVITY_TYPES.get(a.get('activity_type', 'note'), ACTIVITY_TYPES['note'])
+        result.append(a)
+    return result
+
+def check_handoff_trigger(from_status, to_status):
+    """Check if a status transition should trigger a handoff"""
+    trigger = query_db('''
+        SELECT * FROM handoff_triggers
+        WHERE (from_status = ? OR from_status IS NULL) AND to_status = ? AND is_active = 1
+    ''', [from_status, to_status], one=True)
+    return dict(trigger) if trigger else None
+
+def generate_handoff_summary(lead_id):
+    """Generate a handoff summary for a lead"""
+    import json
+
+    # Get lead details
+    lead = query_db('SELECT * FROM leads WHERE id = ?', [lead_id], one=True)
+    if not lead:
+        return None
+    lead = dict(lead)
+
+    # Get custom field values
+    field_values = query_db('''
+        SELECT cf.name, cf.field_type, fv.value
+        FROM field_values fv
+        JOIN custom_fields cf ON fv.field_id = cf.id
+        WHERE fv.lead_id = ?
+    ''', [lead_id])
+
+    # Get recent activities (last 10)
+    activities = query_db('''
+        SELECT a.*, u.name as user_name
+        FROM activities a
+        LEFT JOIN users u ON a.user_id = u.id
+        WHERE a.lead_id = ?
+        ORDER BY a.created_at DESC
+        LIMIT 10
+    ''', [lead_id])
+
+    # Get notes (last 5 note-type activities)
+    notes = query_db('''
+        SELECT a.content, a.created_at, u.name as user_name
+        FROM activities a
+        LEFT JOIN users u ON a.user_id = u.id
+        WHERE a.lead_id = ? AND a.activity_type = 'note'
+        ORDER BY a.created_at DESC
+        LIMIT 5
+    ''', [lead_id])
+
+    # Build summary
+    summary_parts = []
+
+    # Lead info
+    summary_parts.append(f"**Lead:** {lead['name']}")
+    if lead.get('email'):
+        summary_parts.append(f"**Email:** {lead['email']}")
+    if lead.get('phone'):
+        summary_parts.append(f"**Phone:** {lead['phone']}")
+    if lead.get('address'):
+        summary_parts.append(f"**Address:** {lead['address']}")
+    if lead.get('job_type'):
+        summary_parts.append(f"**Job Type:** {lead['job_type']}")
+    if lead.get('property_type'):
+        summary_parts.append(f"**Property Type:** {lead['property_type']}")
+
+    summary_parts.append("")
+    summary_parts.append("---")
+    summary_parts.append("")
+
+    # Custom fields
+    if field_values:
+        summary_parts.append("**Custom Fields:**")
+        for fv in field_values:
+            if fv['value']:
+                summary_parts.append(f"- {fv['name']}: {fv['value']}")
+        summary_parts.append("")
+
+    # Recent notes
+    if notes:
+        summary_parts.append("**Recent Notes:**")
+        for note in notes:
+            date_str = note['created_at'][:10] if note['created_at'] else ''
+            user = note['user_name'] or 'System'
+            summary_parts.append(f"- [{date_str}] {user}: {note['content'][:200]}")
+        summary_parts.append("")
+
+    # Key info extraction (dates, values, etc.)
+    key_info = {
+        'lead_created': lead.get('created_at'),
+        'current_status': lead.get('status'),
+        'custom_fields': {fv['name']: fv['value'] for fv in field_values if fv['value']} if field_values else {},
+        'notes_count': len(notes) if notes else 0,
+        'activities_count': len(activities) if activities else 0
+    }
+
+    return {
+        'summary': '\n'.join(summary_parts),
+        'key_info': json.dumps(key_info),
+        'lead': lead
+    }
+
+def save_handoff(lead_id, from_status, to_status, summary, key_info, user_id):
+    """Save a handoff summary"""
+    execute_db('''
+        INSERT INTO handoff_summaries (lead_id, from_status, to_status, summary, key_info, created_by)
+        VALUES (?, ?, ?, ?, ?, ?)
+    ''', [lead_id, from_status, to_status, summary, key_info, user_id])
+
+    # Also log as an activity
+    log_activity(
+        lead_id,
+        'handoff',
+        f"Project handed off from '{from_status}' to '{to_status}'",
+        user_id,
+        {'from_status': from_status, 'to_status': to_status}
+    )
+
+def get_lead_handoffs(lead_id):
+    """Get all handoff summaries for a lead"""
+    handoffs = query_db('''
+        SELECT h.*, u.name as created_by_name
+        FROM handoff_summaries h
+        LEFT JOIN users u ON h.created_by = u.id
+        WHERE h.lead_id = ?
+        ORDER BY h.created_at DESC
+    ''', [lead_id])
+    return [dict(h) for h in handoffs] if handoffs else []
+
 # Grouping Helper Functions
 def get_user_group_preferences(user_id):
     """Get user's grouping preferences"""
@@ -1803,6 +2066,97 @@ def api_update_field_option_colors(id):
     execute_db('UPDATE custom_fields SET option_colors = ? WHERE id = ?', [colors, id])
     return jsonify({'success': True})
 
+# Activity Timeline API
+@app.route('/api/leads/<int:lead_id>/activities', methods=['GET'])
+@login_required
+def api_get_activities(lead_id):
+    """Get activities for a lead"""
+    activities = get_lead_activities(lead_id)
+    return jsonify(activities)
+
+@app.route('/api/leads/<int:lead_id>/activities', methods=['POST'])
+@login_required
+def api_add_activity(lead_id):
+    """Add a new activity/note to a lead"""
+    data = request.get_json()
+    content = data.get('content', '').strip()
+    activity_type = data.get('activity_type', 'note')
+
+    if not content:
+        return jsonify({'error': 'Content is required'}), 400
+
+    log_activity(
+        lead_id,
+        activity_type,
+        content,
+        session.get('user_id'),
+        data.get('metadata')
+    )
+
+    return jsonify({'success': True})
+
+@app.route('/api/leads/<int:lead_id>/activities/<int:activity_id>', methods=['DELETE'])
+@login_required
+def api_delete_activity(lead_id, activity_id):
+    """Delete an activity"""
+    execute_db('DELETE FROM activities WHERE id = ? AND lead_id = ?', [activity_id, lead_id])
+    return jsonify({'success': True})
+
+# Handoff API
+@app.route('/api/leads/<int:lead_id>/handoff/check', methods=['POST'])
+@login_required
+def api_check_handoff(lead_id):
+    """Check if a status change should trigger a handoff"""
+    data = request.get_json()
+    from_status = data.get('from_status')
+    to_status = data.get('to_status')
+
+    trigger = check_handoff_trigger(from_status, to_status)
+    if trigger:
+        return jsonify({
+            'trigger': True,
+            'department_name': trigger.get('department_name'),
+            'from_status': from_status,
+            'to_status': to_status
+        })
+    return jsonify({'trigger': False})
+
+@app.route('/api/leads/<int:lead_id>/handoff/generate', methods=['GET'])
+@login_required
+def api_generate_handoff(lead_id):
+    """Generate a handoff summary for a lead"""
+    summary_data = generate_handoff_summary(lead_id)
+    if not summary_data:
+        return jsonify({'error': 'Lead not found'}), 404
+    return jsonify({
+        'summary': summary_data['summary'],
+        'key_info': summary_data['key_info'],
+        'lead_name': summary_data['lead']['name']
+    })
+
+@app.route('/api/leads/<int:lead_id>/handoff', methods=['POST'])
+@login_required
+def api_save_handoff(lead_id):
+    """Save a handoff summary"""
+    data = request.get_json()
+    from_status = data.get('from_status')
+    to_status = data.get('to_status')
+    summary = data.get('summary', '').strip()
+    key_info = data.get('key_info', '{}')
+
+    if not summary:
+        return jsonify({'error': 'Summary is required'}), 400
+
+    save_handoff(lead_id, from_status, to_status, summary, key_info, session.get('user_id'))
+    return jsonify({'success': True})
+
+@app.route('/api/leads/<int:lead_id>/handoffs', methods=['GET'])
+@login_required
+def api_get_handoffs(lead_id):
+    """Get all handoffs for a lead"""
+    handoffs = get_lead_handoffs(lead_id)
+    return jsonify(handoffs)
+
 # Template filters
 @app.template_filter('strftime')
 def strftime_filter(value, fmt='%b %d, %Y'):
@@ -1907,6 +2261,370 @@ def github_deploy():
         return jsonify({'status': 'Deployment started'}), 200
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+# ==================== CSV IMPORT ====================
+
+# Default column mappings for Customer CSV
+CUSTOMER_CSV_MAPPINGS = {
+    'Customer Name': 'name',
+    'Customer Email': 'email',
+    'Customer Phone': 'phone',
+    'Customer Address': 'address',
+    'Property Type': 'property_type',
+    'Customer Stage': 'status',
+    'Job Scope': 'notes'
+}
+
+# Default column mappings for Project CSV  
+PROJECT_CSV_MAPPINGS = {
+    'Title': 'title',
+    'Link to Customer Database': 'customer_name',  # Will be resolved to customer_id
+    'Location Address': 'address',
+    'Project Stage': 'stage',
+    'Current Stage': 'current_stage',
+    'Job Type': 'job_type',
+    'Job Number': 'job_number',
+    'Auto Number': 'auto_number',
+    'Budget Cost': 'budget_cost',
+    'Actual Cost': 'actual_cost',
+    'Approved Orders': 'approved_orders',
+    'Budget Variance': 'budget_variance',
+    'Needs Permits?': 'permit_required',
+    'Permit NO:': 'permit_no',
+    'Jurisdiction': 'jurisdiction',
+    'Engineering Plans Required?': 'engineering_plans_required',
+    'First Site Visit Date': 'first_site_visit_date',
+    'Date Completed': 'date_completed',
+    'Scope of Work': 'scope_of_work'
+}
+
+@app.route('/leads/import', methods=['GET', 'POST'])
+@login_required
+def import_leads():
+    if request.method == 'POST':
+        if 'csv_file' not in request.files:
+            flash('No file uploaded', 'error')
+            return redirect(request.url)
+        
+        file = request.files['csv_file']
+        if file.filename == '':
+            flash('No file selected', 'error')
+            return redirect(request.url)
+        
+        if not file.filename.endswith('.csv'):
+            flash('Please upload a CSV file', 'error')
+            return redirect(request.url)
+        
+        try:
+            # Read CSV content
+            stream = io.StringIO(file.stream.read().decode('utf-8-sig'))
+            reader = csv.DictReader(stream)
+            rows = list(reader)
+            
+            if not rows:
+                flash('CSV file is empty', 'error')
+                return redirect(request.url)
+            
+            # Get column mappings from form
+            mappings = {}
+            for csv_col in reader.fieldnames:
+                mapped_field = request.form.get(f'mapping_{csv_col}')
+                if mapped_field and mapped_field != 'skip':
+                    mappings[csv_col] = mapped_field
+            
+            # If no mappings provided, use defaults
+            if not mappings:
+                mappings = {k: v for k, v in CUSTOMER_CSV_MAPPINGS.items() if k in reader.fieldnames}
+            
+            # Import settings
+            duplicate_action = request.form.get('duplicate_action', 'skip')
+            
+            imported = 0
+            skipped = 0
+            updated = 0
+            
+            for row in rows:
+                # Build lead data from mappings
+                lead_data = {}
+                for csv_col, db_field in mappings.items():
+                    if csv_col in row:
+                        lead_data[db_field] = row[csv_col].strip() if row[csv_col] else ''
+                
+                # Require at least a name
+                if not lead_data.get('name'):
+                    skipped += 1
+                    continue
+                
+                # Check for duplicates by email or name
+                existing = None
+                if lead_data.get('email'):
+                    existing = query_db(
+                        'SELECT id FROM leads WHERE email = ? AND deleted_at IS NULL',
+                        [lead_data['email']], one=True
+                    )
+                if not existing and lead_data.get('name'):
+                    existing = query_db(
+                        'SELECT id FROM leads WHERE name = ? AND deleted_at IS NULL',
+                        [lead_data['name']], one=True
+                    )
+                
+                if existing:
+                    if duplicate_action == 'skip':
+                        skipped += 1
+                        continue
+                    elif duplicate_action == 'update':
+                        # Update existing record
+                        update_fields = []
+                        update_values = []
+                        for field, value in lead_data.items():
+                            if value:  # Only update non-empty values
+                                update_fields.append(f'{field} = ?')
+                                update_values.append(value)
+                        if update_fields:
+                            update_values.append(existing['id'])
+                            execute_db(
+                                f'UPDATE leads SET {", ".join(update_fields)}, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+                                update_values
+                            )
+                            updated += 1
+                        continue
+                
+                # Insert new lead
+                execute_db(
+                    '''INSERT INTO leads (name, email, phone, address, job_type, property_type, status, notes, created_by)
+                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)''',
+                    (
+                        lead_data.get('name', ''),
+                        lead_data.get('email', ''),
+                        lead_data.get('phone', ''),
+                        lead_data.get('address', ''),
+                        lead_data.get('job_type', ''),
+                        lead_data.get('property_type', ''),
+                        lead_data.get('status', 'New Lead'),
+                        lead_data.get('notes', ''),
+                        session.get('user_id')
+                    )
+                )
+                imported += 1
+            
+            flash(f'Import complete: {imported} added, {updated} updated, {skipped} skipped', 'success')
+            return redirect(url_for('leads'))
+            
+        except Exception as e:
+            flash(f'Error processing CSV: {str(e)}', 'error')
+            return redirect(request.url)
+    
+    # GET request - show import form
+    return render_template('import_leads.html',
+                         default_mappings=CUSTOMER_CSV_MAPPINGS,
+                         lead_fields=['name', 'email', 'phone', 'address', 'job_type', 'property_type', 'status', 'notes'])
+
+@app.route('/leads/import/preview', methods=['POST'])
+@login_required
+def preview_import():
+    """AJAX endpoint to preview CSV data before import"""
+    if 'csv_file' not in request.files:
+        return jsonify({'error': 'No file uploaded'}), 400
+    
+    file = request.files['csv_file']
+    if file.filename == '' or not file.filename.endswith('.csv'):
+        return jsonify({'error': 'Invalid file'}), 400
+    
+    try:
+        stream = io.StringIO(file.stream.read().decode('utf-8-sig'))
+        reader = csv.DictReader(stream)
+        rows = list(reader)
+        
+        # Return headers and first 5 rows for preview
+        preview_rows = rows[:5]
+        
+        # Auto-detect mappings
+        auto_mappings = {}
+        for csv_col in reader.fieldnames:
+            if csv_col in CUSTOMER_CSV_MAPPINGS:
+                auto_mappings[csv_col] = CUSTOMER_CSV_MAPPINGS[csv_col]
+        
+        return jsonify({
+            'headers': reader.fieldnames,
+            'preview': preview_rows,
+            'total_rows': len(rows),
+            'auto_mappings': auto_mappings
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+# Project import routes
+@app.route('/projects')
+@login_required
+def projects():
+    """List all projects"""
+    all_projects = query_db('''
+        SELECT p.*, l.name as customer_name 
+        FROM projects p 
+        LEFT JOIN leads l ON p.customer_id = l.id 
+        ORDER BY p.created_at DESC
+    ''')
+    return render_template('projects.html', projects=all_projects)
+
+@app.route('/projects/import', methods=['GET', 'POST'])
+@login_required
+def import_projects():
+    if request.method == 'POST':
+        if 'csv_file' not in request.files:
+            flash('No file uploaded', 'error')
+            return redirect(request.url)
+        
+        file = request.files['csv_file']
+        if file.filename == '':
+            flash('No file selected', 'error')
+            return redirect(request.url)
+        
+        if not file.filename.endswith('.csv'):
+            flash('Please upload a CSV file', 'error')
+            return redirect(request.url)
+        
+        try:
+            stream = io.StringIO(file.stream.read().decode('utf-8-sig'))
+            reader = csv.DictReader(stream)
+            rows = list(reader)
+            
+            if not rows:
+                flash('CSV file is empty', 'error')
+                return redirect(request.url)
+            
+            # Get column mappings from form
+            mappings = {}
+            for csv_col in reader.fieldnames:
+                mapped_field = request.form.get(f'mapping_{csv_col}')
+                if mapped_field and mapped_field != 'skip':
+                    mappings[csv_col] = mapped_field
+            
+            if not mappings:
+                mappings = {k: v for k, v in PROJECT_CSV_MAPPINGS.items() if k in reader.fieldnames}
+            
+            duplicate_action = request.form.get('duplicate_action', 'skip')
+            
+            imported = 0
+            skipped = 0
+            updated = 0
+            
+            for row in rows:
+                project_data = {}
+                customer_name = None
+                
+                for csv_col, db_field in mappings.items():
+                    if csv_col in row:
+                        value = row[csv_col].strip() if row[csv_col] else ''
+                        if db_field == 'customer_name':
+                            customer_name = value
+                        else:
+                            project_data[db_field] = value
+                
+                if not project_data.get('title'):
+                    skipped += 1
+                    continue
+                
+                # Resolve customer_id from customer_name
+                customer_id = None
+                if customer_name:
+                    customer = query_db(
+                        'SELECT id FROM leads WHERE name = ? AND deleted_at IS NULL',
+                        [customer_name], one=True
+                    )
+                    if customer:
+                        customer_id = customer['id']
+                
+                # Convert boolean fields
+                for bool_field in ['permit_required', 'engineering_plans_required']:
+                    if bool_field in project_data:
+                        val = project_data[bool_field].lower()
+                        project_data[bool_field] = 1 if val in ['yes', 'true', '1'] else 0
+                
+                # Convert numeric fields
+                for num_field in ['budget_cost', 'actual_cost', 'approved_orders', 'budget_variance']:
+                    if num_field in project_data and project_data[num_field]:
+                        try:
+                            project_data[num_field] = float(project_data[num_field].replace(',', ''))
+                        except:
+                            project_data[num_field] = None
+                
+                # Check for duplicates by title and address
+                existing = None
+                if project_data.get('title'):
+                    existing = query_db(
+                        'SELECT id FROM projects WHERE title = ? AND address = ?',
+                        [project_data.get('title'), project_data.get('address', '')], one=True
+                    )
+                
+                if existing:
+                    if duplicate_action == 'skip':
+                        skipped += 1
+                        continue
+                    elif duplicate_action == 'update':
+                        update_fields = []
+                        update_values = []
+                        for field, value in project_data.items():
+                            if value is not None:
+                                update_fields.append(f'{field} = ?')
+                                update_values.append(value)
+                        if customer_id:
+                            update_fields.append('customer_id = ?')
+                            update_values.append(customer_id)
+                        if update_fields:
+                            update_values.append(existing['id'])
+                            execute_db(
+                                f'UPDATE projects SET {", ".join(update_fields)}, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+                                update_values
+                            )
+                            updated += 1
+                        continue
+                
+                # Insert new project
+                execute_db(
+                    '''INSERT INTO projects (title, customer_id, stage, current_stage, address, job_type, 
+                       job_number, auto_number, budget_cost, actual_cost, approved_orders, budget_variance,
+                       permit_required, permit_no, jurisdiction, engineering_plans_required,
+                       first_site_visit_date, date_completed, scope_of_work)
+                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
+                    (
+                        project_data.get('title', ''),
+                        customer_id,
+                        project_data.get('stage', ''),
+                        project_data.get('current_stage', ''),
+                        project_data.get('address', ''),
+                        project_data.get('job_type', ''),
+                        project_data.get('job_number', ''),
+                        project_data.get('auto_number', ''),
+                        project_data.get('budget_cost'),
+                        project_data.get('actual_cost'),
+                        project_data.get('approved_orders'),
+                        project_data.get('budget_variance'),
+                        project_data.get('permit_required', 0),
+                        project_data.get('permit_no', ''),
+                        project_data.get('jurisdiction', ''),
+                        project_data.get('engineering_plans_required', 0),
+                        project_data.get('first_site_visit_date', ''),
+                        project_data.get('date_completed', ''),
+                        project_data.get('scope_of_work', '')
+                    )
+                )
+                imported += 1
+            
+            flash(f'Import complete: {imported} added, {updated} updated, {skipped} skipped', 'success')
+            return redirect(url_for('projects'))
+            
+        except Exception as e:
+            flash(f'Error processing CSV: {str(e)}', 'error')
+            return redirect(request.url)
+    
+    # GET request
+    project_fields = ['title', 'stage', 'current_stage', 'address', 'job_type', 'job_number', 
+                     'auto_number', 'budget_cost', 'actual_cost', 'approved_orders', 
+                     'permit_required', 'permit_no', 'jurisdiction', 'scope_of_work', 'customer_name']
+    return render_template('import_projects.html',
+                         default_mappings=PROJECT_CSV_MAPPINGS,
+                         project_fields=project_fields)
+
 
 if __name__ == '__main__':
     init_db()
