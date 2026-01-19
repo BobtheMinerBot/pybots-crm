@@ -34,11 +34,14 @@
 
             <div class="form-group" id="optionsGroup" style="display: none;">
                 <label class="form-label">Options</label>
-                <textarea name="options" class="form-control" rows="3"
-                    placeholder="Enter each option on a new line, e.g.:&#10;Option 1&#10;Option 2&#10;Option 3">{{ field['options'] if field else '' }}</textarea>
-                <p class="text-muted text-sm" style="margin-top: 0.25rem;">
-                    Enter each option on a separate line.
-                </p>
+                <div id="optionsContainer">
+                    <!-- Dynamic options with colors -->
+                </div>
+                <button type="button" class="btn btn-secondary btn-sm" onclick="addOption()" style="margin-top: 0.5rem;">
+                    + Add Option
+                </button>
+                <input type="hidden" name="options" id="optionsInput" value="{{ field['options'] if field else '' }}">
+                <input type="hidden" name="option_colors" id="optionColorsInput" value="{{ field['option_colors'] if field and field['option_colors'] else '{}' }}">
             </div>
 
             <div class="form-group">
@@ -64,14 +67,200 @@
     </div>
 </div>
 
+<style>
+    .option-row {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin-bottom: 0.5rem;
+    }
+    .option-color-swatch {
+        width: 28px;
+        height: 28px;
+        border-radius: 4px;
+        cursor: pointer;
+        border: 2px solid var(--gray-300);
+        flex-shrink: 0;
+        transition: all 0.15s ease;
+    }
+    .option-color-swatch:hover {
+        transform: scale(1.1);
+        border-color: var(--gray-500);
+    }
+    .option-input {
+        flex: 1;
+    }
+    .option-remove {
+        background: none;
+        border: none;
+        color: var(--gray-400);
+        cursor: pointer;
+        padding: 0.25rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .option-remove:hover {
+        color: var(--danger);
+    }
+    .color-picker-dropdown {
+        position: absolute;
+        background: white;
+        border: 1px solid var(--gray-200);
+        border-radius: 8px;
+        padding: 0.75rem;
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+        z-index: 1000;
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 0.375rem;
+    }
+    .color-picker-option {
+        width: 28px;
+        height: 28px;
+        border-radius: 4px;
+        cursor: pointer;
+        border: 2px solid transparent;
+        transition: all 0.1s ease;
+    }
+    .color-picker-option:hover {
+        transform: scale(1.15);
+    }
+</style>
+
 <script>
+    const MONDAY_COLORS = [
+        '#0073EA', '#00C875', '#A25DDC', '#FDAB3D', '#E2445C', '#FF158A', '#579BFC', '#FFCB00',
+        '#00D2D2', '#037F4C', '#9AADBD', '#CAB641', '#7F5347', '#FF5AC4', '#784BD1', '#66CCFF'
+    ];
+
+    let options = [];
+    let optionColors = {};
+    let activeColorPicker = null;
+
     function toggleOptions() {
         const fieldType = document.getElementById('fieldType').value;
         const optionsGroup = document.getElementById('optionsGroup');
         const needsOptions = ['dropdown', 'multi_select', 'symbol'].includes(fieldType);
         optionsGroup.style.display = needsOptions ? 'block' : 'none';
     }
+
+    function initOptions() {
+        const optionsInput = document.getElementById('optionsInput').value;
+        const colorsInput = document.getElementById('optionColorsInput').value;
+
+        if (optionsInput) {
+            options = optionsInput.split('\n').filter(o => o.trim());
+        }
+
+        try {
+            optionColors = JSON.parse(colorsInput) || {};
+        } catch(e) {
+            optionColors = {};
+        }
+
+        renderOptions();
+    }
+
+    function renderOptions() {
+        const container = document.getElementById('optionsContainer');
+        container.innerHTML = options.map((opt, index) => `
+            <div class="option-row" data-index="${index}">
+                <div class="option-color-swatch"
+                     style="background: ${optionColors[opt] || '#9AADBD'}"
+                     onclick="openColorPicker(event, ${index})"
+                     title="Click to change color"></div>
+                <input type="text" class="form-control option-input"
+                       value="${opt}"
+                       onchange="updateOption(${index}, this.value)"
+                       placeholder="Option ${index + 1}">
+                <button type="button" class="option-remove" onclick="removeOption(${index})" title="Remove">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                </button>
+            </div>
+        `).join('');
+
+        updateHiddenInputs();
+    }
+
+    function addOption() {
+        const newOption = `Option ${options.length + 1}`;
+        options.push(newOption);
+        optionColors[newOption] = MONDAY_COLORS[options.length % MONDAY_COLORS.length];
+        renderOptions();
+    }
+
+    function updateOption(index, newValue) {
+        const oldValue = options[index];
+        if (optionColors[oldValue]) {
+            optionColors[newValue] = optionColors[oldValue];
+            delete optionColors[oldValue];
+        }
+        options[index] = newValue;
+        updateHiddenInputs();
+    }
+
+    function removeOption(index) {
+        const opt = options[index];
+        delete optionColors[opt];
+        options.splice(index, 1);
+        renderOptions();
+    }
+
+    function updateHiddenInputs() {
+        document.getElementById('optionsInput').value = options.join('\n');
+        document.getElementById('optionColorsInput').value = JSON.stringify(optionColors);
+    }
+
+    function openColorPicker(event, optionIndex) {
+        event.stopPropagation();
+        closeColorPicker();
+
+        const swatch = event.target;
+        const rect = swatch.getBoundingClientRect();
+
+        const picker = document.createElement('div');
+        picker.className = 'color-picker-dropdown';
+        picker.style.top = (rect.bottom + window.scrollY + 5) + 'px';
+        picker.style.left = rect.left + 'px';
+
+        picker.innerHTML = MONDAY_COLORS.map(color => `
+            <div class="color-picker-option"
+                 style="background: ${color}"
+                 onclick="selectOptionColor(${optionIndex}, '${color}')"></div>
+        `).join('');
+
+        document.body.appendChild(picker);
+        activeColorPicker = picker;
+    }
+
+    function selectOptionColor(optionIndex, color) {
+        const opt = options[optionIndex];
+        optionColors[opt] = color;
+        renderOptions();
+        closeColorPicker();
+    }
+
+    function closeColorPicker() {
+        if (activeColorPicker) {
+            activeColorPicker.remove();
+            activeColorPicker = null;
+        }
+    }
+
+    document.addEventListener('click', function(e) {
+        if (activeColorPicker && !activeColorPicker.contains(e.target)) {
+            closeColorPicker();
+        }
+    });
+
     // Initialize on page load
-    toggleOptions();
+    document.addEventListener('DOMContentLoaded', function() {
+        toggleOptions();
+        initOptions();
+    });
 </script>
 {% endblock %}

@@ -13,36 +13,54 @@
         }
 
         :root {
-            --primary: #3B82F6;
-            --primary-dark: #1d4ed8;
-            --success: #10B981;
-            --success-light: #dcfce7;
-            --warning: #F59E0B;
-            --warning-light: #fef3c7;
-            --danger: #EF4444;
-            --danger-light: #fee2e2;
-            --purple: #8B5CF6;
-            --pink: #EC4899;
-            --cyan: #06B6D4;
-            --gray-50: #f9fafb;
-            --gray-100: #f3f4f6;
-            --gray-200: #e5e7eb;
-            --gray-300: #d1d5db;
-            --gray-400: #9ca3af;
-            --gray-500: #6b7280;
-            --gray-600: #4b5563;
-            --gray-700: #374151;
-            --gray-800: #1f2937;
-            --gray-900: #111827;
+            /* Monday.com Inspired Primary Colors */
+            --primary: #0073EA;
+            --primary-dark: #0060C2;
+            --primary-light: #E6F4FF;
 
-            /* Stage colors */
-            --stage-new-lead: #3B82F6;
-            --stage-inspection-scheduled: #F59E0B;
-            --stage-estimating: #8B5CF6;
-            --stage-proposal-sent: #10B981;
-            --stage-follow-up: #EC4899;
-            --stage-nurturing: #06B6D4;
-            --stage-lost: #EF4444;
+            /* Vibrant Status Colors */
+            --monday-blue: #0073EA;
+            --monday-green: #00C875;
+            --monday-purple: #A25DDC;
+            --monday-orange: #FDAB3D;
+            --monday-red: #E2445C;
+            --monday-pink: #FF158A;
+            --monday-sky: #579BFC;
+            --monday-yellow: #FFCB00;
+            --monday-teal: #00D2D2;
+            --monday-grass: #037F4C;
+
+            /* Semantic colors */
+            --success: #00C875;
+            --success-light: #E5FBF3;
+            --warning: #FDAB3D;
+            --warning-light: #FFF4E5;
+            --danger: #E2445C;
+            --danger-light: #FFE5E9;
+            --purple: #A25DDC;
+            --pink: #FF158A;
+            --cyan: #00D2D2;
+
+            /* Clean Gray Scale */
+            --gray-50: #F5F6F8;
+            --gray-100: #E6E9EF;
+            --gray-200: #D0D4E4;
+            --gray-300: #C3C6D4;
+            --gray-400: #9699A9;
+            --gray-500: #676879;
+            --gray-600: #4B4E5C;
+            --gray-700: #323338;
+            --gray-800: #1F2128;
+            --gray-900: #0B0C0F;
+
+            /* Default Stage colors (overridden by dynamic CSS) */
+            --stage-new-lead: #0073EA;
+            --stage-inspection-scheduled: #FDAB3D;
+            --stage-estimating: #A25DDC;
+            --stage-proposal-sent: #00C875;
+            --stage-follow-up: #FF158A;
+            --stage-nurturing: #579BFC;
+            --stage-lost: #E2445C;
         }
 
         body {
@@ -249,64 +267,86 @@
             border: 1px solid #fecaca;
         }
 
-        /* Status badges */
+        /* Status badges - Monday.com inspired vibrant styles */
         .badge {
-            display: inline-block;
-            padding: 0.25rem 0.625rem;
-            border-radius: 9999px;
-            font-size: 0.75rem;
-            font-weight: 500;
+            display: inline-flex;
+            align-items: center;
+            padding: 0.25rem 0.75rem;
+            border-radius: 4px;
+            font-size: 0.8125rem;
+            font-weight: 600;
+            text-transform: capitalize;
+            letter-spacing: 0.01em;
+            transition: all 0.15s ease;
         }
 
+        .badge:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Default status badges - will be overridden by dynamic CSS */
         .badge-new-lead {
-            background: #DBEAFE;
-            color: #1E40AF;
+            background: #E6F4FF;
+            color: #0073EA;
         }
 
         .badge-inspection-scheduled {
-            background: #FEF3C7;
-            color: #92400E;
+            background: #FFF4E5;
+            color: #FDAB3D;
         }
 
         .badge-estimating {
-            background: #EDE9FE;
-            color: #5B21B6;
+            background: #F4ECFB;
+            color: #A25DDC;
         }
 
         .badge-proposal-sent {
-            background: #D1FAE5;
-            color: #065F46;
+            background: #E5FBF3;
+            color: #00C875;
         }
 
         .badge-follow-up {
-            background: #FCE7F3;
-            color: #9D174D;
+            background: #FFE5F0;
+            color: #FF158A;
         }
 
         .badge-nurturing {
-            background: #CFFAFE;
-            color: #0E7490;
+            background: #E5F0FF;
+            color: #579BFC;
         }
 
         .badge-lost {
-            background: #FEE2E2;
-            color: #991B1B;
+            background: #FFE5E9;
+            color: #E2445C;
         }
+
+        /* Filled badge variant */
+        .badge-filled {
+            color: white !important;
+        }
+        .badge-new-lead.badge-filled { background: #0073EA; }
+        .badge-inspection-scheduled.badge-filled { background: #FDAB3D; }
+        .badge-estimating.badge-filled { background: #A25DDC; }
+        .badge-proposal-sent.badge-filled { background: #00C875; }
+        .badge-follow-up.badge-filled { background: #FF158A; }
+        .badge-nurturing.badge-filled { background: #579BFC; }
+        .badge-lost.badge-filled { background: #E2445C; }
 
         /* Priority badges */
         .badge-priority-high {
-            background: #FEE2E2;
-            color: #DC2626;
+            background: #FFE5E9;
+            color: #E2445C;
         }
 
         .badge-priority-medium {
-            background: #FEF3C7;
-            color: #D97706;
+            background: #FFF4E5;
+            color: #FDAB3D;
         }
 
         .badge-priority-low {
-            background: #DBEAFE;
-            color: #2563EB;
+            background: #E6F4FF;
+            color: #0073EA;
         }
 
         /* Grid table */
@@ -386,11 +426,43 @@
             border: 1px solid var(--gray-200);
             border-top: none;
             border-radius: 0 0 0.5rem 0.5rem;
-            overflow: hidden;
+            overflow-x: auto;
+            overflow-y: visible;
+            /* Smooth momentum scrolling on trackpad/touch */
+            -webkit-overflow-scrolling: touch;
+            scroll-behavior: smooth;
+        }
+
+        /* Custom scrollbar styling for table wrapper */
+        .grid-table-wrapper::-webkit-scrollbar {
+            height: 8px;
+            background: var(--gray-100);
+        }
+
+        .grid-table-wrapper::-webkit-scrollbar-track {
+            background: var(--gray-100);
+            border-radius: 4px;
+        }
+
+        .grid-table-wrapper::-webkit-scrollbar-thumb {
+            background: var(--gray-300);
+            border-radius: 4px;
+            transition: background 0.2s ease;
+        }
+
+        .grid-table-wrapper::-webkit-scrollbar-thumb:hover {
+            background: var(--gray-400);
+        }
+
+        /* Firefox scrollbar styling */
+        .grid-table-wrapper {
+            scrollbar-width: thin;
+            scrollbar-color: var(--gray-300) var(--gray-100);
         }
 
         .grid-table {
             width: 100%;
+            min-width: max-content;
             border-collapse: collapse;
         }
 
@@ -402,12 +474,43 @@
             font-size: 0.8125rem;
             color: var(--gray-500);
             border-bottom: 1px solid var(--gray-200);
+            white-space: nowrap;
+            min-width: 100px;
         }
 
         .grid-table td {
             padding: 0.75rem 1rem;
             border-bottom: 1px solid var(--gray-100);
             font-size: 0.875rem;
+            white-space: nowrap;
+            min-width: 100px;
+        }
+
+        /* Name column should be wider */
+        .grid-table th[data-column="name"],
+        .grid-table td[data-column="name"],
+        .grid-table td.lead-name {
+            min-width: 180px;
+        }
+
+        /* Checkbox and Actions columns - smaller fixed widths */
+        .grid-table th.checkbox-col,
+        .grid-table td.checkbox-col {
+            min-width: 40px;
+            width: 40px;
+        }
+
+        .grid-table th.actions-col-header,
+        .grid-table td.actions-col {
+            min-width: 50px;
+            width: 50px;
+        }
+
+        /* Add field column - small fixed width */
+        .grid-table th.add-field-header,
+        .grid-table td.add-field-cell {
+            min-width: 40px;
+            width: 40px;
         }
 
         .grid-table tr:last-child td {
@@ -606,19 +709,26 @@
         /* Status dot indicators */
         .status-dot {
             display: inline-block;
-            width: 8px;
-            height: 8px;
+            width: 10px;
+            height: 10px;
             border-radius: 50%;
-            margin-right: 6px;
+            margin-right: 8px;
+            box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.9);
+            transition: transform 0.15s ease;
         }
 
-        .status-dot-new-lead { background: var(--stage-new-lead); }
-        .status-dot-inspection-scheduled { background: var(--stage-inspection-scheduled); }
-        .status-dot-estimating { background: var(--stage-estimating); }
-        .status-dot-proposal-sent { background: var(--stage-proposal-sent); }
-        .status-dot-follow-up { background: var(--stage-follow-up); }
-        .status-dot-nurturing { background: var(--stage-nurturing); }
-        .status-dot-lost { background: var(--stage-lost); }
+        .status-dot:hover {
+            transform: scale(1.2);
+        }
+
+        /* Default status dot colors (overridden by dynamic CSS) */
+        .status-dot-new-lead { background: var(--monday-blue); }
+        .status-dot-inspection-scheduled { background: var(--monday-orange); }
+        .status-dot-estimating { background: var(--monday-purple); }
+        .status-dot-proposal-sent { background: var(--monday-green); }
+        .status-dot-follow-up { background: var(--monday-pink); }
+        .status-dot-nurturing { background: var(--monday-sky); }
+        .status-dot-lost { background: var(--monday-red); }
 
         /* Login page */
         .login-container {
@@ -680,10 +790,6 @@
 
             .search-box {
                 max-width: none;
-            }
-
-            .grid-table-wrapper {
-                overflow-x: auto;
             }
 
             .detail-header {
@@ -1371,6 +1477,22 @@
             padding: 1rem;
             color: var(--gray-500);
         }
+
+        /* Dynamic status colors - injected from database */
+        {% if status_colors %}
+        {% for status_name, colors in status_colors.items() %}
+        .badge-{{ status_name | lower | replace(' ', '-') }} {
+            background: {{ colors.bg }};
+            color: {{ colors.color }};
+        }
+        .status-dot-{{ status_name | lower | replace(' ', '-') }} {
+            background: {{ colors.color }};
+        }
+        .group-header-{{ status_name | lower | replace(' ', '-') }} {
+            border-left-color: {{ colors.color }};
+        }
+        {% endfor %}
+        {% endif %}
     </style>
 </head>
 

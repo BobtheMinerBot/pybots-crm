@@ -38,6 +38,17 @@
             </svg>
             Users
         </a>
+        <a href="#appearance" class="settings-nav-item" data-section="appearance">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"></circle>
+                <circle cx="12" cy="12" r="3"></circle>
+                <line x1="12" y1="2" x2="12" y2="5"></line>
+                <line x1="12" y1="19" x2="12" y2="22"></line>
+                <line x1="2" y1="12" x2="5" y2="12"></line>
+                <line x1="19" y1="12" x2="22" y2="12"></line>
+            </svg>
+            Appearance
+        </a>
     </nav>
 
     <!-- Settings Content -->
@@ -347,6 +358,105 @@
                 </div>
             </div>
         </section>
+
+        <!-- Appearance Section -->
+        <section id="appearance" class="settings-section">
+            <div class="settings-section-header">
+                <h2>Appearance</h2>
+                <p class="text-muted">Customize colors for statuses, job types, and property types</p>
+            </div>
+
+            <!-- Status Colors -->
+            <div class="card" style="margin-bottom: 1.5rem;">
+                <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+                    <h3 style="font-size: 1rem; margin: 0;">Status Colors</h3>
+                    <button class="btn btn-primary btn-sm" onclick="openAddStatusModal()">
+                        + Add Status
+                    </button>
+                </div>
+                <div class="card-body" style="padding: 0;">
+                    <div id="statusList" class="color-list">
+                        <!-- Loaded via JavaScript -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Job Type Colors -->
+            <div class="card" style="margin-bottom: 1.5rem;">
+                <div class="card-header">
+                    <h3 style="font-size: 1rem; margin: 0;">Job Type Colors</h3>
+                </div>
+                <div class="card-body" style="padding: 0;">
+                    <div id="jobTypeList" class="color-list">
+                        <!-- Loaded via JavaScript -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Property Type Colors -->
+            <div class="card">
+                <div class="card-header">
+                    <h3 style="font-size: 1rem; margin: 0;">Property Type Colors</h3>
+                </div>
+                <div class="card-body" style="padding: 0;">
+                    <div id="propertyTypeList" class="color-list">
+                        <!-- Loaded via JavaScript -->
+                    </div>
+                </div>
+            </div>
+        </section>
+    </div>
+</div>
+
+<!-- Add Status Modal -->
+<div id="addStatusModal" class="modal-overlay">
+    <div class="modal">
+        <div class="modal-header">
+            <h3>Add New Status</h3>
+            <button class="modal-close" onclick="document.getElementById('addStatusModal').classList.remove('visible')">&times;</button>
+        </div>
+        <form id="addStatusForm" onsubmit="return addNewStatus(event)">
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">Status Name *</label>
+                    <input type="text" id="newStatusName" class="form-control" required placeholder="e.g., In Review">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Color</label>
+                    <div class="color-palette" id="newStatusColorPalette">
+                        <!-- Color swatches loaded via JS -->
+                    </div>
+                    <input type="hidden" id="newStatusColor" value="#0073EA">
+                    <input type="hidden" id="newStatusBgColor" value="#E6F4FF">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="document.getElementById('addStatusModal').classList.remove('visible')">Cancel</button>
+                <button type="submit" class="btn btn-primary">Add Status</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Color Picker Modal -->
+<div id="colorPickerModal" class="modal-overlay">
+    <div class="modal" style="max-width: 350px;">
+        <div class="modal-header">
+            <h3>Choose Color</h3>
+            <button class="modal-close" onclick="closeColorPicker()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="color-palette" id="colorPalette">
+                <!-- Color swatches loaded via JS -->
+            </div>
+            <div style="margin-top: 1rem; display: flex; align-items: center; gap: 0.5rem;">
+                <span class="badge" id="colorPreview" style="padding: 0.5rem 1rem;">Preview</span>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" onclick="closeColorPicker()">Cancel</button>
+            <button type="button" class="btn btn-primary" onclick="applyColor()">Apply</button>
+        </div>
     </div>
 </div>
 
@@ -556,6 +666,79 @@
             height: 16px;
         }
     }
+
+    /* Color Management Styles */
+    .color-list {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .color-list-item {
+        display: flex;
+        align-items: center;
+        padding: 0.875rem 1rem;
+        border-bottom: 1px solid var(--gray-100);
+        gap: 1rem;
+    }
+
+    .color-list-item:last-child {
+        border-bottom: none;
+    }
+
+    .color-swatch {
+        width: 32px;
+        height: 32px;
+        border-radius: 6px;
+        cursor: pointer;
+        border: 2px solid transparent;
+        transition: all 0.15s ease;
+        flex-shrink: 0;
+    }
+
+    .color-swatch:hover {
+        transform: scale(1.1);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+
+    .color-list-item .name {
+        flex: 1;
+        font-weight: 500;
+        color: var(--gray-700);
+    }
+
+    .color-list-item .badge {
+        flex-shrink: 0;
+    }
+
+    .color-list-item .actions {
+        display: flex;
+        gap: 0.5rem;
+    }
+
+    .color-palette {
+        display: grid;
+        grid-template-columns: repeat(8, 1fr);
+        gap: 0.5rem;
+    }
+
+    .color-palette-swatch {
+        width: 32px;
+        height: 32px;
+        border-radius: 6px;
+        cursor: pointer;
+        border: 2px solid transparent;
+        transition: all 0.15s ease;
+    }
+
+    .color-palette-swatch:hover {
+        transform: scale(1.15);
+        z-index: 1;
+    }
+
+    .color-palette-swatch.selected {
+        border-color: var(--gray-800);
+        box-shadow: 0 0 0 2px white, 0 0 0 4px var(--gray-800);
+    }
 </style>
 
 <script>
@@ -623,6 +806,304 @@
                 this.classList.remove('visible');
             }
         });
+    });
+
+    // ===== Color Management =====
+
+    // Monday.com color palette
+    const MONDAY_COLORS = [
+        { color: '#0073EA', bg: '#E6F4FF' },  // Blue
+        { color: '#00C875', bg: '#E5FBF3' },  // Green
+        { color: '#A25DDC', bg: '#F4ECFB' },  // Purple
+        { color: '#FDAB3D', bg: '#FFF4E5' },  // Orange
+        { color: '#E2445C', bg: '#FFE5E9' },  // Red
+        { color: '#FF158A', bg: '#FFE5F0' },  // Pink
+        { color: '#579BFC', bg: '#E5F0FF' },  // Sky
+        { color: '#FFCB00', bg: '#FFF9E5' },  // Yellow
+        { color: '#00D2D2', bg: '#E5FAFA' },  // Teal
+        { color: '#037F4C', bg: '#E5F5ED' },  // Dark Green
+        { color: '#9AADBD', bg: '#F0F3F6' },  // Gray
+        { color: '#CAB641', bg: '#FAF7E5' },  // Olive
+        { color: '#7F5347', bg: '#F5EDEB' },  // Brown
+        { color: '#FF5AC4', bg: '#FFE5F4' },  // Magenta
+        { color: '#784BD1', bg: '#F0EAFB' },  // Indigo
+        { color: '#66CCFF', bg: '#E5F7FF' },  // Light Blue
+    ];
+
+    let currentColorTarget = null;
+    let selectedColor = MONDAY_COLORS[0];
+
+    // Initialize palettes
+    function initColorPalettes() {
+        const palette = document.getElementById('colorPalette');
+        const newStatusPalette = document.getElementById('newStatusColorPalette');
+
+        if (palette) {
+            palette.innerHTML = MONDAY_COLORS.map((c, i) => `
+                <div class="color-palette-swatch${i === 0 ? ' selected' : ''}"
+                     style="background: ${c.color}"
+                     data-color="${c.color}"
+                     data-bg="${c.bg}"
+                     onclick="selectColor(this, ${i})"></div>
+            `).join('');
+        }
+
+        if (newStatusPalette) {
+            newStatusPalette.innerHTML = MONDAY_COLORS.map((c, i) => `
+                <div class="color-palette-swatch${i === 0 ? ' selected' : ''}"
+                     style="background: ${c.color}"
+                     data-color="${c.color}"
+                     data-bg="${c.bg}"
+                     onclick="selectNewStatusColor(this, ${i})"></div>
+            `).join('');
+        }
+    }
+
+    function selectColor(el, index) {
+        document.querySelectorAll('#colorPalette .color-palette-swatch').forEach(s => s.classList.remove('selected'));
+        el.classList.add('selected');
+        selectedColor = MONDAY_COLORS[index];
+
+        const preview = document.getElementById('colorPreview');
+        if (preview) {
+            preview.style.background = selectedColor.bg;
+            preview.style.color = selectedColor.color;
+        }
+    }
+
+    function selectNewStatusColor(el, index) {
+        document.querySelectorAll('#newStatusColorPalette .color-palette-swatch').forEach(s => s.classList.remove('selected'));
+        el.classList.add('selected');
+        document.getElementById('newStatusColor').value = MONDAY_COLORS[index].color;
+        document.getElementById('newStatusBgColor').value = MONDAY_COLORS[index].bg;
+    }
+
+    function openColorPicker(type, id, name, currentColor) {
+        currentColorTarget = { type, id, name };
+
+        // Find and select current color
+        const index = MONDAY_COLORS.findIndex(c => c.color === currentColor);
+        if (index >= 0) {
+            selectedColor = MONDAY_COLORS[index];
+            document.querySelectorAll('#colorPalette .color-palette-swatch').forEach((s, i) => {
+                s.classList.toggle('selected', i === index);
+            });
+        }
+
+        const preview = document.getElementById('colorPreview');
+        if (preview) {
+            preview.textContent = name;
+            preview.style.background = selectedColor.bg;
+            preview.style.color = selectedColor.color;
+        }
+
+        document.getElementById('colorPickerModal').classList.add('visible');
+    }
+
+    function closeColorPicker() {
+        document.getElementById('colorPickerModal').classList.remove('visible');
+        currentColorTarget = null;
+    }
+
+    async function applyColor() {
+        if (!currentColorTarget) return;
+
+        const { type, id } = currentColorTarget;
+        let endpoint = '';
+
+        if (type === 'status') {
+            endpoint = `/api/statuses/${id}/color`;
+        } else if (type === 'job_type') {
+            endpoint = `/api/job-types/${id}/color`;
+        } else if (type === 'property_type') {
+            endpoint = `/api/property-types/${id}/color`;
+        }
+
+        try {
+            const response = await fetch(endpoint, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    color: selectedColor.color,
+                    bg_color: selectedColor.bg
+                })
+            });
+
+            if (response.ok) {
+                showToast('Color updated!', 'success');
+                loadAppearanceData();
+                closeColorPicker();
+            } else {
+                showToast('Failed to update color', 'error');
+            }
+        } catch (error) {
+            showToast('Error updating color', 'error');
+        }
+    }
+
+    // Load appearance data
+    async function loadAppearanceData() {
+        await Promise.all([
+            loadStatuses(),
+            loadJobTypes(),
+            loadPropertyTypes()
+        ]);
+    }
+
+    async function loadStatuses() {
+        try {
+            const response = await fetch('/api/statuses');
+            const statuses = await response.json();
+            renderStatusList(statuses);
+        } catch (error) {
+            console.error('Failed to load statuses:', error);
+        }
+    }
+
+    function renderStatusList(statuses) {
+        const list = document.getElementById('statusList');
+        if (!list) return;
+
+        list.innerHTML = statuses.map(s => `
+            <div class="color-list-item" data-id="${s.id}">
+                <div class="color-swatch" style="background: ${s.color}"
+                     onclick="openColorPicker('status', ${s.id}, '${s.name}', '${s.color}')"></div>
+                <span class="name">${s.name}</span>
+                <span class="badge" style="background: ${s.bg_color}; color: ${s.color};">${s.name}</span>
+                <div class="actions">
+                    <button class="btn btn-danger btn-sm" onclick="deleteStatus(${s.id}, '${s.name}')" title="Delete">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    async function loadJobTypes() {
+        try {
+            const response = await fetch('/api/job-types');
+            const types = await response.json();
+            renderJobTypeList(types);
+        } catch (error) {
+            console.error('Failed to load job types:', error);
+        }
+    }
+
+    function renderJobTypeList(types) {
+        const list = document.getElementById('jobTypeList');
+        if (!list) return;
+
+        list.innerHTML = types.map(t => `
+            <div class="color-list-item" data-id="${t.id}">
+                <div class="color-swatch" style="background: ${t.color}"
+                     onclick="openColorPicker('job_type', ${t.id}, '${t.name}', '${t.color}')"></div>
+                <span class="name">${t.name}</span>
+                <span class="badge" style="background: ${t.color}20; color: ${t.color};">${t.name}</span>
+            </div>
+        `).join('');
+    }
+
+    async function loadPropertyTypes() {
+        try {
+            const response = await fetch('/api/property-types');
+            const types = await response.json();
+            renderPropertyTypeList(types);
+        } catch (error) {
+            console.error('Failed to load property types:', error);
+        }
+    }
+
+    function renderPropertyTypeList(types) {
+        const list = document.getElementById('propertyTypeList');
+        if (!list) return;
+
+        list.innerHTML = types.map(t => `
+            <div class="color-list-item" data-id="${t.id}">
+                <div class="color-swatch" style="background: ${t.color}"
+                     onclick="openColorPicker('property_type', ${t.id}, '${t.name}', '${t.color}')"></div>
+                <span class="name">${t.name}</span>
+                <span class="badge" style="background: ${t.color}20; color: ${t.color};">${t.name}</span>
+            </div>
+        `).join('');
+    }
+
+    // Add status modal
+    function openAddStatusModal() {
+        document.getElementById('newStatusName').value = '';
+        document.getElementById('addStatusModal').classList.add('visible');
+    }
+
+    async function addNewStatus(e) {
+        e.preventDefault();
+
+        const name = document.getElementById('newStatusName').value.trim();
+        const color = document.getElementById('newStatusColor').value;
+        const bgColor = document.getElementById('newStatusBgColor').value;
+
+        if (!name) return false;
+
+        try {
+            const response = await fetch('/api/statuses', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name, color, bg_color: bgColor })
+            });
+
+            if (response.ok) {
+                showToast('Status added!', 'success');
+                document.getElementById('addStatusModal').classList.remove('visible');
+                loadStatuses();
+            } else {
+                const data = await response.json();
+                showToast(data.error || 'Failed to add status', 'error');
+            }
+        } catch (error) {
+            showToast('Error adding status', 'error');
+        }
+
+        return false;
+    }
+
+    async function deleteStatus(id, name) {
+        if (!confirm(`Delete status "${name}"? Leads with this status will need to be updated.`)) {
+            return;
+        }
+
+        try {
+            const response = await fetch(`/api/statuses/${id}`, {
+                method: 'DELETE'
+            });
+
+            if (response.ok) {
+                showToast('Status deleted', 'success');
+                loadStatuses();
+            } else {
+                const data = await response.json();
+                showToast(data.error || 'Failed to delete status', 'error');
+            }
+        } catch (error) {
+            showToast('Error deleting status', 'error');
+        }
+    }
+
+    // Initialize when page loads
+    document.addEventListener('DOMContentLoaded', function() {
+        initColorPalettes();
+
+        // Load appearance data when that section is shown
+        const appearanceNav = document.querySelector('[data-section="appearance"]');
+        if (appearanceNav) {
+            appearanceNav.addEventListener('click', function() {
+                loadAppearanceData();
+            });
+        }
+
+        // If starting on appearance section, load data
+        if (window.location.hash === '#appearance') {
+            loadAppearanceData();
+        }
     });
 </script>
 {% endblock %}

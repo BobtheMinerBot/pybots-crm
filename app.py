@@ -87,6 +87,7 @@ def init_db():
                 field_key TEXT UNIQUE NOT NULL,
                 field_type TEXT NOT NULL,
                 options TEXT,
+                option_colors TEXT,
                 is_required BOOLEAN DEFAULT 0,
                 default_value TEXT,
                 sequence INTEGER DEFAULT 0,
@@ -166,6 +167,32 @@ def init_db():
                 sort_direction TEXT DEFAULT 'asc',
                 FOREIGN KEY (user_id) REFERENCES users (id)
             );
+
+            CREATE TABLE IF NOT EXISTS statuses (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL UNIQUE,
+                color TEXT DEFAULT '#6b7280',
+                bg_color TEXT DEFAULT '#f3f4f6',
+                sequence INTEGER DEFAULT 0,
+                is_active BOOLEAN DEFAULT 1,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+
+            CREATE TABLE IF NOT EXISTS job_type_colors (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL UNIQUE,
+                color TEXT DEFAULT '#6b7280',
+                sequence INTEGER DEFAULT 0,
+                is_active BOOLEAN DEFAULT 1
+            );
+
+            CREATE TABLE IF NOT EXISTS property_type_colors (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL UNIQUE,
+                color TEXT DEFAULT '#6b7280',
+                sequence INTEGER DEFAULT 0,
+                is_active BOOLEAN DEFAULT 1
+            );
         ''')
 
         # Migration: Add default_fields column to views if it doesn't exist
@@ -181,6 +208,65 @@ def init_db():
         except:
             db.execute("ALTER TABLE leads ADD COLUMN deleted_at TIMESTAMP DEFAULT NULL")
             print("Added deleted_at column to leads table for soft deletes")
+
+        # Migration: Add option_colors column to custom_fields
+        try:
+            db.execute("SELECT option_colors FROM custom_fields LIMIT 1")
+        except:
+            db.execute("ALTER TABLE custom_fields ADD COLUMN option_colors TEXT")
+            print("Added option_colors column to custom_fields table")
+
+        # Migration: Populate default statuses with Monday.com colors
+        existing_statuses = db.execute("SELECT id FROM statuses LIMIT 1").fetchone()
+        if not existing_statuses:
+            default_statuses = [
+                ('New Lead', '#0073EA', '#E6F4FF', 1),
+                ('Inspection Scheduled', '#FDAB3D', '#FFF4E5', 2),
+                ('Estimating', '#A25DDC', '#F4ECFB', 3),
+                ('Proposal Sent', '#00C875', '#E5FBF3', 4),
+                ('Follow Up', '#FF158A', '#FFE5F0', 5),
+                ('Nurturing', '#579BFC', '#E5F0FF', 6),
+                ('Lost', '#E2445C', '#FFE5E9', 7)
+            ]
+            for name, color, bg_color, seq in default_statuses:
+                db.execute(
+                    'INSERT INTO statuses (name, color, bg_color, sequence) VALUES (?, ?, ?, ?)',
+                    (name, color, bg_color, seq)
+                )
+            print("Populated default statuses with Monday.com colors")
+
+        # Migration: Populate default job types with colors
+        existing_job_types = db.execute("SELECT id FROM job_type_colors LIMIT 1").fetchone()
+        if not existing_job_types:
+            default_job_types = [
+                ('Spalling Repair', '#0073EA', 1),
+                ('Remodel', '#00C875', 2),
+                ('Seawall Repair', '#579BFC', 3),
+                ('Pool Deck', '#00D2D2', 4),
+                ('Balcony Repair', '#A25DDC', 5),
+                ('Other', '#9AADBD', 6)
+            ]
+            for name, color, seq in default_job_types:
+                db.execute(
+                    'INSERT INTO job_type_colors (name, color, sequence) VALUES (?, ?, ?)',
+                    (name, color, seq)
+                )
+            print("Populated default job types with colors")
+
+        # Migration: Populate default property types with colors
+        existing_property_types = db.execute("SELECT id FROM property_type_colors LIMIT 1").fetchone()
+        if not existing_property_types:
+            default_property_types = [
+                ('Residential', '#00C875', 1),
+                ('Commercial', '#0073EA', 2),
+                ('Other', '#9AADBD', 3)
+            ]
+            for name, color, seq in default_property_types:
+                db.execute(
+                    'INSERT INTO property_type_colors (name, color, sequence) VALUES (?, ?, ?)',
+                    (name, color, seq)
+                )
+            print("Populated default property types with colors")
 
         # Create default admin if no users exist
         existing = query_db('SELECT id FROM users LIMIT 1', one=True)
@@ -348,11 +434,17 @@ def leads():
         visible_default_fields = ['email', 'phone', 'address', 'job_type', 'property_type']
         visible_custom_field_ids = [f['id'] for f in all_custom_fields]
 
+    # Get statuses from database with colors
+    db_statuses = get_all_statuses()
+    status_names = [s['name'] for s in db_statuses] if db_statuses else STATUSES
+    status_colors = get_status_colors()
+
     return render_template('leads.html',
                          grouped_leads=grouped_leads,
                          group_prefs=group_prefs,
                          all_leads=all_leads,
-                         statuses=STATUSES,
+                         statuses=status_names,
+                         status_colors=status_colors,
                          job_types=JOB_TYPES,
                          property_types=PROPERTY_TYPES,
                          status_filter=status_filter,
@@ -403,9 +495,12 @@ def add_lead():
         return redirect(url_for('leads'))
     
     custom_fields = get_custom_fields()
-    return render_template('lead_form.html', 
-                         lead=None, 
-                         statuses=STATUSES,
+    db_statuses = get_all_statuses()
+    status_names = [s['name'] for s in db_statuses] if db_statuses else STATUSES
+    return render_template('lead_form.html',
+                         lead=None,
+                         statuses=status_names,
+                         status_colors=get_status_colors(),
                          job_types=JOB_TYPES,
                          property_types=PROPERTY_TYPES,
                          custom_fields=custom_fields,
@@ -418,19 +513,22 @@ def view_lead(id):
     if not lead:
         flash('Lead not found', 'error')
         return redirect(url_for('leads'))
-    
+
     activities = query_db(
         'SELECT * FROM activities WHERE lead_id = ? ORDER BY created_at DESC',
         [id]
     )
-    
+
     custom_fields = get_custom_fields()
     field_values = get_field_values(id)
-    
-    return render_template('lead_detail.html', 
-                         lead=lead, 
+    db_statuses = get_all_statuses()
+    status_names = [s['name'] for s in db_statuses] if db_statuses else STATUSES
+
+    return render_template('lead_detail.html',
+                         lead=lead,
                          activities=activities,
-                         statuses=STATUSES,
+                         statuses=status_names,
+                         status_colors=get_status_colors(),
                          job_types=JOB_TYPES,
                          property_types=PROPERTY_TYPES,
                          custom_fields=custom_fields,
@@ -480,10 +578,13 @@ def edit_lead(id):
     
     custom_fields = get_custom_fields()
     field_values = get_field_values(id)
-    
-    return render_template('lead_form.html', 
-                         lead=lead, 
-                         statuses=STATUSES,
+    db_statuses = get_all_statuses()
+    status_names = [s['name'] for s in db_statuses] if db_statuses else STATUSES
+
+    return render_template('lead_form.html',
+                         lead=lead,
+                         statuses=status_names,
+                         status_colors=get_status_colors(),
                          job_types=JOB_TYPES,
                          property_types=PROPERTY_TYPES,
                          custom_fields=custom_fields,
@@ -728,7 +829,8 @@ def settings():
                           last_backup=last_backup,
                           backup_email=backup_email,
                           backup_count=backup_count,
-                          trash_count=trash_count)
+                          trash_count=trash_count,
+                          status_colors=get_status_colors())
 
 @app.route('/settings/generate-api-key', methods=['POST'])
 @login_required
@@ -1001,6 +1103,42 @@ def set_user_current_view(user_id, view_id):
             [user_id, view_id]
         )
 
+# Status and Color Helper Functions
+def get_all_statuses():
+    """Get all active statuses with colors, ordered by sequence"""
+    statuses = query_db('SELECT * FROM statuses WHERE is_active = 1 ORDER BY sequence')
+    return [dict(s) for s in statuses] if statuses else []
+
+def get_status_colors():
+    """Get status colors as dict for CSS injection"""
+    statuses = get_all_statuses()
+    return {s['name']: {'color': s['color'], 'bg': s['bg_color']} for s in statuses}
+
+def get_status_names():
+    """Get list of status names (for dropdown compatibility)"""
+    statuses = get_all_statuses()
+    return [s['name'] for s in statuses]
+
+def get_job_types_with_colors():
+    """Get all active job types with colors"""
+    types = query_db('SELECT * FROM job_type_colors WHERE is_active = 1 ORDER BY sequence')
+    return [dict(t) for t in types] if types else []
+
+def get_job_type_colors():
+    """Get job type colors as dict"""
+    types = get_job_types_with_colors()
+    return {t['name']: t['color'] for t in types}
+
+def get_property_types_with_colors():
+    """Get all active property types with colors"""
+    types = query_db('SELECT * FROM property_type_colors WHERE is_active = 1 ORDER BY sequence')
+    return [dict(t) for t in types] if types else []
+
+def get_property_type_colors():
+    """Get property type colors as dict"""
+    types = get_property_types_with_colors()
+    return {t['name']: t['color'] for t in types}
+
 # Grouping Helper Functions
 def get_user_group_preferences(user_id):
     """Get user's grouping preferences"""
@@ -1089,34 +1227,35 @@ def add_field():
         name = request.form.get('name', '').strip()
         field_type = request.form.get('field_type', 'text')
         options = request.form.get('options', '')
+        option_colors = request.form.get('option_colors', '{}')
         is_required = 1 if request.form.get('is_required') else 0
         default_value = request.form.get('default_value', '')
-        
+
         if not name:
             flash('Field name is required', 'error')
             return redirect(url_for('add_field'))
-        
+
         field_key = slugify(name)
-        
+
         # Check for duplicate key
         existing = query_db('SELECT id FROM custom_fields WHERE field_key = ?', [field_key], one=True)
         if existing:
             flash('A field with this name already exists', 'error')
             return redirect(url_for('add_field'))
-        
+
         # Get next sequence number
         max_seq = query_db('SELECT MAX(sequence) as max_seq FROM custom_fields', one=True)
         next_seq = (max_seq['max_seq'] or 0) + 1
-        
+
         execute_db('''
-            INSERT INTO custom_fields (name, field_key, field_type, options, is_required, default_value, sequence)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-        ''', [name, field_key, field_type, options, is_required, default_value, next_seq])
-        
+            INSERT INTO custom_fields (name, field_key, field_type, options, option_colors, is_required, default_value, sequence)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        ''', [name, field_key, field_type, options, option_colors, is_required, default_value, next_seq])
+
         flash(f'Field "{name}" created successfully', 'success')
         return redirect(url_for('list_fields'))
-    
-    return render_template('field_form.html', field=None, field_types=FIELD_TYPES)
+
+    return render_template('field_form.html', field=None, field_types=FIELD_TYPES, status_colors=get_status_colors())
 
 @app.route('/fields/<int:id>/edit', methods=['GET', 'POST'])
 @login_required
@@ -1125,27 +1264,28 @@ def edit_field(id):
     if not field:
         flash('Field not found', 'error')
         return redirect(url_for('list_fields'))
-    
+
     if request.method == 'POST':
         name = request.form.get('name', '').strip()
         options = request.form.get('options', '')
+        option_colors = request.form.get('option_colors', '{}')
         is_required = 1 if request.form.get('is_required') else 0
         default_value = request.form.get('default_value', '')
-        
+
         if not name:
             flash('Field name is required', 'error')
             return redirect(url_for('edit_field', id=id))
-        
+
         execute_db('''
-            UPDATE custom_fields 
-            SET name = ?, options = ?, is_required = ?, default_value = ?
+            UPDATE custom_fields
+            SET name = ?, options = ?, option_colors = ?, is_required = ?, default_value = ?
             WHERE id = ?
-        ''', [name, options, is_required, default_value, id])
-        
+        ''', [name, options, option_colors, is_required, default_value, id])
+
         flash('Field updated successfully', 'success')
         return redirect(url_for('list_fields'))
-    
-    return render_template('field_form.html', field=field, field_types=FIELD_TYPES)
+
+    return render_template('field_form.html', field=field, field_types=FIELD_TYPES, status_colors=get_status_colors())
 
 @app.route('/fields/<int:id>/delete', methods=['POST'])
 @login_required
@@ -1541,6 +1681,127 @@ def api_group_preferences():
                 ])
 
         return jsonify({'success': True})
+
+# Status Management API Endpoints
+@app.route('/api/statuses', methods=['GET'])
+@login_required
+def api_get_statuses():
+    """Get all statuses with colors"""
+    statuses = get_all_statuses()
+    return jsonify(statuses)
+
+@app.route('/api/statuses', methods=['POST'])
+@login_required
+def api_add_status():
+    """Add a new status"""
+    data = request.get_json()
+    name = data.get('name', '').strip()
+    color = data.get('color', '#6b7280')
+    bg_color = data.get('bg_color', '#f3f4f6')
+
+    if not name:
+        return jsonify({'success': False, 'error': 'Name is required'}), 400
+
+    # Get next sequence
+    max_seq = query_db('SELECT MAX(sequence) as m FROM statuses', one=True)
+    seq = (max_seq['m'] or 0) + 1
+
+    try:
+        status_id = execute_db(
+            'INSERT INTO statuses (name, color, bg_color, sequence) VALUES (?, ?, ?, ?)',
+            [name, color, bg_color, seq]
+        )
+        return jsonify({'success': True, 'id': status_id})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 400
+
+@app.route('/api/statuses/<int:id>/color', methods=['POST'])
+@login_required
+def api_update_status_color(id):
+    """Update status colors"""
+    data = request.get_json()
+    color = data.get('color')
+    bg_color = data.get('bg_color')
+
+    updates = []
+    params = []
+    if color:
+        updates.append('color = ?')
+        params.append(color)
+    if bg_color:
+        updates.append('bg_color = ?')
+        params.append(bg_color)
+
+    if updates:
+        params.append(id)
+        execute_db(f'UPDATE statuses SET {", ".join(updates)} WHERE id = ?', params)
+
+    return jsonify({'success': True})
+
+@app.route('/api/statuses/<int:id>', methods=['DELETE'])
+@login_required
+def api_delete_status(id):
+    """Delete a status (soft delete by setting is_active=0)"""
+    execute_db('UPDATE statuses SET is_active = 0 WHERE id = ?', [id])
+    return jsonify({'success': True})
+
+@app.route('/api/statuses/reorder', methods=['POST'])
+@login_required
+def api_reorder_statuses():
+    """Reorder statuses"""
+    data = request.get_json()
+    order = data.get('order', [])
+
+    for idx, status_id in enumerate(order):
+        execute_db('UPDATE statuses SET sequence = ? WHERE id = ?', [idx, status_id])
+
+    return jsonify({'success': True})
+
+# Job Type Color API Endpoints
+@app.route('/api/job-types', methods=['GET'])
+@login_required
+def api_get_job_types():
+    """Get all job types with colors"""
+    types = get_job_types_with_colors()
+    return jsonify(types)
+
+@app.route('/api/job-types/<int:id>/color', methods=['POST'])
+@login_required
+def api_update_job_type_color(id):
+    """Update job type color"""
+    data = request.get_json()
+    color = data.get('color')
+    if color:
+        execute_db('UPDATE job_type_colors SET color = ? WHERE id = ?', [color, id])
+    return jsonify({'success': True})
+
+# Property Type Color API Endpoints
+@app.route('/api/property-types', methods=['GET'])
+@login_required
+def api_get_property_types():
+    """Get all property types with colors"""
+    types = get_property_types_with_colors()
+    return jsonify(types)
+
+@app.route('/api/property-types/<int:id>/color', methods=['POST'])
+@login_required
+def api_update_property_type_color(id):
+    """Update property type color"""
+    data = request.get_json()
+    color = data.get('color')
+    if color:
+        execute_db('UPDATE property_type_colors SET color = ? WHERE id = ?', [color, id])
+    return jsonify({'success': True})
+
+# Custom Field Option Colors API
+@app.route('/api/fields/<int:id>/option-colors', methods=['POST'])
+@login_required
+def api_update_field_option_colors(id):
+    """Update custom field option colors"""
+    data = request.get_json()
+    colors = json.dumps(data.get('colors', {}))
+    execute_db('UPDATE custom_fields SET option_colors = ? WHERE id = ?', [colors, id])
+    return jsonify({'success': True})
 
 # Template filters
 @app.template_filter('strftime')
