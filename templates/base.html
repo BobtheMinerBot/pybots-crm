@@ -13,11 +13,14 @@
         }
 
         :root {
-            --primary: #2563eb;
+            --primary: #3B82F6;
             --primary-dark: #1d4ed8;
-            --success: #10b981;
-            --warning: #f59e0b;
-            --danger: #ef4444;
+            --success: #10B981;
+            --warning: #F59E0B;
+            --danger: #EF4444;
+            --purple: #8B5CF6;
+            --pink: #EC4899;
+            --cyan: #06B6D4;
             --gray-50: #f9fafb;
             --gray-100: #f3f4f6;
             --gray-200: #e5e7eb;
@@ -28,6 +31,15 @@
             --gray-700: #374151;
             --gray-800: #1f2937;
             --gray-900: #111827;
+
+            /* Stage colors */
+            --stage-new-lead: #3B82F6;
+            --stage-inspection-scheduled: #F59E0B;
+            --stage-estimating: #8B5CF6;
+            --stage-proposal-sent: #10B981;
+            --stage-follow-up: #EC4899;
+            --stage-nurturing: #06B6D4;
+            --stage-lost: #EF4444;
         }
 
         body {
@@ -74,6 +86,14 @@
             color: var(--primary);
         }
 
+        .navbar-nav a.active {
+            color: var(--primary);
+            font-weight: 600;
+            border-bottom: 3px solid var(--primary);
+            padding-bottom: 0.5rem;
+            margin-bottom: -0.5rem;
+        }
+
         .user-info {
             color: var(--gray-500);
             font-size: 0.875rem;
@@ -105,6 +125,16 @@
         .card-header h2 {
             font-size: 1.125rem;
             font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .card-header-icon {
+            width: 18px;
+            height: 18px;
+            color: var(--gray-500);
+            flex-shrink: 0;
         }
 
         .card-body {
@@ -133,6 +163,7 @@
 
         .btn-primary:hover {
             background: var(--primary-dark);
+            box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.3);
         }
 
         .btn-secondary {
@@ -183,7 +214,7 @@
         .form-control:focus {
             outline: none;
             border-color: var(--primary);
-            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
         }
 
         select.form-control {
@@ -225,38 +256,54 @@
         }
 
         .badge-new-lead {
-            background: #dbeafe;
-            color: #1e40af;
+            background: #DBEAFE;
+            color: #1E40AF;
         }
 
         .badge-inspection-scheduled {
-            background: #fef3c7;
-            color: #92400e;
+            background: #FEF3C7;
+            color: #92400E;
         }
 
         .badge-estimating {
-            background: #e0e7ff;
-            color: #3730a3;
+            background: #EDE9FE;
+            color: #5B21B6;
         }
 
         .badge-proposal-sent {
-            background: #fce7f3;
-            color: #9d174d;
+            background: #D1FAE5;
+            color: #065F46;
         }
 
         .badge-follow-up {
-            background: #fed7aa;
-            color: #9a3412;
+            background: #FCE7F3;
+            color: #9D174D;
         }
 
         .badge-nurturing {
-            background: #d1fae5;
-            color: #065f46;
+            background: #CFFAFE;
+            color: #0E7490;
         }
 
         .badge-lost {
-            background: #f3f4f6;
-            color: #374151;
+            background: #FEE2E2;
+            color: #991B1B;
+        }
+
+        /* Priority badges */
+        .badge-priority-high {
+            background: #FEE2E2;
+            color: #DC2626;
+        }
+
+        .badge-priority-medium {
+            background: #FEF3C7;
+            color: #D97706;
+        }
+
+        .badge-priority-low {
+            background: #DBEAFE;
+            color: #2563EB;
         }
 
         /* Grid table */
@@ -274,6 +321,30 @@
             border-radius: 0.5rem 0.5rem 0 0;
             cursor: pointer;
             user-select: none;
+            border-left: 4px solid var(--gray-300);
+        }
+
+        /* Stage-specific left border colors */
+        .grid-section[data-stage="new-lead"] .grid-section-header {
+            border-left-color: var(--stage-new-lead);
+        }
+        .grid-section[data-stage="inspection-scheduled"] .grid-section-header {
+            border-left-color: var(--stage-inspection-scheduled);
+        }
+        .grid-section[data-stage="estimating"] .grid-section-header {
+            border-left-color: var(--stage-estimating);
+        }
+        .grid-section[data-stage="proposal-sent"] .grid-section-header {
+            border-left-color: var(--stage-proposal-sent);
+        }
+        .grid-section[data-stage="follow-up"] .grid-section-header {
+            border-left-color: var(--stage-follow-up);
+        }
+        .grid-section[data-stage="nurturing"] .grid-section-header {
+            border-left-color: var(--stage-nurturing);
+        }
+        .grid-section[data-stage="lost"] .grid-section-header {
+            border-left-color: var(--stage-lost);
         }
 
         .grid-section-header:hover {
@@ -340,8 +411,12 @@
             border-bottom: none;
         }
 
-        .grid-table tr:hover td {
-            background: var(--gray-50);
+        .grid-table tbody tr {
+            transition: background-color 0.15s ease;
+        }
+
+        .grid-table tbody tr:hover td {
+            background: #F8FAFC;
         }
 
         .lead-name {
@@ -408,8 +483,19 @@
         /* Empty state */
         .empty-state {
             text-align: center;
-            padding: 2rem;
-            color: var(--gray-500);
+            padding: 2.5rem 2rem;
+            color: #9CA3AF;
+            font-size: 0.9375rem;
+        }
+
+        .empty-state-icon {
+            margin-bottom: 0.75rem;
+            color: var(--gray-300);
+        }
+
+        .empty-state-icon svg {
+            width: 40px;
+            height: 40px;
         }
 
         /* Detail page */
@@ -448,13 +534,31 @@
         /* Activity timeline */
         .timeline {
             margin-top: 1rem;
+            position: relative;
+        }
+
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 4px;
+            top: 0.75rem;
+            bottom: 0.75rem;
+            width: 2px;
+            background: var(--gray-200);
         }
 
         .timeline-item {
             display: flex;
             gap: 1rem;
             padding: 0.75rem 0;
-            border-bottom: 1px solid var(--gray-100);
+            padding-left: 0.25rem;
+            border-radius: 6px;
+            transition: background 0.15s;
+            position: relative;
+        }
+
+        .timeline-item:hover {
+            background: var(--gray-50);
         }
 
         .timeline-item:last-child {
@@ -462,12 +566,14 @@
         }
 
         .timeline-dot {
-            width: 8px;
-            height: 8px;
+            width: 10px;
+            height: 10px;
             background: var(--primary);
             border-radius: 50%;
-            margin-top: 0.5rem;
+            margin-top: 0.375rem;
             flex-shrink: 0;
+            position: relative;
+            z-index: 1;
         }
 
         .timeline-content {
@@ -477,6 +583,7 @@
         .timeline-date {
             font-size: 0.75rem;
             color: var(--gray-400);
+            margin-top: 0.25rem;
         }
 
         /* Actions dropdown */
@@ -493,6 +600,23 @@
             cursor: pointer;
         }
 
+        /* Status dot indicators */
+        .status-dot {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-right: 6px;
+        }
+
+        .status-dot-new-lead { background: var(--stage-new-lead); }
+        .status-dot-inspection-scheduled { background: var(--stage-inspection-scheduled); }
+        .status-dot-estimating { background: var(--stage-estimating); }
+        .status-dot-proposal-sent { background: var(--stage-proposal-sent); }
+        .status-dot-follow-up { background: var(--stage-follow-up); }
+        .status-dot-nurturing { background: var(--stage-nurturing); }
+        .status-dot-lost { background: var(--stage-lost); }
+
         /* Login page */
         .login-container {
             min-height: 100vh;
@@ -500,12 +624,16 @@
             align-items: center;
             justify-content: center;
             padding: 1rem;
-            background: black;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
         }
 
         .login-box {
             width: 100%;
             max-width: 400px;
+        }
+
+        .login-box .card {
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
         }
 
         .login-header {
@@ -560,6 +688,667 @@
                 gap: 1rem;
             }
         }
+
+        /* Toast Notifications */
+        .toast-container {
+            position: fixed;
+            bottom: 1.5rem;
+            right: 1.5rem;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .toast {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.875rem 1rem;
+            background: white;
+            border-radius: 0.5rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            border-left: 4px solid var(--gray-400);
+            min-width: 300px;
+            max-width: 400px;
+            animation: slideIn 0.3s ease;
+        }
+
+        .toast.toast-success { border-left-color: var(--success); }
+        .toast.toast-error { border-left-color: var(--danger); }
+        .toast.toast-info { border-left-color: var(--primary); }
+        .toast.toast-warning { border-left-color: var(--warning); }
+
+        .toast-icon {
+            flex-shrink: 0;
+            width: 20px;
+            height: 20px;
+        }
+
+        .toast-success .toast-icon { color: var(--success); }
+        .toast-error .toast-icon { color: var(--danger); }
+        .toast-info .toast-icon { color: var(--primary); }
+        .toast-warning .toast-icon { color: var(--warning); }
+
+        .toast-content {
+            flex: 1;
+            font-size: 0.875rem;
+            color: var(--gray-700);
+        }
+
+        .toast-close {
+            background: none;
+            border: none;
+            color: var(--gray-400);
+            cursor: pointer;
+            padding: 0;
+            font-size: 1.25rem;
+            line-height: 1;
+        }
+
+        .toast-close:hover { color: var(--gray-600); }
+
+        .toast.removing {
+            animation: slideOut 0.3s ease forwards;
+        }
+
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+
+        @keyframes slideOut {
+            from { transform: translateX(0); opacity: 1; }
+            to { transform: translateX(100%); opacity: 0; }
+        }
+
+        /* Confirmation Dialog */
+        .confirm-dialog-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+            animation: fadeIn 0.2s ease;
+        }
+
+        .confirm-dialog {
+            background: white;
+            border-radius: 0.75rem;
+            width: 100%;
+            max-width: 400px;
+            padding: 1.5rem;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            animation: scaleIn 0.2s ease;
+        }
+
+        .confirm-dialog-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 1rem;
+        }
+
+        .confirm-dialog-icon.danger {
+            background: #FEE2E2;
+            color: var(--danger);
+        }
+
+        .confirm-dialog-icon.warning {
+            background: #FEF3C7;
+            color: var(--warning);
+        }
+
+        .confirm-dialog-title {
+            font-size: 1.125rem;
+            font-weight: 600;
+            text-align: center;
+            margin-bottom: 0.5rem;
+        }
+
+        .confirm-dialog-message {
+            font-size: 0.875rem;
+            color: var(--gray-600);
+            text-align: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .confirm-dialog-actions {
+            display: flex;
+            gap: 0.75rem;
+            justify-content: center;
+        }
+
+        .confirm-dialog-actions .btn {
+            min-width: 100px;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes scaleIn {
+            from { transform: scale(0.95); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+
+        /* Keyboard Shortcuts Modal */
+        .shortcuts-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+        }
+
+        .shortcuts-modal.visible {
+            display: flex;
+        }
+
+        .shortcuts-content {
+            background: white;
+            border-radius: 0.75rem;
+            width: 100%;
+            max-width: 500px;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+        }
+
+        .shortcuts-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 1rem 1.5rem;
+            border-bottom: 1px solid var(--gray-200);
+        }
+
+        .shortcuts-header h3 {
+            font-size: 1.125rem;
+            font-weight: 600;
+        }
+
+        .shortcuts-body {
+            padding: 1rem 1.5rem;
+        }
+
+        .shortcuts-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .shortcuts-group:last-child {
+            margin-bottom: 0;
+        }
+
+        .shortcuts-group-title {
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: var(--gray-500);
+            text-transform: uppercase;
+            margin-bottom: 0.75rem;
+        }
+
+        .shortcut-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.5rem 0;
+        }
+
+        .shortcut-desc {
+            font-size: 0.875rem;
+            color: var(--gray-700);
+        }
+
+        .shortcut-keys {
+            display: flex;
+            gap: 0.25rem;
+        }
+
+        .shortcut-key {
+            display: inline-block;
+            padding: 0.25rem 0.5rem;
+            background: var(--gray-100);
+            border: 1px solid var(--gray-300);
+            border-radius: 0.25rem;
+            font-size: 0.75rem;
+            font-family: monospace;
+            color: var(--gray-700);
+        }
+
+        /* Quick Actions Overlay */
+        .quick-actions {
+            position: absolute;
+            right: 0.5rem;
+            top: 50%;
+            transform: translateY(-50%);
+            display: flex;
+            gap: 0.25rem;
+            opacity: 0;
+            transition: opacity 0.15s;
+            background: white;
+            padding: 0.25rem;
+            border-radius: 0.375rem;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        tr:hover .quick-actions {
+            opacity: 1;
+        }
+
+        .quick-action-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 28px;
+            height: 28px;
+            border: none;
+            background: transparent;
+            border-radius: 0.25rem;
+            color: var(--gray-500);
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .quick-action-btn:hover {
+            background: var(--gray-100);
+            color: var(--gray-700);
+        }
+
+        .quick-action-btn.danger:hover {
+            background: #FEE2E2;
+            color: var(--danger);
+        }
+
+        .quick-action-btn svg {
+            width: 16px;
+            height: 16px;
+        }
+
+        /* Bulk Actions Bar */
+        .bulk-actions-bar {
+            position: fixed;
+            bottom: 1.5rem;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--gray-800);
+            color: white;
+            padding: 0.75rem 1.25rem;
+            border-radius: 0.75rem;
+            display: none;
+            align-items: center;
+            gap: 1rem;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+            z-index: 100;
+        }
+
+        .bulk-actions-bar.visible {
+            display: flex;
+        }
+
+        .bulk-count {
+            font-size: 0.875rem;
+            font-weight: 500;
+            white-space: nowrap;
+        }
+
+        .bulk-actions-bar .btn {
+            background: rgba(255, 255, 255, 0.15);
+            color: white;
+            border: none;
+            font-size: 0.8125rem;
+            padding: 0.375rem 0.75rem;
+        }
+
+        .bulk-actions-bar .btn:hover {
+            background: rgba(255, 255, 255, 0.25);
+        }
+
+        .bulk-actions-bar .btn-danger {
+            background: var(--danger);
+        }
+
+        .bulk-actions-bar .btn-danger:hover {
+            background: #dc2626;
+        }
+
+        .bulk-close {
+            background: none;
+            border: none;
+            color: rgba(255, 255, 255, 0.7);
+            cursor: pointer;
+            padding: 0.25rem;
+            display: flex;
+        }
+
+        .bulk-close:hover {
+            color: white;
+        }
+
+        /* Row checkbox */
+        .row-checkbox {
+            width: 16px;
+            height: 16px;
+            cursor: pointer;
+        }
+
+        /* Form validation styles */
+        .form-control.is-invalid {
+            border-color: var(--danger);
+        }
+
+        .form-control.is-invalid:focus {
+            box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.15);
+        }
+
+        .form-control.is-valid {
+            border-color: var(--success);
+        }
+
+        .invalid-feedback {
+            color: var(--danger);
+            font-size: 0.75rem;
+            margin-top: 0.25rem;
+        }
+
+        .valid-icon {
+            color: var(--success);
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+        }
+
+        .shake {
+            animation: shake 0.3s ease;
+        }
+
+        /* Instant search results dropdown */
+        .search-results {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: white;
+            border: 1px solid var(--gray-200);
+            border-radius: 0.5rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+            margin-top: 0.25rem;
+            max-height: 300px;
+            overflow-y: auto;
+            display: none;
+            z-index: 1000;
+        }
+
+        .search-results.visible {
+            display: block;
+        }
+
+        .search-result-item {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.75rem 1rem;
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+
+        .search-result-item:hover,
+        .search-result-item.highlighted {
+            background: var(--gray-50);
+        }
+
+        .search-result-name {
+            font-weight: 500;
+            color: var(--gray-800);
+        }
+
+        .search-result-name mark {
+            background: #FEF08A;
+            color: inherit;
+            padding: 0;
+        }
+
+        .search-result-meta {
+            font-size: 0.75rem;
+            color: var(--gray-500);
+        }
+
+        .search-no-results {
+            padding: 1rem;
+            text-align: center;
+            color: var(--gray-500);
+            font-size: 0.875rem;
+        }
+
+        /* Recently viewed section */
+        .recently-viewed {
+            margin-bottom: 1.5rem;
+        }
+
+        .recently-viewed-title {
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: var(--gray-500);
+            text-transform: uppercase;
+            margin-bottom: 0.75rem;
+        }
+
+        .recently-viewed-list {
+            display: flex;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+        }
+
+        .recently-viewed-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 0.75rem;
+            background: white;
+            border: 1px solid var(--gray-200);
+            border-radius: 0.375rem;
+            font-size: 0.8125rem;
+            color: var(--gray-700);
+            text-decoration: none;
+            transition: all 0.15s;
+        }
+
+        .recently-viewed-item:hover {
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+
+        /* Global empty state with CTA */
+        .global-empty-state {
+            text-align: center;
+            padding: 4rem 2rem;
+        }
+
+        .global-empty-state-icon {
+            width: 80px;
+            height: 80px;
+            margin: 0 auto 1.5rem;
+            color: var(--gray-300);
+        }
+
+        .global-empty-state h2 {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: var(--gray-700);
+            margin-bottom: 0.5rem;
+        }
+
+        .global-empty-state p {
+            color: var(--gray-500);
+            margin-bottom: 1.5rem;
+        }
+
+        /* Mobile Touch Improvements */
+        @media (max-width: 768px) {
+            /* Larger touch targets */
+            .btn {
+                min-height: 44px;
+                padding: 0.625rem 1rem;
+            }
+
+            .btn-sm {
+                min-height: 36px;
+                padding: 0.5rem 0.75rem;
+            }
+
+            .form-control {
+                min-height: 44px;
+                font-size: 16px; /* Prevents zoom on iOS */
+            }
+
+            select.form-control {
+                min-height: 44px;
+            }
+
+            /* Better checkbox/radio touch targets */
+            input[type="checkbox"],
+            input[type="radio"] {
+                width: 20px;
+                height: 20px;
+            }
+
+            /* Navbar improvements */
+            .navbar {
+                padding: 0.5rem 1rem;
+            }
+
+            .navbar-nav {
+                gap: 1rem;
+            }
+
+            .navbar-nav a {
+                padding: 0.5rem 0;
+            }
+
+            /* Table improvements */
+            .grid-table td,
+            .grid-table th {
+                padding: 0.875rem 0.75rem;
+            }
+
+            /* Quick actions always visible on mobile */
+            .quick-actions {
+                opacity: 1;
+                position: static;
+                transform: none;
+                margin-top: 0.5rem;
+            }
+
+            /* Status select larger */
+            .status-select {
+                min-height: 36px;
+                padding: 0.375rem 0.5rem;
+            }
+
+            /* Modal improvements */
+            .modal {
+                margin: 1rem;
+                max-height: calc(100vh - 2rem);
+            }
+
+            .modal-body {
+                padding: 1rem;
+            }
+
+            /* Toast positioning */
+            .toast-container {
+                left: 1rem;
+                right: 1rem;
+                bottom: 1rem;
+            }
+
+            .toast {
+                min-width: auto;
+                width: 100%;
+            }
+
+            /* Bulk actions bar */
+            .bulk-actions-bar {
+                left: 1rem;
+                right: 1rem;
+                transform: none;
+                padding: 0.625rem 1rem;
+            }
+
+            /* Card improvements */
+            .card-body {
+                padding: 1rem;
+            }
+
+            .card-header {
+                padding: 0.875rem 1rem;
+            }
+
+            /* Timeline touch targets */
+            .timeline-item {
+                padding: 0.875rem 0;
+            }
+
+            /* Search results dropdown */
+            .search-results {
+                max-height: 60vh;
+            }
+
+            .search-result-item {
+                padding: 0.875rem 1rem;
+            }
+        }
+
+        /* Touch-friendly row highlighting */
+        @media (hover: none) {
+            .grid-table tbody tr:active td {
+                background: var(--gray-100);
+            }
+
+            .quick-actions {
+                opacity: 1;
+            }
+        }
+
+        /* Smooth scrolling */
+        html {
+            scroll-behavior: smooth;
+        }
+
+        /* Prevent text selection during drag */
+        .dragging {
+            user-select: none;
+        }
+
+        /* Touch feedback */
+        .btn:active {
+            transform: scale(0.98);
+        }
+
+        /* Pull to refresh indicator (CSS only) */
+        .pull-indicator {
+            display: none;
+            text-align: center;
+            padding: 1rem;
+            color: var(--gray-500);
+        }
     </style>
 </head>
 
@@ -568,8 +1357,8 @@
     <nav class="navbar">
         <a href="{{ url_for('leads') }}" class="navbar-brand">🏗️ CRM</a>
         <div class="navbar-nav">
-            <a href="{{ url_for('leads') }}">Leads</a>
-            <a href="{{ url_for('settings') }}">Settings</a>
+            <a href="{{ url_for('leads') }}" class="{% if request.endpoint in ['leads', 'view_lead', 'add_lead', 'edit_lead'] %}active{% endif %}">Leads</a>
+            <a href="{{ url_for('settings') }}" class="{% if request.endpoint == 'settings' %}active{% endif %}">Settings</a>
             <span class="user-info">{{ session.user_name }}</span>
             <a href="{{ url_for('logout') }}">Logout</a>
         </div>
@@ -587,6 +1376,293 @@
     </div>
 
     {% block scripts %}{% endblock %}
+
+    <!-- Toast Container -->
+    <div id="toastContainer" class="toast-container"></div>
+
+    <!-- Keyboard Shortcuts Modal -->
+    <div id="shortcutsModal" class="shortcuts-modal">
+        <div class="shortcuts-content">
+            <div class="shortcuts-header">
+                <h3>Keyboard Shortcuts</h3>
+                <button class="modal-close" onclick="closeShortcutsModal()">&times;</button>
+            </div>
+            <div class="shortcuts-body">
+                <div class="shortcuts-group">
+                    <div class="shortcuts-group-title">Navigation</div>
+                    <div class="shortcut-row">
+                        <span class="shortcut-desc">New lead</span>
+                        <span class="shortcut-keys"><span class="shortcut-key">N</span></span>
+                    </div>
+                    <div class="shortcut-row">
+                        <span class="shortcut-desc">Focus search</span>
+                        <span class="shortcut-keys"><span class="shortcut-key">/</span> or <span class="shortcut-key">S</span></span>
+                    </div>
+                    <div class="shortcut-row">
+                        <span class="shortcut-desc">Close modal/dropdown</span>
+                        <span class="shortcut-keys"><span class="shortcut-key">Esc</span></span>
+                    </div>
+                </div>
+                <div class="shortcuts-group">
+                    <div class="shortcuts-group-title">Lead List</div>
+                    <div class="shortcut-row">
+                        <span class="shortcut-desc">Move up</span>
+                        <span class="shortcut-keys"><span class="shortcut-key">K</span> or <span class="shortcut-key">↑</span></span>
+                    </div>
+                    <div class="shortcut-row">
+                        <span class="shortcut-desc">Move down</span>
+                        <span class="shortcut-keys"><span class="shortcut-key">J</span> or <span class="shortcut-key">↓</span></span>
+                    </div>
+                    <div class="shortcut-row">
+                        <span class="shortcut-desc">Open selected lead</span>
+                        <span class="shortcut-keys"><span class="shortcut-key">Enter</span></span>
+                    </div>
+                </div>
+                <div class="shortcuts-group">
+                    <div class="shortcuts-group-title">Lead Detail</div>
+                    <div class="shortcut-row">
+                        <span class="shortcut-desc">Edit lead</span>
+                        <span class="shortcut-keys"><span class="shortcut-key">E</span></span>
+                    </div>
+                </div>
+                <div class="shortcuts-group">
+                    <div class="shortcuts-group-title">General</div>
+                    <div class="shortcut-row">
+                        <span class="shortcut-desc">Show shortcuts</span>
+                        <span class="shortcut-keys"><span class="shortcut-key">?</span></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ========== Toast Notifications ==========
+        const toastIcons = {
+            success: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>',
+            error: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>',
+            info: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>',
+            warning: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>'
+        };
+
+        function showToast(message, type = 'info', duration = 4000) {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = `toast toast-${type}`;
+            toast.innerHTML = `
+                <span class="toast-icon">${toastIcons[type]}</span>
+                <span class="toast-content">${message}</span>
+                <button class="toast-close" onclick="dismissToast(this.parentElement)">&times;</button>
+            `;
+            container.appendChild(toast);
+
+            if (duration > 0) {
+                setTimeout(() => dismissToast(toast), duration);
+            }
+
+            return toast;
+        }
+
+        function dismissToast(toast) {
+            if (!toast || toast.classList.contains('removing')) return;
+            toast.classList.add('removing');
+            setTimeout(() => toast.remove(), 300);
+        }
+
+        // ========== Confirmation Dialog ==========
+        function showConfirmDialog({ title, message, confirmText = 'Confirm', cancelText = 'Cancel', type = 'danger', onConfirm, onCancel }) {
+            const iconSvg = type === 'danger'
+                ? '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>'
+                : '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>';
+
+            const overlay = document.createElement('div');
+            overlay.className = 'confirm-dialog-overlay';
+            overlay.innerHTML = `
+                <div class="confirm-dialog">
+                    <div class="confirm-dialog-icon ${type}">${iconSvg}</div>
+                    <div class="confirm-dialog-title">${title}</div>
+                    <div class="confirm-dialog-message">${message}</div>
+                    <div class="confirm-dialog-actions">
+                        <button class="btn btn-secondary" data-action="cancel">${cancelText}</button>
+                        <button class="btn ${type === 'danger' ? 'btn-danger' : 'btn-primary'}" data-action="confirm">${confirmText}</button>
+                    </div>
+                </div>
+            `;
+
+            document.body.appendChild(overlay);
+
+            const confirmBtn = overlay.querySelector('[data-action="confirm"]');
+            const cancelBtn = overlay.querySelector('[data-action="cancel"]');
+
+            const cleanup = () => overlay.remove();
+
+            confirmBtn.addEventListener('click', () => {
+                cleanup();
+                if (onConfirm) onConfirm();
+            });
+
+            cancelBtn.addEventListener('click', () => {
+                cleanup();
+                if (onCancel) onCancel();
+            });
+
+            overlay.addEventListener('click', (e) => {
+                if (e.target === overlay) {
+                    cleanup();
+                    if (onCancel) onCancel();
+                }
+            });
+
+            // Focus confirm button
+            confirmBtn.focus();
+
+            return { close: cleanup };
+        }
+
+        // ========== Keyboard Shortcuts ==========
+        function openShortcutsModal() {
+            document.getElementById('shortcutsModal').classList.add('visible');
+        }
+
+        function closeShortcutsModal() {
+            document.getElementById('shortcutsModal').classList.remove('visible');
+        }
+
+        document.addEventListener('keydown', function(e) {
+            // Skip if user is typing in an input
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') {
+                if (e.key === 'Escape') {
+                    e.target.blur();
+                }
+                return;
+            }
+
+            // ? - Show shortcuts modal
+            if (e.key === '?' || (e.shiftKey && e.key === '/')) {
+                e.preventDefault();
+                openShortcutsModal();
+                return;
+            }
+
+            // Escape - Close modals
+            if (e.key === 'Escape') {
+                closeShortcutsModal();
+                // Close other modals - check for any visible modal
+                document.querySelectorAll('.modal-overlay.visible, .shortcuts-modal.visible').forEach(m => m.classList.remove('visible'));
+                return;
+            }
+
+            // N - New lead (only on leads page)
+            if (e.key === 'n' || e.key === 'N') {
+                const addLeadBtn = document.querySelector('a[href*="add"]');
+                if (addLeadBtn) {
+                    e.preventDefault();
+                    addLeadBtn.click();
+                }
+                return;
+            }
+
+            // S or / - Focus search
+            if (e.key === 's' || e.key === 'S' || e.key === '/') {
+                const searchInput = document.getElementById('searchInput');
+                if (searchInput) {
+                    e.preventDefault();
+                    searchInput.focus();
+                    searchInput.select();
+                }
+                return;
+            }
+
+            // E - Edit (on lead detail page)
+            if (e.key === 'e' || e.key === 'E') {
+                const editBtn = document.querySelector('a.btn[href*="edit"]');
+                if (editBtn) {
+                    e.preventDefault();
+                    editBtn.click();
+                }
+                return;
+            }
+
+            // J/K or Arrow keys - Navigate leads
+            if (['j', 'k', 'J', 'K', 'ArrowDown', 'ArrowUp'].includes(e.key)) {
+                const rows = document.querySelectorAll('.grid-table tbody tr');
+                if (rows.length === 0) return;
+
+                e.preventDefault();
+                let currentIndex = -1;
+                rows.forEach((row, i) => {
+                    if (row.classList.contains('selected')) currentIndex = i;
+                });
+
+                if (e.key === 'j' || e.key === 'J' || e.key === 'ArrowDown') {
+                    currentIndex = Math.min(currentIndex + 1, rows.length - 1);
+                } else {
+                    currentIndex = Math.max(currentIndex - 1, 0);
+                }
+
+                rows.forEach(row => row.classList.remove('selected'));
+                rows[currentIndex].classList.add('selected');
+                rows[currentIndex].scrollIntoView({ block: 'nearest' });
+                return;
+            }
+
+            // Enter - Open selected lead
+            if (e.key === 'Enter') {
+                const selectedRow = document.querySelector('.grid-table tbody tr.selected');
+                if (selectedRow) {
+                    const link = selectedRow.querySelector('.lead-name a');
+                    if (link) {
+                        e.preventDefault();
+                        link.click();
+                    }
+                }
+                return;
+            }
+        });
+
+        // Close shortcuts modal on click outside
+        document.getElementById('shortcutsModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeShortcutsModal();
+            }
+        });
+
+        // ========== Stage Collapse Memory ==========
+        function saveStageState(stageId, collapsed) {
+            const states = JSON.parse(localStorage.getItem('stageCollapseStates') || '{}');
+            states[stageId] = collapsed;
+            localStorage.setItem('stageCollapseStates', JSON.stringify(states));
+        }
+
+        function restoreStageStates() {
+            const states = JSON.parse(localStorage.getItem('stageCollapseStates') || '{}');
+            Object.keys(states).forEach(stageId => {
+                const section = document.getElementById(stageId);
+                if (section && states[stageId]) {
+                    section.classList.add('collapsed');
+                }
+            });
+        }
+
+        // Call on page load
+        document.addEventListener('DOMContentLoaded', restoreStageStates);
+
+        // ========== Recently Viewed Leads ==========
+        function addToRecentlyViewed(leadId, leadName, leadStatus) {
+            let recent = JSON.parse(localStorage.getItem('recentlyViewedLeads') || '[]');
+            // Remove if already exists
+            recent = recent.filter(l => l.id !== leadId);
+            // Add to front
+            recent.unshift({ id: leadId, name: leadName, status: leadStatus });
+            // Keep only last 5
+            recent = recent.slice(0, 5);
+            localStorage.setItem('recentlyViewedLeads', JSON.stringify(recent));
+        }
+
+        function getRecentlyViewed() {
+            return JSON.parse(localStorage.getItem('recentlyViewedLeads') || '[]');
+        }
+    </script>
 </body>
 
 </html>

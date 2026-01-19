@@ -12,18 +12,23 @@
             <div class="form-grid">
                 <div class="form-group">
                     <label class="form-label">Name *</label>
-                    <input type="text" name="name" class="form-control" required
-                        value="{{ lead['name'] if lead else '' }}">
+                    <input type="text" name="name" id="nameInput" class="form-control" required
+                        value="{{ lead['name'] if lead else '' }}" onblur="validateName(this)" oninput="clearValidation(this)">
+                    <div class="invalid-feedback" id="nameError"></div>
                 </div>
 
                 <div class="form-group">
                     <label class="form-label">Email</label>
-                    <input type="email" name="email" class="form-control" value="{{ lead['email'] if lead else '' }}">
+                    <input type="email" name="email" id="emailInput" class="form-control" value="{{ lead['email'] if lead else '' }}"
+                        onblur="validateEmail(this)" oninput="clearValidation(this)">
+                    <div class="invalid-feedback" id="emailError"></div>
                 </div>
 
                 <div class="form-group">
                     <label class="form-label">Phone</label>
-                    <input type="tel" name="phone" class="form-control" value="{{ lead['phone'] if lead else '' }}">
+                    <input type="tel" name="phone" id="phoneInput" class="form-control" value="{{ lead['phone'] if lead else '' }}"
+                        onblur="validatePhone(this)" oninput="clearValidation(this)">
+                    <div class="invalid-feedback" id="phoneError"></div>
                 </div>
 
                 <div class="form-group">
@@ -153,7 +158,7 @@
             </div>
 
             <div style="display: flex; gap: 0.75rem; margin-top: 1rem;">
-                <button type="submit" class="btn btn-primary">
+                <button type="submit" class="btn btn-primary" id="submitBtn">
                     {{ 'Update' if lead else 'Add' }} Lead
                 </button>
                 <a href="{{ url_for('leads') }}" class="btn btn-secondary">Cancel</a>
@@ -161,4 +166,89 @@
         </form>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Form validation functions
+    function validateName(input) {
+        const error = document.getElementById('nameError');
+        if (!input.value.trim()) {
+            showError(input, error, 'Name is required');
+            return false;
+        }
+        showSuccess(input);
+        return true;
+    }
+
+    function validateEmail(input) {
+        const error = document.getElementById('emailError');
+        const value = input.value.trim();
+        if (value && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+            showError(input, error, 'Please enter a valid email address');
+            return false;
+        }
+        if (value) showSuccess(input);
+        return true;
+    }
+
+    function validatePhone(input) {
+        const error = document.getElementById('phoneError');
+        const value = input.value.trim();
+        // Allow various phone formats
+        if (value && !/^[\d\s\-\(\)\+\.]+$/.test(value)) {
+            showError(input, error, 'Please enter a valid phone number');
+            return false;
+        }
+        if (value) showSuccess(input);
+        return true;
+    }
+
+    function showError(input, errorDiv, message) {
+        input.classList.remove('is-valid');
+        input.classList.add('is-invalid');
+        errorDiv.textContent = message;
+        errorDiv.style.display = 'block';
+        // Shake animation
+        input.classList.add('shake');
+        setTimeout(() => input.classList.remove('shake'), 300);
+    }
+
+    function showSuccess(input) {
+        input.classList.remove('is-invalid');
+        input.classList.add('is-valid');
+        const errorDiv = input.nextElementSibling;
+        if (errorDiv && errorDiv.classList.contains('invalid-feedback')) {
+            errorDiv.style.display = 'none';
+        }
+    }
+
+    function clearValidation(input) {
+        input.classList.remove('is-invalid', 'is-valid');
+        const errorDiv = input.nextElementSibling;
+        if (errorDiv && errorDiv.classList.contains('invalid-feedback')) {
+            errorDiv.style.display = 'none';
+        }
+    }
+
+    // Form submission validation
+    document.querySelector('form').addEventListener('submit', function(e) {
+        let isValid = true;
+
+        // Validate required fields
+        isValid = validateName(document.getElementById('nameInput')) && isValid;
+        isValid = validateEmail(document.getElementById('emailInput')) && isValid;
+        isValid = validatePhone(document.getElementById('phoneInput')) && isValid;
+
+        if (!isValid) {
+            e.preventDefault();
+            // Focus the first invalid field
+            const firstInvalid = document.querySelector('.is-invalid');
+            if (firstInvalid) {
+                firstInvalid.focus();
+            }
+            showToast('Please fix the errors before submitting', 'error');
+        }
+    });
+</script>
 {% endblock %}
