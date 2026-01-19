@@ -141,6 +141,12 @@ def init_db():
                 FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
                 FOREIGN KEY (current_view_id) REFERENCES views (id) ON DELETE SET NULL
             );
+
+            CREATE TABLE IF NOT EXISTS app_settings (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                key TEXT UNIQUE NOT NULL,
+                value TEXT
+            );
         ''')
 
         # Migration: Add default_fields column to views if it doesn't exist
@@ -500,12 +506,69 @@ def update_status(id):
     
     return redirect(url_for('leads'))
 
-# API endpoint for Zapier testing
+# API endpoint for fetching leads (supports API key authentication)
 @app.route('/api/leads', methods=['GET'])
-@login_required
 def api_leads():
+    # Check for API key authentication
+    api_key = request.headers.get('X-API-Key') or request.args.get('api_key')
+    if api_key:
+        # Validate API key
+        settings = query_db('SELECT value FROM app_settings WHERE key = ?', ['api_key'], one=True)
+        if settings and settings['value'] == api_key:
+            leads = query_db('SELECT * FROM leads ORDER BY created_at DESC')
+            return jsonify([lead_to_dict(lead) for lead in leads])
+        return jsonify({'error': 'Invalid API key'}), 401
+
+    # Fall back to session authentication
+    if 'user_id' not in session:
+        return jsonify({'error': 'Authentication required'}), 401
+
     leads = query_db('SELECT * FROM leads ORDER BY created_at DESC')
     return jsonify([lead_to_dict(lead) for lead in leads])
+
+# API endpoint for creating leads via webhook (supports API key authentication)
+@app.route('/api/leads', methods=['POST'])
+def api_create_lead():
+    # Check for API key authentication
+    api_key = request.headers.get('X-API-Key') or request.args.get('api_key')
+    if api_key:
+        settings = query_db('SELECT value FROM app_settings WHERE key = ?', ['api_key'], one=True)
+        if not settings or settings['value'] != api_key:
+            return jsonify({'error': 'Invalid API key'}), 401
+    elif 'user_id' not in session:
+        return jsonify({'error': 'Authentication required'}), 401
+
+    data = request.get_json() or {}
+
+    # Validate required field
+    name = data.get('name', '').strip()
+    if not name:
+        return jsonify({'error': 'Name is required'}), 400
+
+    # Create the lead
+    lead_id = execute_db(
+        '''INSERT INTO leads (name, email, phone, address, job_type, property_type, status, notes, created_by)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)''',
+        (
+            name,
+            data.get('email', ''),
+            data.get('phone', ''),
+            data.get('address', ''),
+            data.get('job_type', ''),
+            data.get('property_type', ''),
+            data.get('status', 'New Lead'),
+            data.get('notes', ''),
+            None  # Created by API
+        )
+    )
+
+    # Get the created lead
+    lead = query_db('SELECT * FROM leads WHERE id = ?', [lead_id], one=True)
+
+    # Send to Zapier if webhook is configured
+    send_to_zapier(lead_to_dict(lead))
+
+    return jsonify({'success': True, 'lead': lead_to_dict(lead)}), 201
 
 # Settings page for Zapier webhook
 @app.route('/settings', methods=['GET', 'POST'])
@@ -513,15 +576,46 @@ def api_leads():
 def settings():
     global ZAPIER_WEBHOOK_URL
     if request.method == 'POST':
-        ZAPIER_WEBHOOK_URL = request.form.get('zapier_webhook', '')
-        flash('Settings saved', 'success')
+        if 'zapier_webhook' in request.form:
+            ZAPIER_WEBHOOK_URL = request.form.get('zapier_webhook', '')
+            flash('Webhook settings saved', 'success')
 
     # Get current user info
     user = query_db('SELECT * FROM users WHERE id = ?', [session.get('user_id')], one=True)
     # Get all users for user management
     users = query_db('SELECT id, email, name, role, created_at FROM users ORDER BY name')
+    # Get API key
+    api_key_setting = query_db('SELECT value FROM app_settings WHERE key = ?', ['api_key'], one=True)
+    api_key = api_key_setting['value'] if api_key_setting else None
 
-    return render_template('settings.html', zapier_webhook=ZAPIER_WEBHOOK_URL, user=user, users=users)
+    return render_template('settings.html',
+                          zapier_webhook=ZAPIER_WEBHOOK_URL,
+                          user=user,
+                          users=users,
+                          api_key=api_key)
+
+@app.route('/settings/generate-api-key', methods=['POST'])
+@login_required
+def generate_api_key():
+    import secrets
+    new_key = secrets.token_urlsafe(32)
+
+    # Upsert the API key
+    existing = query_db('SELECT id FROM app_settings WHERE key = ?', ['api_key'], one=True)
+    if existing:
+        execute_db('UPDATE app_settings SET value = ? WHERE key = ?', [new_key, 'api_key'])
+    else:
+        execute_db('INSERT INTO app_settings (key, value) VALUES (?, ?)', ['api_key', new_key])
+
+    flash('New API key generated', 'success')
+    return redirect(url_for('settings'))
+
+@app.route('/settings/revoke-api-key', methods=['POST'])
+@login_required
+def revoke_api_key():
+    execute_db('DELETE FROM app_settings WHERE key = ?', ['api_key'])
+    flash('API key revoked', 'success')
+    return redirect(url_for('settings'))
 
 @app.route('/settings/change-password', methods=['POST'])
 @login_required
@@ -980,7 +1074,7 @@ def api_delete_field(id):
 @app.route('/api/leads/<int:lead_id>/fields/<int:field_id>', methods=['POST'])
 @login_required
 def api_update_field_value(lead_id, field_id):
-    """AJAX endpoint for inline editing of field values"""
+    """AJAX endpoint for inline editing of custom field values"""
     data = request.get_json()
     value = data.get('value', '')
 
@@ -1023,6 +1117,29 @@ def api_update_field_value(lead_id, field_id):
         display_value = value.replace('[', '').replace(']', '').replace('"', '')
 
     return jsonify({'success': True, 'display_value': display_value})
+
+@app.route('/api/leads/<int:lead_id>/update', methods=['POST'])
+@login_required
+def api_update_lead_field(lead_id):
+    """AJAX endpoint for inline editing of default lead fields (email, phone, address, job_type, property_type)"""
+    lead = query_db('SELECT * FROM leads WHERE id = ?', [lead_id], one=True)
+    if not lead:
+        return jsonify({'success': False, 'error': 'Lead not found'}), 404
+
+    data = request.get_json()
+    field_name = data.get('field')
+    value = data.get('value', '')
+
+    # Only allow updating specific fields
+    allowed_fields = ['email', 'phone', 'address', 'job_type', 'property_type']
+    if field_name not in allowed_fields:
+        return jsonify({'success': False, 'error': 'Invalid field'}), 400
+
+    # Update the lead field
+    execute_db(f'UPDATE leads SET {field_name} = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+               [value, lead_id])
+
+    return jsonify({'success': True, 'display_value': value or '-'})
 
 # Views Management API Routes
 @app.route('/api/views/save', methods=['POST'])

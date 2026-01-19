@@ -62,20 +62,82 @@
             </div>
         </div>
 
-        <!-- Zapier Webhook -->
+        <!-- API & Integrations -->
         <div class="card" style="margin-top: 1.5rem;">
             <div class="card-header">
-                <h2>Integrations</h2>
+                <h2>API & Integrations</h2>
             </div>
             <div class="card-body">
+                <!-- API Key Section -->
+                <h3 style="font-size: 1rem; margin-bottom: 1rem;">API Key</h3>
+                {% if api_key %}
+                <div class="form-group">
+                    <label class="form-label">Your API Key</label>
+                    <div style="display: flex; gap: 0.5rem;">
+                        <input type="text" class="form-control" value="{{ api_key }}" readonly id="apiKeyInput" style="font-family: monospace; font-size: 0.875rem;">
+                        <button type="button" class="btn btn-secondary" onclick="copyApiKey()" title="Copy to clipboard">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                            </svg>
+                        </button>
+                    </div>
+                    <p class="text-muted text-sm" style="margin-top: 0.5rem;">
+                        Use this key in the <code>X-API-Key</code> header or <code>?api_key=</code> query parameter.
+                    </p>
+                </div>
+                <div style="display: flex; gap: 0.5rem; margin-bottom: 1.5rem;">
+                    <form method="POST" action="{{ url_for('generate_api_key') }}" style="display: inline;">
+                        <button type="submit" class="btn btn-secondary" onclick="return confirm('Generate a new API key? The old key will stop working.')">Regenerate Key</button>
+                    </form>
+                    <form method="POST" action="{{ url_for('revoke_api_key') }}" style="display: inline;">
+                        <button type="submit" class="btn btn-danger" onclick="return confirm('Revoke API key? All API access will be disabled.')">Revoke Key</button>
+                    </form>
+                </div>
+                {% else %}
+                <p class="text-muted" style="margin-bottom: 1rem;">No API key configured. Generate one to enable API access.</p>
+                <form method="POST" action="{{ url_for('generate_api_key') }}" style="margin-bottom: 1.5rem;">
+                    <button type="submit" class="btn btn-primary">Generate API Key</button>
+                </form>
+                {% endif %}
+
+                <hr style="margin: 1.5rem 0; border: none; border-top: 1px solid var(--gray-200);">
+
+                <!-- API Endpoints -->
+                <h3 style="font-size: 1rem; margin-bottom: 1rem;">API Endpoints</h3>
+
+                <div class="form-group">
+                    <label class="form-label">GET Leads (fetch all leads)</label>
+                    <code style="display: block; background: var(--gray-100); padding: 0.5rem; border-radius: 4px; font-size: 0.8125rem;">
+                        GET {{ request.url_root }}api/leads
+                    </code>
+                    <p class="text-muted text-sm" style="margin-top: 0.25rem;">
+                        Returns JSON array of all leads.
+                    </p>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">POST Lead (create new lead)</label>
+                    <code style="display: block; background: var(--gray-100); padding: 0.5rem; border-radius: 4px; font-size: 0.8125rem;">
+                        POST {{ request.url_root }}api/leads
+                    </code>
+                    <p class="text-muted text-sm" style="margin-top: 0.25rem;">
+                        Send JSON body with: <code>name</code> (required), <code>email</code>, <code>phone</code>, <code>address</code>, <code>job_type</code>, <code>property_type</code>, <code>status</code>, <code>notes</code>
+                    </p>
+                </div>
+
+                <hr style="margin: 1.5rem 0; border: none; border-top: 1px solid var(--gray-200);">
+
+                <!-- Outgoing Webhook -->
+                <h3 style="font-size: 1rem; margin-bottom: 1rem;">Outgoing Webhook (Zapier)</h3>
                 <form method="POST">
                     <div class="form-group">
-                        <label class="form-label">Zapier Webhook URL</label>
+                        <label class="form-label">Webhook URL</label>
                         <input type="url" name="zapier_webhook" class="form-control"
                                value="{{ zapier_webhook }}"
                                placeholder="https://hooks.zapier.com/hooks/catch/...">
                         <p class="text-muted text-sm" style="margin-top: 0.5rem;">
-                            A POST request will be sent whenever a new lead is added.
+                            A POST request will be sent to this URL whenever a new lead is added.
                         </p>
                     </div>
                     <button type="submit" class="btn btn-primary">Save Webhook</button>
@@ -271,6 +333,18 @@
 </style>
 
 <script>
+    function copyApiKey() {
+        const input = document.getElementById('apiKeyInput');
+        input.select();
+        input.setSelectionRange(0, 99999);
+        navigator.clipboard.writeText(input.value).then(() => {
+            alert('API key copied to clipboard');
+        }).catch(() => {
+            document.execCommand('copy');
+            alert('API key copied to clipboard');
+        });
+    }
+
     function openResetPassword(userId, userName) {
         document.getElementById('resetUserName').textContent = userName;
         document.getElementById('resetPasswordForm').action = '/users/' + userId + '/reset-password';

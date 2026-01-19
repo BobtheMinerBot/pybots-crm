@@ -168,12 +168,55 @@
                         <a href="{{ url_for('view_lead', id=lead['id']) }}">{{ lead['name'] }}</a>
                     </td>
                     <td data-column="email" {% if 'email' not in visible_default_fields %}style="display:none"{% endif %}>
-                        <div>{{ lead['email'] or '-' }}</div>
-                        <div class="text-muted text-sm">{{ lead['phone'] or '' }}</div>
+                        <div class="editable-cell inline-cell"
+                             data-lead-id="{{ lead['id'] }}"
+                             data-field-name="email"
+                             data-field-type="email"
+                             data-value="{{ lead['email'] or '' }}"
+                             onclick="startDefaultEdit(this)">
+                            <span class="cell-display">{{ lead['email'] or '-' }}</span>
+                        </div>
+                        <div class="editable-cell inline-cell text-muted text-sm"
+                             data-lead-id="{{ lead['id'] }}"
+                             data-field-name="phone"
+                             data-field-type="phone"
+                             data-value="{{ lead['phone'] or '' }}"
+                             onclick="startDefaultEdit(this)">
+                            <span class="cell-display">{{ lead['phone'] or '' }}</span>
+                        </div>
                     </td>
-                    <td data-column="address" {% if 'address' not in visible_default_fields %}style="display:none"{% endif %}>{{ lead['address'] or '-' }}</td>
-                    <td data-column="job_type" {% if 'job_type' not in visible_default_fields %}style="display:none"{% endif %}>{{ lead['job_type'] or '-' }}</td>
-                    <td data-column="property_type" {% if 'property_type' not in visible_default_fields %}style="display:none"{% endif %}>{{ lead['property_type'] or '-' }}</td>
+                    <td class="editable-cell"
+                        data-column="address"
+                        data-lead-id="{{ lead['id'] }}"
+                        data-field-name="address"
+                        data-field-type="text"
+                        data-value="{{ lead['address'] or '' }}"
+                        onclick="startDefaultEdit(this)"
+                        {% if 'address' not in visible_default_fields %}style="display:none"{% endif %}>
+                        <span class="cell-display">{{ lead['address'] or '-' }}</span>
+                    </td>
+                    <td class="editable-cell"
+                        data-column="job_type"
+                        data-lead-id="{{ lead['id'] }}"
+                        data-field-name="job_type"
+                        data-field-type="dropdown"
+                        data-field-options="{{ job_types | join('\n') }}"
+                        data-value="{{ lead['job_type'] or '' }}"
+                        onclick="startDefaultEdit(this)"
+                        {% if 'job_type' not in visible_default_fields %}style="display:none"{% endif %}>
+                        <span class="cell-display">{{ lead['job_type'] or '-' }}</span>
+                    </td>
+                    <td class="editable-cell"
+                        data-column="property_type"
+                        data-lead-id="{{ lead['id'] }}"
+                        data-field-name="property_type"
+                        data-field-type="dropdown"
+                        data-field-options="{{ property_types | join('\n') }}"
+                        data-value="{{ lead['property_type'] or '' }}"
+                        onclick="startDefaultEdit(this)"
+                        {% if 'property_type' not in visible_default_fields %}style="display:none"{% endif %}>
+                        <span class="cell-display">{{ lead['property_type'] or '-' }}</span>
+                    </td>
                     {% for cf in all_custom_fields %}
                     {% set lead_vals = field_values.get(lead['id'], {}) %}
                     {% set val = lead_vals.get(cf['field_key'], {}).get('value', '') %}
@@ -559,6 +602,19 @@
     .editable-cell.editing {
         padding: 0;
         background: white;
+    }
+    /* Inline editable cells (within a td) */
+    .inline-cell {
+        padding: 0.125rem 0.25rem;
+        margin: -0.125rem -0.25rem;
+        border-radius: 3px;
+    }
+    .inline-cell:hover {
+        background: var(--gray-100);
+    }
+    .inline-cell.editing {
+        padding: 0;
+        margin: 0;
     }
     .editable-cell .cell-editor {
         width: 100%;
@@ -1120,6 +1176,127 @@
                 } else {
                     cell.dataset.value = value;
                 }
+            } else {
+                alert(result.error || 'Failed to save');
+            }
+        })
+        .catch(err => {
+            console.error('Save error:', err);
+            alert('Failed to save field value');
+        })
+        .finally(() => {
+            cancelEdit(cell);
+        });
+    }
+
+    // ========== Default Field Inline Editing ==========
+    function startDefaultEdit(cell) {
+        if (cell.classList.contains('editing')) return;
+
+        if (currentEditingCell && currentEditingCell !== cell) {
+            cancelEdit(currentEditingCell);
+        }
+
+        const leadId = cell.dataset.leadId;
+        const fieldName = cell.dataset.fieldName;
+        const fieldType = cell.dataset.fieldType;
+        const options = cell.dataset.fieldOptions || '';
+        const currentValue = cell.dataset.value;
+
+        cell.classList.add('editing');
+        currentEditingCell = cell;
+
+        const displaySpan = cell.querySelector('.cell-display');
+        displaySpan.style.display = 'none';
+
+        let editor;
+
+        switch (fieldType) {
+            case 'dropdown':
+                editor = document.createElement('select');
+                editor.className = 'cell-editor';
+                editor.innerHTML = '<option value="">-</option>';
+                if (options) {
+                    options.split('\n').forEach(opt => {
+                        const trimmed = opt.trim();
+                        if (trimmed) {
+                            const selected = trimmed === currentValue ? 'selected' : '';
+                            editor.innerHTML += `<option value="${trimmed}" ${selected}>${trimmed}</option>`;
+                        }
+                    });
+                }
+                editor.addEventListener('change', () => saveDefaultFieldValue(cell, leadId, fieldName, editor.value));
+                editor.addEventListener('blur', () => setTimeout(() => cancelEdit(cell), 100));
+                break;
+
+            case 'email':
+                editor = document.createElement('input');
+                editor.type = 'email';
+                editor.className = 'cell-editor';
+                editor.value = currentValue || '';
+                editor.placeholder = 'email@example.com';
+                editor.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') {
+                        saveDefaultFieldValue(cell, leadId, fieldName, editor.value);
+                    } else if (e.key === 'Escape') {
+                        cancelEdit(cell);
+                    }
+                });
+                editor.addEventListener('blur', () => saveDefaultFieldValue(cell, leadId, fieldName, editor.value));
+                break;
+
+            case 'phone':
+                editor = document.createElement('input');
+                editor.type = 'tel';
+                editor.className = 'cell-editor';
+                editor.value = currentValue || '';
+                editor.placeholder = '(555) 123-4567';
+                editor.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') {
+                        saveDefaultFieldValue(cell, leadId, fieldName, editor.value);
+                    } else if (e.key === 'Escape') {
+                        cancelEdit(cell);
+                    }
+                });
+                editor.addEventListener('blur', () => saveDefaultFieldValue(cell, leadId, fieldName, editor.value));
+                break;
+
+            default: // text
+                editor = document.createElement('input');
+                editor.type = 'text';
+                editor.className = 'cell-editor';
+                editor.value = currentValue || '';
+                editor.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') {
+                        saveDefaultFieldValue(cell, leadId, fieldName, editor.value);
+                    } else if (e.key === 'Escape') {
+                        cancelEdit(cell);
+                    }
+                });
+                editor.addEventListener('blur', () => saveDefaultFieldValue(cell, leadId, fieldName, editor.value));
+                break;
+        }
+
+        cell.appendChild(editor);
+        editor.focus();
+        if (editor.select) editor.select();
+    }
+
+    function saveDefaultFieldValue(cell, leadId, fieldName, value) {
+        fetch(`/api/leads/${leadId}/update`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify({ field: fieldName, value: value })
+        })
+        .then(response => response.json())
+        .then(result => {
+            if (result.success) {
+                const displaySpan = cell.querySelector('.cell-display');
+                displaySpan.textContent = result.display_value || '-';
+                cell.dataset.value = value;
             } else {
                 alert(result.error || 'Failed to save');
             }
