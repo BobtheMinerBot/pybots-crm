@@ -498,7 +498,147 @@ def settings():
     if request.method == 'POST':
         ZAPIER_WEBHOOK_URL = request.form.get('zapier_webhook', '')
         flash('Settings saved', 'success')
-    return render_template('settings.html', zapier_webhook=ZAPIER_WEBHOOK_URL)
+
+    # Get current user info
+    user = query_db('SELECT * FROM users WHERE id = ?', [session.get('user_id')], one=True)
+    # Get all users for user management
+    users = query_db('SELECT id, email, name, role, created_at FROM users ORDER BY name')
+
+    return render_template('settings.html', zapier_webhook=ZAPIER_WEBHOOK_URL, user=user, users=users)
+
+@app.route('/settings/change-password', methods=['POST'])
+@login_required
+def change_password():
+    current_password = request.form.get('current_password', '')
+    new_password = request.form.get('new_password', '')
+    confirm_password = request.form.get('confirm_password', '')
+
+    if not current_password or not new_password:
+        flash('All password fields are required', 'error')
+        return redirect(url_for('settings'))
+
+    if new_password != confirm_password:
+        flash('New passwords do not match', 'error')
+        return redirect(url_for('settings'))
+
+    if len(new_password) < 6:
+        flash('Password must be at least 6 characters', 'error')
+        return redirect(url_for('settings'))
+
+    # Verify current password
+    user = query_db('SELECT * FROM users WHERE id = ?', [session.get('user_id')], one=True)
+    if not check_password_hash(user['password_hash'], current_password):
+        flash('Current password is incorrect', 'error')
+        return redirect(url_for('settings'))
+
+    # Update password
+    execute_db('UPDATE users SET password_hash = ? WHERE id = ?',
+               [generate_password_hash(new_password), session.get('user_id')])
+    flash('Password changed successfully', 'success')
+    return redirect(url_for('settings'))
+
+@app.route('/settings/change-email', methods=['POST'])
+@login_required
+def change_email():
+    new_email = request.form.get('new_email', '').strip().lower()
+    password = request.form.get('password_for_email', '')
+
+    if not new_email or not password:
+        flash('Email and password are required', 'error')
+        return redirect(url_for('settings'))
+
+    # Verify password
+    user = query_db('SELECT * FROM users WHERE id = ?', [session.get('user_id')], one=True)
+    if not check_password_hash(user['password_hash'], password):
+        flash('Password is incorrect', 'error')
+        return redirect(url_for('settings'))
+
+    # Check if email already exists
+    existing = query_db('SELECT id FROM users WHERE email = ? AND id != ?',
+                        [new_email, session.get('user_id')], one=True)
+    if existing:
+        flash('Email already in use by another account', 'error')
+        return redirect(url_for('settings'))
+
+    # Update email
+    execute_db('UPDATE users SET email = ? WHERE id = ?', [new_email, session.get('user_id')])
+    flash('Email changed successfully', 'success')
+    return redirect(url_for('settings'))
+
+@app.route('/settings/change-name', methods=['POST'])
+@login_required
+def change_name():
+    new_name = request.form.get('new_name', '').strip()
+
+    if not new_name:
+        flash('Name is required', 'error')
+        return redirect(url_for('settings'))
+
+    execute_db('UPDATE users SET name = ? WHERE id = ?', [new_name, session.get('user_id')])
+    session['user_name'] = new_name
+    flash('Name changed successfully', 'success')
+    return redirect(url_for('settings'))
+
+@app.route('/users/add', methods=['POST'])
+@login_required
+def add_user():
+    name = request.form.get('name', '').strip()
+    email = request.form.get('email', '').strip().lower()
+    password = request.form.get('password', '')
+    role = request.form.get('role', 'user')
+
+    if not name or not email or not password:
+        flash('Name, email, and password are required', 'error')
+        return redirect(url_for('settings'))
+
+    if len(password) < 6:
+        flash('Password must be at least 6 characters', 'error')
+        return redirect(url_for('settings'))
+
+    # Check if email already exists
+    existing = query_db('SELECT id FROM users WHERE email = ?', [email], one=True)
+    if existing:
+        flash('A user with this email already exists', 'error')
+        return redirect(url_for('settings'))
+
+    execute_db('INSERT INTO users (name, email, password_hash, role) VALUES (?, ?, ?, ?)',
+               [name, email, generate_password_hash(password), role])
+    flash(f'User {name} added successfully', 'success')
+    return redirect(url_for('settings'))
+
+@app.route('/users/<int:id>/delete', methods=['POST'])
+@login_required
+def delete_user(id):
+    # Don't allow deleting yourself
+    if id == session.get('user_id'):
+        flash('You cannot delete your own account', 'error')
+        return redirect(url_for('settings'))
+
+    # Don't allow deleting the last user
+    user_count = query_db('SELECT COUNT(*) as count FROM users', one=True)['count']
+    if user_count <= 1:
+        flash('Cannot delete the last user', 'error')
+        return redirect(url_for('settings'))
+
+    execute_db('DELETE FROM users WHERE id = ?', [id])
+    flash('User deleted successfully', 'success')
+    return redirect(url_for('settings'))
+
+@app.route('/users/<int:id>/reset-password', methods=['POST'])
+@login_required
+def reset_user_password(id):
+    new_password = request.form.get('new_password', '')
+
+    if not new_password or len(new_password) < 6:
+        flash('Password must be at least 6 characters', 'error')
+        return redirect(url_for('settings'))
+
+    execute_db('UPDATE users SET password_hash = ? WHERE id = ?',
+               [generate_password_hash(new_password), id])
+
+    user = query_db('SELECT name FROM users WHERE id = ?', [id], one=True)
+    flash(f'Password reset for {user["name"]}', 'success')
+    return redirect(url_for('settings'))
 
 # ==================== CUSTOM FIELDS ====================
 

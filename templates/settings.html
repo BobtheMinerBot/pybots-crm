@@ -3,54 +3,295 @@
 {% block title %}Settings - CRM{% endblock %}
 
 {% block content %}
-<div class="card" style="max-width: 600px;">
-    <div class="card-header">
-        <h2>Settings</h2>
-    </div>
-    <div class="card-body">
-        <form method="POST">
-            <div class="form-group">
-                <label class="form-label">Zapier Webhook URL</label>
-                <input type="url" name="zapier_webhook" class="form-control" 
-                       value="{{ zapier_webhook }}"
-                       placeholder="https://hooks.zapier.com/hooks/catch/...">
-                <p class="text-muted text-sm" style="margin-top: 0.5rem;">
-                    Paste your Zapier webhook URL here. A POST request will be sent whenever a new lead is added.
-                </p>
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; max-width: 1000px;">
+    <!-- Left Column -->
+    <div>
+        <!-- Account Settings -->
+        <div class="card">
+            <div class="card-header">
+                <h2>Account</h2>
             </div>
-            
-            <button type="submit" class="btn btn-primary">Save Settings</button>
-        </form>
-        
-        <hr style="margin: 2rem 0; border: none; border-top: 1px solid var(--gray-200);">
-        
-        <h3 style="font-size: 1rem; margin-bottom: 1rem;">Webhook Payload Format</h3>
-        <p class="text-sm text-muted" style="margin-bottom: 0.5rem;">When a new lead is created, the following JSON is sent:</p>
-        <pre style="background: var(--gray-100); padding: 1rem; border-radius: 0.375rem; font-size: 0.8125rem; overflow-x: auto;">
-{
-  "id": 1,
-  "name": "John Smith",
-  "email": "john@example.com",
-  "phone": "305-555-1234",
-  "address": "123 Ocean Dr, Key West, FL",
-  "job_type": "Spalling Repair",
-  "property_type": "Residential",
-  "status": "New Lead",
-  "notes": "...",
-  "created_at": "2024-01-15T10:30:00"
-}</pre>
+            <div class="card-body">
+                <p class="text-muted" style="margin-bottom: 1.5rem;">
+                    Logged in as <strong>{{ user['name'] }}</strong> ({{ user['email'] }})
+                </p>
+
+                <!-- Change Name -->
+                <form method="POST" action="{{ url_for('change_name') }}" style="margin-bottom: 1.5rem;">
+                    <div class="form-group">
+                        <label class="form-label">Display Name</label>
+                        <div style="display: flex; gap: 0.5rem;">
+                            <input type="text" name="new_name" class="form-control" value="{{ user['name'] }}" required>
+                            <button type="submit" class="btn btn-secondary">Update</button>
+                        </div>
+                    </div>
+                </form>
+
+                <!-- Change Email -->
+                <form method="POST" action="{{ url_for('change_email') }}" style="margin-bottom: 1.5rem;">
+                    <div class="form-group">
+                        <label class="form-label">Email Address</label>
+                        <input type="email" name="new_email" class="form-control" value="{{ user['email'] }}" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Confirm with Password</label>
+                        <input type="password" name="password_for_email" class="form-control" placeholder="Enter your password" required>
+                    </div>
+                    <button type="submit" class="btn btn-secondary">Update Email</button>
+                </form>
+
+                <hr style="margin: 1.5rem 0; border: none; border-top: 1px solid var(--gray-200);">
+
+                <!-- Change Password -->
+                <h3 style="font-size: 1rem; margin-bottom: 1rem;">Change Password</h3>
+                <form method="POST" action="{{ url_for('change_password') }}">
+                    <div class="form-group">
+                        <label class="form-label">Current Password</label>
+                        <input type="password" name="current_password" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">New Password</label>
+                        <input type="password" name="new_password" class="form-control" required minlength="6">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Confirm New Password</label>
+                        <input type="password" name="confirm_password" class="form-control" required minlength="6">
+                    </div>
+                    <button type="submit" class="btn btn-primary">Change Password</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Zapier Webhook -->
+        <div class="card" style="margin-top: 1.5rem;">
+            <div class="card-header">
+                <h2>Integrations</h2>
+            </div>
+            <div class="card-body">
+                <form method="POST">
+                    <div class="form-group">
+                        <label class="form-label">Zapier Webhook URL</label>
+                        <input type="url" name="zapier_webhook" class="form-control"
+                               value="{{ zapier_webhook }}"
+                               placeholder="https://hooks.zapier.com/hooks/catch/...">
+                        <p class="text-muted text-sm" style="margin-top: 0.5rem;">
+                            A POST request will be sent whenever a new lead is added.
+                        </p>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Save Webhook</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Right Column - User Management -->
+    <div>
+        <div class="card">
+            <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+                <h2>Users</h2>
+                <button class="btn btn-primary btn-sm" onclick="document.getElementById('addUserModal').classList.add('visible')">
+                    + Add User
+                </button>
+            </div>
+            <div class="card-body" style="padding: 0;">
+                <table class="grid-table" style="margin: 0;">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Email</th>
+                            <th>Role</th>
+                            <th style="width: 100px;">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for u in users %}
+                        <tr>
+                            <td>
+                                <strong>{{ u['name'] }}</strong>
+                                {% if u['id'] == session.user_id %}
+                                <span class="text-muted text-sm">(you)</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-muted">{{ u['email'] }}</td>
+                            <td>
+                                <span class="badge" style="background: {% if u['role'] == 'admin' %}var(--primary){% else %}var(--gray-200){% endif %}; color: {% if u['role'] == 'admin' %}white{% else %}var(--gray-700){% endif %};">
+                                    {{ u['role'] }}
+                                </span>
+                            </td>
+                            <td>
+                                {% if u['id'] != session.user_id %}
+                                <div style="display: flex; gap: 0.25rem;">
+                                    <button class="btn btn-secondary btn-sm" onclick="openResetPassword({{ u['id'] }}, '{{ u['name'] }}')" title="Reset password">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                                            <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                                        </svg>
+                                    </button>
+                                    <form method="POST" action="{{ url_for('delete_user', id=u['id']) }}" style="display: inline;">
+                                        <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Delete user {{ u['name'] }}?')" title="Delete user">
+                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                                            </svg>
+                                        </button>
+                                    </form>
+                                </div>
+                                {% else %}
+                                <span class="text-muted text-sm">-</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
     </div>
 </div>
 
-<div class="card" style="max-width: 600px; margin-top: 1.5rem;">
-    <div class="card-header">
-        <h2>Account</h2>
-    </div>
-    <div class="card-body">
-        <p class="text-muted">Logged in as <strong>{{ session.user_name }}</strong></p>
-        <p class="text-sm text-muted" style="margin-top: 1rem;">
-            To change your password or add new users, contact your administrator.
-        </p>
+<!-- Add User Modal -->
+<div id="addUserModal" class="modal-overlay">
+    <div class="modal">
+        <div class="modal-header">
+            <h3>Add New User</h3>
+            <button class="modal-close" onclick="document.getElementById('addUserModal').classList.remove('visible')">&times;</button>
+        </div>
+        <form method="POST" action="{{ url_for('add_user') }}">
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">Name *</label>
+                    <input type="text" name="name" class="form-control" required placeholder="John Smith">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Email *</label>
+                    <input type="email" name="email" class="form-control" required placeholder="john@example.com">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Password *</label>
+                    <input type="password" name="password" class="form-control" required minlength="6" placeholder="Min 6 characters">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Role</label>
+                    <select name="role" class="form-control">
+                        <option value="user">User</option>
+                        <option value="admin">Admin</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="document.getElementById('addUserModal').classList.remove('visible')">Cancel</button>
+                <button type="submit" class="btn btn-primary">Add User</button>
+            </div>
+        </form>
     </div>
 </div>
+
+<!-- Reset Password Modal -->
+<div id="resetPasswordModal" class="modal-overlay">
+    <div class="modal">
+        <div class="modal-header">
+            <h3>Reset Password for <span id="resetUserName"></span></h3>
+            <button class="modal-close" onclick="document.getElementById('resetPasswordModal').classList.remove('visible')">&times;</button>
+        </div>
+        <form method="POST" id="resetPasswordForm">
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">New Password *</label>
+                    <input type="password" name="new_password" class="form-control" required minlength="6" placeholder="Min 6 characters">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="document.getElementById('resetPasswordModal').classList.remove('visible')">Cancel</button>
+                <button type="submit" class="btn btn-primary">Reset Password</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<style>
+    .modal-overlay {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0,0,0,0.5);
+        z-index: 1001;
+        align-items: center;
+        justify-content: center;
+    }
+    .modal-overlay.visible {
+        display: flex;
+    }
+    .modal {
+        background: white;
+        border-radius: 12px;
+        width: 100%;
+        max-width: 400px;
+        box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+    }
+    .modal-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 1rem 1.5rem;
+        border-bottom: 1px solid var(--gray-200);
+    }
+    .modal-header h3 {
+        margin: 0;
+        font-size: 1.125rem;
+    }
+    .modal-close {
+        background: none;
+        border: none;
+        font-size: 1.5rem;
+        color: var(--gray-500);
+        cursor: pointer;
+        padding: 0;
+        line-height: 1;
+    }
+    .modal-body {
+        padding: 1.5rem;
+    }
+    .modal-footer {
+        display: flex;
+        justify-content: flex-end;
+        gap: 0.75rem;
+        padding: 1rem 1.5rem;
+        border-top: 1px solid var(--gray-200);
+        background: var(--gray-50);
+        border-radius: 0 0 12px 12px;
+    }
+
+    @media (max-width: 768px) {
+        div[style*="grid-template-columns: 1fr 1fr"] {
+            grid-template-columns: 1fr !important;
+        }
+    }
+</style>
+
+<script>
+    function openResetPassword(userId, userName) {
+        document.getElementById('resetUserName').textContent = userName;
+        document.getElementById('resetPasswordForm').action = '/users/' + userId + '/reset-password';
+        document.getElementById('resetPasswordModal').classList.add('visible');
+    }
+
+    // Close modals on escape key
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            document.getElementById('addUserModal').classList.remove('visible');
+            document.getElementById('resetPasswordModal').classList.remove('visible');
+        }
+    });
+
+    // Close modals when clicking overlay
+    document.querySelectorAll('.modal-overlay').forEach(modal => {
+        modal.addEventListener('click', function(e) {
+            if (e.target === this) {
+                this.classList.remove('visible');
+            }
+        });
+    });
+</script>
 {% endblock %}
