@@ -95,9 +95,16 @@
                     <td>{{ lead['job_type'] or '-' }}</td>
                     <td>{{ lead['property_type'] or '-' }}</td>
                     {% for cf in custom_fields %}
-                    <td>
-                        {% set lead_vals = field_values.get(lead['id'], {}) %}
-                        {% set val = lead_vals.get(cf['field_key'], {}).get('value', '') %}
+                    {% set lead_vals = field_values.get(lead['id'], {}) %}
+                    {% set val = lead_vals.get(cf['field_key'], {}).get('value', '') %}
+                    <td class="editable-cell"
+                        data-lead-id="{{ lead['id'] }}"
+                        data-field-id="{{ cf['id'] }}"
+                        data-field-type="{{ cf['field_type'] }}"
+                        data-field-options="{{ cf['options'] or '' }}"
+                        data-value="{{ val }}"
+                        onclick="startEdit(this)">
+                        <span class="cell-display">
                         {% if cf['field_type'] == 'checkbox' %}
                         {% if val == '1' %}✓{% else %}-{% endif %}
                         {% elif cf['field_type'] == 'multi_select' and val %}
@@ -105,6 +112,7 @@
                         {% else %}
                         {{ val or '-' }}
                         {% endif %}
+                        </span>
                     </td>
                     {% endfor %}
                     <td class="text-muted text-sm">{{ lead['created_at'] | strftime }}</td>
@@ -341,6 +349,72 @@
         border-top: 1px solid var(--gray-200);
         background: var(--gray-50);
     }
+
+    /* Editable cells */
+    .editable-cell {
+        cursor: pointer;
+        position: relative;
+        transition: background 0.15s;
+    }
+    .editable-cell:hover {
+        background: var(--gray-100);
+    }
+    .editable-cell.editing {
+        padding: 0;
+        background: white;
+    }
+    .editable-cell .cell-editor {
+        width: 100%;
+        padding: 0.5rem;
+        border: 2px solid var(--primary);
+        border-radius: 4px;
+        font-size: inherit;
+        font-family: inherit;
+        box-sizing: border-box;
+        outline: none;
+    }
+    .editable-cell .cell-editor:focus {
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+    }
+    .editable-cell select.cell-editor {
+        cursor: pointer;
+    }
+    /* Multi-select dropdown */
+    .multi-select-dropdown {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        background: white;
+        border: 1px solid var(--gray-200);
+        border-radius: 6px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        z-index: 100;
+        max-height: 200px;
+        overflow-y: auto;
+    }
+    .multi-select-option {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.5rem 0.75rem;
+        cursor: pointer;
+    }
+    .multi-select-option:hover {
+        background: var(--gray-100);
+    }
+    .multi-select-option input {
+        width: 16px;
+        height: 16px;
+    }
+    .multi-select-done {
+        padding: 0.5rem;
+        border-top: 1px solid var(--gray-200);
+        text-align: center;
+    }
+    .multi-select-done button {
+        width: 100%;
+    }
 </style>
 
 {% endblock %}
@@ -530,5 +604,214 @@
             closeAddFieldModal();
         }
     });
+
+    // ========== Inline Editing ==========
+    let currentEditingCell = null;
+
+    function startEdit(cell) {
+        // Don't start new edit if already editing this cell
+        if (cell.classList.contains('editing')) return;
+
+        // Close any existing edit
+        if (currentEditingCell && currentEditingCell !== cell) {
+            cancelEdit(currentEditingCell);
+        }
+
+        const leadId = cell.dataset.leadId;
+        const fieldId = cell.dataset.fieldId;
+        const fieldType = cell.dataset.fieldType;
+        const options = cell.dataset.fieldOptions;
+        const currentValue = cell.dataset.value;
+
+        cell.classList.add('editing');
+        currentEditingCell = cell;
+
+        const displaySpan = cell.querySelector('.cell-display');
+        displaySpan.style.display = 'none';
+
+        let editor;
+
+        switch (fieldType) {
+            case 'checkbox':
+                // Toggle immediately for checkbox
+                const newCheckboxValue = currentValue === '1' ? '0' : '1';
+                saveFieldValue(cell, leadId, fieldId, newCheckboxValue);
+                return;
+
+            case 'dropdown':
+                editor = document.createElement('select');
+                editor.className = 'cell-editor';
+                editor.innerHTML = '<option value="">-</option>';
+                if (options) {
+                    options.split('\n').forEach(opt => {
+                        const trimmed = opt.trim();
+                        if (trimmed) {
+                            const selected = trimmed === currentValue ? 'selected' : '';
+                            editor.innerHTML += `<option value="${trimmed}" ${selected}>${trimmed}</option>`;
+                        }
+                    });
+                }
+                editor.addEventListener('change', () => saveFieldValue(cell, leadId, fieldId, editor.value));
+                editor.addEventListener('blur', () => setTimeout(() => cancelEdit(cell), 100));
+                break;
+
+            case 'multi_select':
+                createMultiSelectEditor(cell, leadId, fieldId, options, currentValue);
+                return;
+
+            case 'date':
+                editor = document.createElement('input');
+                editor.type = 'date';
+                editor.className = 'cell-editor';
+                editor.value = currentValue || '';
+                editor.addEventListener('change', () => saveFieldValue(cell, leadId, fieldId, editor.value));
+                editor.addEventListener('blur', () => cancelEdit(cell));
+                break;
+
+            case 'number':
+                editor = document.createElement('input');
+                editor.type = 'number';
+                editor.className = 'cell-editor';
+                editor.value = currentValue || '';
+                editor.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') {
+                        saveFieldValue(cell, leadId, fieldId, editor.value);
+                    } else if (e.key === 'Escape') {
+                        cancelEdit(cell);
+                    }
+                });
+                editor.addEventListener('blur', () => saveFieldValue(cell, leadId, fieldId, editor.value));
+                break;
+
+            default: // text, contact, duration, auto_number, symbol
+                editor = document.createElement('input');
+                editor.type = 'text';
+                editor.className = 'cell-editor';
+                editor.value = currentValue || '';
+                editor.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') {
+                        saveFieldValue(cell, leadId, fieldId, editor.value);
+                    } else if (e.key === 'Escape') {
+                        cancelEdit(cell);
+                    }
+                });
+                editor.addEventListener('blur', () => saveFieldValue(cell, leadId, fieldId, editor.value));
+                break;
+        }
+
+        cell.appendChild(editor);
+        editor.focus();
+        if (editor.select) editor.select();
+    }
+
+    function createMultiSelectEditor(cell, leadId, fieldId, options, currentValue) {
+        // Parse current values
+        let selectedValues = [];
+        if (currentValue) {
+            try {
+                selectedValues = JSON.parse(currentValue);
+            } catch {
+                selectedValues = currentValue.split(',').map(v => v.trim());
+            }
+        }
+
+        const dropdown = document.createElement('div');
+        dropdown.className = 'multi-select-dropdown';
+
+        if (options) {
+            options.split('\n').forEach(opt => {
+                const trimmed = opt.trim();
+                if (trimmed) {
+                    const isChecked = selectedValues.includes(trimmed);
+                    const optionDiv = document.createElement('div');
+                    optionDiv.className = 'multi-select-option';
+                    optionDiv.innerHTML = `
+                        <input type="checkbox" value="${trimmed}" ${isChecked ? 'checked' : ''}>
+                        <span>${trimmed}</span>
+                    `;
+                    optionDiv.addEventListener('click', (e) => {
+                        if (e.target.tagName !== 'INPUT') {
+                            const checkbox = optionDiv.querySelector('input');
+                            checkbox.checked = !checkbox.checked;
+                        }
+                    });
+                    dropdown.appendChild(optionDiv);
+                }
+            });
+        }
+
+        // Done button
+        const doneDiv = document.createElement('div');
+        doneDiv.className = 'multi-select-done';
+        doneDiv.innerHTML = '<button class="btn btn-primary btn-sm">Done</button>';
+        doneDiv.querySelector('button').addEventListener('click', () => {
+            const checkboxes = dropdown.querySelectorAll('input[type="checkbox"]:checked');
+            const values = Array.from(checkboxes).map(cb => cb.value);
+            saveFieldValue(cell, leadId, fieldId, values);
+        });
+        dropdown.appendChild(doneDiv);
+
+        cell.appendChild(dropdown);
+
+        // Close on click outside
+        const closeHandler = (e) => {
+            if (!cell.contains(e.target)) {
+                document.removeEventListener('click', closeHandler);
+                cancelEdit(cell);
+            }
+        };
+        setTimeout(() => document.addEventListener('click', closeHandler), 10);
+    }
+
+    function cancelEdit(cell) {
+        if (!cell || !cell.classList.contains('editing')) return;
+
+        cell.classList.remove('editing');
+        const editor = cell.querySelector('.cell-editor');
+        if (editor) editor.remove();
+        const dropdown = cell.querySelector('.multi-select-dropdown');
+        if (dropdown) dropdown.remove();
+        const displaySpan = cell.querySelector('.cell-display');
+        if (displaySpan) displaySpan.style.display = '';
+
+        if (currentEditingCell === cell) {
+            currentEditingCell = null;
+        }
+    }
+
+    function saveFieldValue(cell, leadId, fieldId, value) {
+        fetch(`/api/leads/${leadId}/fields/${fieldId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify({ value: value })
+        })
+        .then(response => response.json())
+        .then(result => {
+            if (result.success) {
+                // Update the display
+                const displaySpan = cell.querySelector('.cell-display');
+                displaySpan.textContent = result.display_value || '-';
+
+                // Update the data attribute
+                if (Array.isArray(value)) {
+                    cell.dataset.value = JSON.stringify(value);
+                } else {
+                    cell.dataset.value = value;
+                }
+            } else {
+                alert(result.error || 'Failed to save');
+            }
+        })
+        .catch(err => {
+            console.error('Save error:', err);
+            alert('Failed to save field value');
+        })
+        .finally(() => {
+            cancelEdit(cell);
+        });
+    }
 </script>
 {% endblock %}

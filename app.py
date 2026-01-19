@@ -960,6 +960,53 @@ def api_delete_field(id):
 
     return jsonify({'success': True})
 
+@app.route('/api/leads/<int:lead_id>/fields/<int:field_id>', methods=['POST'])
+@login_required
+def api_update_field_value(lead_id, field_id):
+    """AJAX endpoint for inline editing of field values"""
+    data = request.get_json()
+    value = data.get('value', '')
+
+    # Get field info to handle special types
+    field = query_db('SELECT * FROM custom_fields WHERE id = ?', [field_id], one=True)
+    if not field:
+        return jsonify({'success': False, 'error': 'Field not found'}), 404
+
+    # Handle multi_select (expects array, store as JSON)
+    if field['field_type'] == 'multi_select' and isinstance(value, list):
+        import json
+        value = json.dumps(value) if value else ''
+
+    # Handle checkbox
+    if field['field_type'] == 'checkbox':
+        value = '1' if value in [True, 'true', '1', 1] else '0'
+
+    # Upsert the value
+    existing = query_db(
+        'SELECT id FROM field_values WHERE lead_id = ? AND field_id = ?',
+        [lead_id, field_id], one=True
+    )
+
+    if existing:
+        execute_db(
+            'UPDATE field_values SET value = ? WHERE lead_id = ? AND field_id = ?',
+            [value, lead_id, field_id]
+        )
+    else:
+        execute_db(
+            'INSERT INTO field_values (lead_id, field_id, value) VALUES (?, ?, ?)',
+            [lead_id, field_id, value]
+        )
+
+    # Return formatted display value
+    display_value = value
+    if field['field_type'] == 'checkbox':
+        display_value = '✓' if value == '1' else '-'
+    elif field['field_type'] == 'multi_select' and value:
+        display_value = value.replace('[', '').replace(']', '').replace('"', '')
+
+    return jsonify({'success': True, 'display_value': display_value})
+
 # Views Management Routes
 @app.route('/views')
 @login_required
