@@ -1033,8 +1033,11 @@ def group_leads_by_fields(leads, group_prefs, all_field_values):
                 return val if val else 'Uncategorized'
             return 'Uncategorized'
         else:
-            # Default field
-            val = lead.get(field_name, '')
+            # Default field - sqlite3.Row doesn't have .get()
+            try:
+                val = lead[field_name]
+            except (KeyError, IndexError):
+                val = ''
             return val if val else 'Uncategorized'
 
     def recursive_group(leads_list, level):
