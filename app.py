@@ -118,6 +118,7 @@ def init_db():
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 name TEXT NOT NULL UNIQUE,
                 description TEXT,
+                default_fields TEXT DEFAULT '["email","phone","address","job_type","property_type"]',
                 created_by INTEGER,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (created_by) REFERENCES users (id)
@@ -141,7 +142,14 @@ def init_db():
                 FOREIGN KEY (current_view_id) REFERENCES views (id) ON DELETE SET NULL
             );
         ''')
-        
+
+        # Migration: Add default_fields column to views if it doesn't exist
+        try:
+            db.execute("SELECT default_fields FROM views LIMIT 1")
+        except:
+            db.execute("ALTER TABLE views ADD COLUMN default_fields TEXT DEFAULT '[\"email\",\"phone\",\"address\",\"job_type\",\"property_type\"]'")
+            print("Added default_fields column to views table")
+
         # Create default admin if no users exist
         existing = query_db('SELECT id FROM users LIMIT 1', one=True)
         if not existing:
@@ -275,19 +283,26 @@ def leads():
         query += ' ORDER BY created_at DESC'
         leads_by_status[status] = query_db(query, args)
     
-    # Get visible custom fields for current user
+    # Get all custom fields for the field selector
     user_id = session.get('user_id')
+    all_custom_fields = get_custom_fields()
 
     # Check if user has a view selected
     current_view = get_user_current_view(user_id)
     all_views = get_all_views()
 
+    # Determine visible fields based on view or default (show all)
+    import json
     if current_view:
-        # Use view's field selection
-        visible_fields = get_fields_for_view(current_view['id'])
+        # Get default fields from view
+        visible_default_fields = json.loads(current_view['default_fields'] or '[]')
+        # Get custom field IDs from view
+        view_custom_fields = get_fields_for_view(current_view['id'])
+        visible_custom_field_ids = [f['id'] for f in view_custom_fields]
     else:
-        # Fall back to user's visibility settings
-        visible_fields = [f for f in get_visible_fields(user_id) if f['is_visible']]
+        # Show all fields by default
+        visible_default_fields = ['email', 'phone', 'address', 'job_type', 'property_type']
+        visible_custom_field_ids = [f['id'] for f in all_custom_fields]
 
     # Get custom field values for all leads
     all_lead_values = {}
@@ -302,7 +317,9 @@ def leads():
                          property_types=PROPERTY_TYPES,
                          status_filter=status_filter,
                          search=search,
-                         custom_fields=visible_fields,
+                         all_custom_fields=all_custom_fields,
+                         visible_custom_field_ids=visible_custom_field_ids,
+                         visible_default_fields=visible_default_fields,
                          field_values=all_lead_values,
                          all_views=all_views,
                          current_view=current_view)
@@ -1007,137 +1024,88 @@ def api_update_field_value(lead_id, field_id):
 
     return jsonify({'success': True, 'display_value': display_value})
 
-# Views Management Routes
-@app.route('/views')
+# Views Management API Routes
+@app.route('/api/views/save', methods=['POST'])
 @login_required
-def list_views():
-    views = get_all_views()
-    # Add field count for each view
-    views_with_counts = []
-    for view in views:
-        field_count = query_db(
-            'SELECT COUNT(*) as count FROM view_fields WHERE view_id = ?',
-            [view['id']], one=True
-        )['count']
-        creator = query_db(
-            'SELECT name FROM users WHERE id = ?',
-            [view['created_by']], one=True
-        ) if view['created_by'] else None
-        views_with_counts.append({
-            **dict(view),
-            'field_count': field_count,
-            'creator_name': creator['name'] if creator else 'System'
-        })
-    return render_template('views.html', views=views_with_counts)
+def api_save_view():
+    """Save current field selection as a new view"""
+    data = request.get_json()
+    name = data.get('name', '').strip()
+    default_fields = data.get('default_fields', [])  # List of default field keys
+    custom_field_ids = data.get('custom_field_ids', [])  # List of custom field IDs
 
-@app.route('/views/add', methods=['GET', 'POST'])
-@login_required
-def add_view():
-    if request.method == 'POST':
-        name = request.form.get('name', '').strip()
-        description = request.form.get('description', '').strip()
+    if not name:
+        return jsonify({'success': False, 'error': 'View name is required'}), 400
 
-        if not name:
-            flash('View name is required', 'error')
-            return redirect(url_for('add_view'))
+    # Check for duplicate name
+    existing = query_db('SELECT id FROM views WHERE name = ?', [name], one=True)
+    if existing:
+        return jsonify({'success': False, 'error': 'A view with this name already exists'}), 400
 
-        # Check for duplicate name
-        existing = query_db('SELECT id FROM views WHERE name = ?', [name], one=True)
-        if existing:
-            flash('A view with this name already exists', 'error')
-            return redirect(url_for('add_view'))
+    # Insert view with default_fields as JSON
+    import json
+    view_id = execute_db('''
+        INSERT INTO views (name, default_fields, created_by)
+        VALUES (?, ?, ?)
+    ''', [name, json.dumps(default_fields), session.get('user_id')])
 
-        # Insert view
-        view_id = execute_db('''
-            INSERT INTO views (name, description, created_by)
+    # Insert custom field associations
+    for idx, field_id in enumerate(custom_field_ids):
+        execute_db('''
+            INSERT INTO view_fields (view_id, field_id, sequence)
             VALUES (?, ?, ?)
-        ''', [name, description, session.get('user_id')])
+        ''', [view_id, field_id, idx])
 
-        # Insert field associations
-        all_fields = get_custom_fields()
-        for idx, field in enumerate(all_fields):
-            if request.form.get(f'field_{field["id"]}'):
-                sequence = int(request.form.get(f'sequence_{field["id"]}', idx))
-                execute_db('''
-                    INSERT INTO view_fields (view_id, field_id, sequence)
-                    VALUES (?, ?, ?)
-                ''', [view_id, field['id'], sequence])
+    # Set this view as current for the user
+    set_user_current_view(session.get('user_id'), view_id)
 
-        flash('View created successfully', 'success')
-        return redirect(url_for('list_views'))
+    return jsonify({'success': True, 'view_id': view_id})
 
-    all_fields = get_custom_fields()
-    return render_template('view_form.html', view=None, all_fields=all_fields, selected_field_ids=[])
-
-@app.route('/views/<int:id>/edit', methods=['GET', 'POST'])
+@app.route('/api/views/<int:id>/update', methods=['POST'])
 @login_required
-def edit_view(id):
+def api_update_view(id):
+    """Update an existing view's field selection"""
     view = get_view_by_id(id)
     if not view:
-        flash('View not found', 'error')
-        return redirect(url_for('list_views'))
+        return jsonify({'success': False, 'error': 'View not found'}), 404
 
-    if request.method == 'POST':
-        name = request.form.get('name', '').strip()
-        description = request.form.get('description', '').strip()
+    data = request.get_json()
+    default_fields = data.get('default_fields', [])
+    custom_field_ids = data.get('custom_field_ids', [])
 
-        if not name:
-            flash('View name is required', 'error')
-            return redirect(url_for('edit_view', id=id))
+    import json
+    # Update view's default_fields
+    execute_db('''
+        UPDATE views SET default_fields = ?
+        WHERE id = ?
+    ''', [json.dumps(default_fields), id])
 
-        # Check for duplicate name (excluding this view)
-        existing = query_db(
-            'SELECT id FROM views WHERE name = ? AND id != ?',
-            [name, id], one=True
-        )
-        if existing:
-            flash('A view with this name already exists', 'error')
-            return redirect(url_for('edit_view', id=id))
+    # Delete existing custom field associations and re-insert
+    execute_db('DELETE FROM view_fields WHERE view_id = ?', [id])
 
-        # Update view
+    for idx, field_id in enumerate(custom_field_ids):
         execute_db('''
-            UPDATE views SET name = ?, description = ?
-            WHERE id = ?
-        ''', [name, description, id])
+            INSERT INTO view_fields (view_id, field_id, sequence)
+            VALUES (?, ?, ?)
+        ''', [id, field_id, idx])
 
-        # Delete existing field associations and re-insert
-        execute_db('DELETE FROM view_fields WHERE view_id = ?', [id])
+    return jsonify({'success': True})
 
-        all_fields = get_custom_fields()
-        for idx, field in enumerate(all_fields):
-            if request.form.get(f'field_{field["id"]}'):
-                sequence = int(request.form.get(f'sequence_{field["id"]}', idx))
-                execute_db('''
-                    INSERT INTO view_fields (view_id, field_id, sequence)
-                    VALUES (?, ?, ?)
-                ''', [id, field['id'], sequence])
-
-        flash('View updated successfully', 'success')
-        return redirect(url_for('list_views'))
-
-    all_fields = get_custom_fields()
-    selected_fields = query_db(
-        'SELECT field_id FROM view_fields WHERE view_id = ?', [id]
-    )
-    selected_field_ids = [f['field_id'] for f in selected_fields]
-    return render_template('view_form.html', view=view, all_fields=all_fields, selected_field_ids=selected_field_ids)
-
-@app.route('/views/<int:id>/delete', methods=['POST'])
+@app.route('/api/views/<int:id>/delete', methods=['POST'])
 @login_required
-def delete_view(id):
-    # Delete view (cascade will handle view_fields)
+def api_delete_view(id):
+    """Delete a view"""
     execute_db('DELETE FROM views WHERE id = ?', [id])
-    # Reset any users who had this view selected
     execute_db('UPDATE user_view_preferences SET current_view_id = NULL WHERE current_view_id = ?', [id])
-    flash('View deleted successfully', 'success')
-    return redirect(url_for('list_views'))
+    return jsonify({'success': True})
 
 @app.route('/api/views/select', methods=['POST'])
 @login_required
 def select_view():
+    """Select a view (or clear selection for 'All Fields')"""
     user_id = session.get('user_id')
     data = request.get_json()
-    view_id = data.get('view_id')  # Can be None for "All Fields"
+    view_id = data.get('view_id')
 
     # Convert empty string to None
     if view_id == '' or view_id is None:
@@ -1145,7 +1113,25 @@ def select_view():
 
     set_user_current_view(user_id, view_id)
 
-    return jsonify({'success': True})
+    # Return view data if a view was selected
+    if view_id:
+        view = get_view_by_id(view_id)
+        if view:
+            import json
+            default_fields = json.loads(view['default_fields'] or '[]')
+            custom_fields = get_fields_for_view(view_id)
+            custom_field_ids = [f['id'] for f in custom_fields]
+            return jsonify({
+                'success': True,
+                'view': {
+                    'id': view['id'],
+                    'name': view['name'],
+                    'default_fields': default_fields,
+                    'custom_field_ids': custom_field_ids
+                }
+            })
+
+    return jsonify({'success': True, 'view': None})
 
 # Template filters
 @app.template_filter('strftime')

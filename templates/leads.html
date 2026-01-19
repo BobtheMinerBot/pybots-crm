@@ -23,16 +23,91 @@
         </select>
     </div>
 
-    <div class="filter-group">
-        <label>View:</label>
-        <select class="form-control" id="viewSelector" style="width: auto;" onchange="switchView(this.value)">
-            <option value="">All Fields</option>
-            {% for view in all_views %}
-            <option value="{{ view['id'] }}" {% if current_view and current_view['id'] == view['id'] %}selected{% endif %}>
-                {{ view['name'] }}
-            </option>
+    <!-- Fields Dropdown -->
+    <div class="filter-group dropdown-container">
+        <button class="btn btn-secondary dropdown-toggle" onclick="toggleFieldsDropdown(event)">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                <circle cx="12" cy="12" r="3"></circle>
+            </svg>
+            Fields
+        </button>
+        <div id="fieldsDropdown" class="dropdown-menu fields-dropdown">
+            <div class="dropdown-header">Show/Hide Columns</div>
+            <div class="dropdown-divider"></div>
+
+            <!-- Default Fields -->
+            <label class="dropdown-item field-checkbox disabled">
+                <input type="checkbox" checked disabled data-column="name">
+                <span>Name</span>
+                <span class="text-muted text-sm">(required)</span>
+            </label>
+            <label class="dropdown-item field-checkbox">
+                <input type="checkbox" data-column="email" {% if 'email' in visible_default_fields %}checked{% endif %} onchange="toggleColumn('email', this.checked)">
+                <span>Email/Phone</span>
+            </label>
+            <label class="dropdown-item field-checkbox">
+                <input type="checkbox" data-column="address" {% if 'address' in visible_default_fields %}checked{% endif %} onchange="toggleColumn('address', this.checked)">
+                <span>Address</span>
+            </label>
+            <label class="dropdown-item field-checkbox">
+                <input type="checkbox" data-column="job_type" {% if 'job_type' in visible_default_fields %}checked{% endif %} onchange="toggleColumn('job_type', this.checked)">
+                <span>Job Type</span>
+            </label>
+            <label class="dropdown-item field-checkbox">
+                <input type="checkbox" data-column="property_type" {% if 'property_type' in visible_default_fields %}checked{% endif %} onchange="toggleColumn('property_type', this.checked)">
+                <span>Property</span>
+            </label>
+
+            {% if all_custom_fields %}
+            <div class="dropdown-divider"></div>
+            <div class="dropdown-header">Custom Fields</div>
+            {% for cf in all_custom_fields %}
+            <label class="dropdown-item field-checkbox">
+                <input type="checkbox" data-column="custom_{{ cf['id'] }}" {% if cf['id'] in visible_custom_field_ids %}checked{% endif %} onchange="toggleColumn('custom_{{ cf['id'] }}', this.checked)">
+                <span>{{ cf['name'] }}</span>
+            </label>
             {% endfor %}
-        </select>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Views Dropdown -->
+    <div class="filter-group dropdown-container">
+        <button class="btn btn-secondary dropdown-toggle" onclick="toggleViewsDropdown(event)">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="3" width="7" height="7"></rect>
+                <rect x="14" y="3" width="7" height="7"></rect>
+                <rect x="14" y="14" width="7" height="7"></rect>
+                <rect x="3" y="14" width="7" height="7"></rect>
+            </svg>
+            Views{% if current_view %}: {{ current_view['name'] }}{% endif %}
+        </button>
+        <div id="viewsDropdown" class="dropdown-menu views-dropdown">
+            <div class="dropdown-item view-option {% if not current_view %}active{% endif %}" onclick="loadView(null)">
+                <span>All Fields</span>
+                {% if not current_view %}<span class="checkmark">✓</span>{% endif %}
+            </div>
+            {% if all_views %}
+            <div class="dropdown-divider"></div>
+            {% for view in all_views %}
+            <div class="dropdown-item view-option {% if current_view and current_view['id'] == view['id'] %}active{% endif %}"
+                 data-view-id="{{ view['id'] }}"
+                 data-view-name="{{ view['name'] | e }}">
+                <span onclick="loadView({{ view['id'] }})">{{ view['name'] }}</span>
+                {% if current_view and current_view['id'] == view['id'] %}<span class="checkmark">✓</span>{% endif %}
+                <button class="view-delete-btn" onclick="deleteViewFromBtn(event, this)" title="Delete view">×</button>
+            </div>
+            {% endfor %}
+            {% endif %}
+            <div class="dropdown-divider"></div>
+            <div class="dropdown-item save-view-btn" onclick="openSaveViewModal()">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 5v14M5 12h14"></path>
+                </svg>
+                Save current as view...
+            </div>
+        </div>
     </div>
 
     <div style="margin-left: auto; display: flex; gap: 0.5rem;">
@@ -64,18 +139,23 @@
         <table class="grid-table">
             <thead>
                 <tr>
-                    <th>Name</th>
-                    <th>Contact</th>
-                    <th>Address</th>
-                    <th>Job Type</th>
-                    <th>Property</th>
-                    {% for cf in custom_fields %}
-                    <th class="custom-field-header" data-field-id="{{ cf['id'] }}" data-field-name="{{ cf['name'] }}" oncontextmenu="showFieldContextMenu(event, this)">
+                    <th data-column="name">Name</th>
+                    <th data-column="email" {% if 'email' not in visible_default_fields %}style="display:none"{% endif %}>Contact</th>
+                    <th data-column="address" {% if 'address' not in visible_default_fields %}style="display:none"{% endif %}>Address</th>
+                    <th data-column="job_type" {% if 'job_type' not in visible_default_fields %}style="display:none"{% endif %}>Job Type</th>
+                    <th data-column="property_type" {% if 'property_type' not in visible_default_fields %}style="display:none"{% endif %}>Property</th>
+                    {% for cf in all_custom_fields %}
+                    <th class="custom-field-header"
+                        data-column="custom_{{ cf['id'] }}"
+                        data-field-id="{{ cf['id'] }}"
+                        data-field-name="{{ cf['name'] }}"
+                        oncontextmenu="showFieldContextMenu(event, this)"
+                        {% if cf['id'] not in visible_custom_field_ids %}style="display:none"{% endif %}>
                         {{ cf['name'] }}
                     </th>
                     {% endfor %}
-                    <th>Created</th>
-                    <th>Stage</th>
+                    <th data-column="created">Created</th>
+                    <th data-column="stage">Stage</th>
                     <th class="add-field-header" onclick="openAddFieldModal()" title="Add new field">
                         <span class="add-field-btn">+</span>
                     </th>
@@ -84,26 +164,28 @@
             <tbody>
                 {% for lead in leads %}
                 <tr>
-                    <td class="lead-name">
+                    <td class="lead-name" data-column="name">
                         <a href="{{ url_for('view_lead', id=lead['id']) }}">{{ lead['name'] }}</a>
                     </td>
-                    <td>
+                    <td data-column="email" {% if 'email' not in visible_default_fields %}style="display:none"{% endif %}>
                         <div>{{ lead['email'] or '-' }}</div>
                         <div class="text-muted text-sm">{{ lead['phone'] or '' }}</div>
                     </td>
-                    <td>{{ lead['address'] or '-' }}</td>
-                    <td>{{ lead['job_type'] or '-' }}</td>
-                    <td>{{ lead['property_type'] or '-' }}</td>
-                    {% for cf in custom_fields %}
+                    <td data-column="address" {% if 'address' not in visible_default_fields %}style="display:none"{% endif %}>{{ lead['address'] or '-' }}</td>
+                    <td data-column="job_type" {% if 'job_type' not in visible_default_fields %}style="display:none"{% endif %}>{{ lead['job_type'] or '-' }}</td>
+                    <td data-column="property_type" {% if 'property_type' not in visible_default_fields %}style="display:none"{% endif %}>{{ lead['property_type'] or '-' }}</td>
+                    {% for cf in all_custom_fields %}
                     {% set lead_vals = field_values.get(lead['id'], {}) %}
                     {% set val = lead_vals.get(cf['field_key'], {}).get('value', '') %}
                     <td class="editable-cell"
+                        data-column="custom_{{ cf['id'] }}"
                         data-lead-id="{{ lead['id'] }}"
                         data-field-id="{{ cf['id'] }}"
                         data-field-type="{{ cf['field_type'] }}"
                         data-field-options="{{ cf['options'] or '' }}"
                         data-value="{{ val }}"
-                        onclick="startEdit(this)">
+                        onclick="startEdit(this)"
+                        {% if cf['id'] not in visible_custom_field_ids %}style="display:none"{% endif %}>
                         <span class="cell-display">
                         {% if cf['field_type'] == 'checkbox' %}
                         {% if val == '1' %}✓{% else %}-{% endif %}
@@ -115,8 +197,8 @@
                         </span>
                     </td>
                     {% endfor %}
-                    <td class="text-muted text-sm">{{ lead['created_at'] | strftime }}</td>
-                    <td class="actions-cell">
+                    <td class="text-muted text-sm" data-column="created">{{ lead['created_at'] | strftime }}</td>
+                    <td class="actions-cell" data-column="stage">
                         <select class="status-select" onchange="updateStatus({{ lead['id'] }}, this.value)">
                             {% for s in statuses %}
                             <option value="{{ s }}" {% if lead['status']==s %}selected{% endif %}>{{ s }}</option>
@@ -213,7 +295,122 @@
     </div>
 </div>
 
+<!-- Save View Modal -->
+<div id="saveViewModal" class="modal-overlay">
+    <div class="modal" style="max-width: 350px;">
+        <div class="modal-header">
+            <h3>Save View</h3>
+            <button class="modal-close" onclick="closeSaveViewModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="form-group">
+                <label class="form-label">View Name *</label>
+                <input type="text" id="viewName" class="form-control" placeholder="e.g., Sales Team View">
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" onclick="closeSaveViewModal()">Cancel</button>
+            <button type="button" class="btn btn-primary" onclick="saveView()">Save View</button>
+        </div>
+    </div>
+</div>
+
 <style>
+    /* Dropdown styles */
+    .dropdown-container {
+        position: relative;
+    }
+    .dropdown-toggle {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    .dropdown-menu {
+        display: none;
+        position: absolute;
+        top: 100%;
+        left: 0;
+        background: white;
+        border: 1px solid var(--gray-200);
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        min-width: 220px;
+        z-index: 1000;
+        padding: 0.5rem 0;
+        margin-top: 0.25rem;
+    }
+    .dropdown-menu.visible {
+        display: block;
+    }
+    .dropdown-header {
+        padding: 0.5rem 1rem;
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: var(--gray-500);
+        text-transform: uppercase;
+    }
+    .dropdown-divider {
+        height: 1px;
+        background: var(--gray-200);
+        margin: 0.5rem 0;
+    }
+    .dropdown-item {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.5rem 1rem;
+        cursor: pointer;
+        font-size: 0.875rem;
+        color: var(--gray-700);
+    }
+    .dropdown-item:hover {
+        background: var(--gray-100);
+    }
+    .field-checkbox {
+        cursor: pointer;
+    }
+    .field-checkbox.disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
+    .field-checkbox input {
+        width: 16px;
+        height: 16px;
+    }
+
+    /* Views dropdown */
+    .view-option {
+        justify-content: space-between;
+    }
+    .view-option.active {
+        background: var(--gray-50);
+        font-weight: 500;
+    }
+    .checkmark {
+        color: var(--primary);
+        font-weight: bold;
+    }
+    .view-delete-btn {
+        background: none;
+        border: none;
+        color: var(--gray-400);
+        cursor: pointer;
+        font-size: 1.25rem;
+        line-height: 1;
+        padding: 0 0.25rem;
+        margin-left: auto;
+    }
+    .view-delete-btn:hover {
+        color: var(--danger);
+    }
+    .save-view-btn {
+        color: var(--primary);
+        font-weight: 500;
+    }
+    .save-view-btn svg {
+        color: var(--primary);
+    }
+
     /* Add Field Button in Header */
     .add-field-header {
         width: 40px;
@@ -421,6 +618,11 @@
 
 {% block scripts %}
 <script>
+    // ========== Field Visibility State ==========
+    const visibleDefaultFields = {{ visible_default_fields | tojson }};
+    const visibleCustomFieldIds = {{ visible_custom_field_ids | tojson }};
+    const currentViewId = {{ current_view['id'] if current_view else 'null' }};
+
     function toggleSection(section) {
         section.classList.toggle('collapsed');
     }
@@ -440,14 +642,65 @@
         });
     }
 
-    function switchView(viewId) {
+    // ========== Dropdowns ==========
+    function toggleFieldsDropdown(e) {
+        e.stopPropagation();
+        closeAllDropdowns();
+        document.getElementById('fieldsDropdown').classList.toggle('visible');
+    }
+
+    function toggleViewsDropdown(e) {
+        e.stopPropagation();
+        closeAllDropdowns();
+        document.getElementById('viewsDropdown').classList.toggle('visible');
+    }
+
+    function closeAllDropdowns() {
+        document.querySelectorAll('.dropdown-menu').forEach(d => d.classList.remove('visible'));
+    }
+
+    // Close dropdowns when clicking outside
+    document.addEventListener('click', function(e) {
+        if (!e.target.closest('.dropdown-container')) {
+            closeAllDropdowns();
+        }
+    });
+
+    // ========== Column Visibility ==========
+    function toggleColumn(columnId, visible) {
+        // Update all cells with this column ID
+        document.querySelectorAll(`[data-column="${columnId}"]`).forEach(el => {
+            el.style.display = visible ? '' : 'none';
+        });
+
+        // Update visibility state arrays
+        if (columnId.startsWith('custom_')) {
+            const fieldId = parseInt(columnId.replace('custom_', ''));
+            const idx = visibleCustomFieldIds.indexOf(fieldId);
+            if (visible && idx === -1) {
+                visibleCustomFieldIds.push(fieldId);
+            } else if (!visible && idx > -1) {
+                visibleCustomFieldIds.splice(idx, 1);
+            }
+        } else {
+            const idx = visibleDefaultFields.indexOf(columnId);
+            if (visible && idx === -1) {
+                visibleDefaultFields.push(columnId);
+            } else if (!visible && idx > -1) {
+                visibleDefaultFields.splice(idx, 1);
+            }
+        }
+    }
+
+    // ========== Views ==========
+    function loadView(viewId) {
         fetch('/api/views/select', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 'X-Requested-With': 'XMLHttpRequest'
             },
-            body: JSON.stringify({ view_id: viewId || null })
+            body: JSON.stringify({ view_id: viewId })
         }).then(response => {
             if (response.ok) {
                 window.location.reload();
@@ -455,7 +708,81 @@
         });
     }
 
-    // Search functionality
+    function openSaveViewModal() {
+        closeAllDropdowns();
+        document.getElementById('saveViewModal').classList.add('visible');
+        document.getElementById('viewName').focus();
+    }
+
+    function closeSaveViewModal() {
+        document.getElementById('saveViewModal').classList.remove('visible');
+        document.getElementById('viewName').value = '';
+    }
+
+    function saveView() {
+        const name = document.getElementById('viewName').value.trim();
+        if (!name) {
+            alert('Please enter a view name');
+            return;
+        }
+
+        // Get current visibility state from checkboxes
+        const defaultFields = [];
+        const customFieldIds = [];
+
+        document.querySelectorAll('#fieldsDropdown input[type="checkbox"]:checked').forEach(cb => {
+            const col = cb.dataset.column;
+            if (col && col !== 'name') {
+                if (col.startsWith('custom_')) {
+                    customFieldIds.push(parseInt(col.replace('custom_', '')));
+                } else {
+                    defaultFields.push(col);
+                }
+            }
+        });
+
+        fetch('/api/views/save', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify({
+                name: name,
+                default_fields: defaultFields,
+                custom_field_ids: customFieldIds
+            })
+        })
+        .then(response => response.json())
+        .then(result => {
+            if (result.success) {
+                window.location.reload();
+            } else {
+                alert(result.error || 'Failed to save view');
+            }
+        });
+    }
+
+    function deleteViewFromBtn(e, btn) {
+        e.stopPropagation();
+        const viewItem = btn.closest('.view-option');
+        const viewId = viewItem.dataset.viewId;
+        const viewName = viewItem.dataset.viewName;
+        if (confirm(`Delete the view "${viewName}"?`)) {
+            fetch(`/api/views/${viewId}/delete`, {
+                method: 'POST',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            }).then(response => {
+                if (response.ok) {
+                    window.location.reload();
+                }
+            });
+        }
+    }
+
+    // ========== Search & Filters ==========
     let searchTimeout;
     document.getElementById('searchInput').addEventListener('input', function (e) {
         clearTimeout(searchTimeout);
@@ -477,11 +804,10 @@
         window.location.href = url;
     }
 
-    // Context menu state
+    // ========== Context Menu ==========
     let contextMenuFieldId = null;
     let contextMenuFieldName = null;
 
-    // Show context menu on right-click
     function showFieldContextMenu(event, element) {
         event.preventDefault();
         contextMenuFieldId = element.dataset.fieldId;
@@ -493,7 +819,6 @@
         menu.classList.add('visible');
     }
 
-    // Hide context menu when clicking elsewhere
     document.addEventListener('click', function(e) {
         const menu = document.getElementById('fieldContextMenu');
         if (!menu.contains(e.target)) {
@@ -501,7 +826,6 @@
         }
     });
 
-    // Context menu actions
     function addFieldToRight() {
         document.getElementById('fieldContextMenu').classList.remove('visible');
         document.getElementById('insertAfterFieldId').value = contextMenuFieldId;
@@ -532,7 +856,7 @@
         }
     }
 
-    // Modal functions
+    // ========== Add Field Modal ==========
     function openAddFieldModal() {
         document.getElementById('addFieldModal').classList.add('visible');
         document.getElementById('fieldName').focus();
@@ -540,7 +864,6 @@
 
     function closeAddFieldModal() {
         document.getElementById('addFieldModal').classList.remove('visible');
-        // Reset form
         document.getElementById('addFieldForm').reset();
         document.getElementById('insertAfterFieldId').value = '';
         document.getElementById('modalTitle').textContent = 'Add New Field';
@@ -590,29 +913,31 @@
           });
     }
 
-    // Close modal on escape key
+    // ========== Keyboard Shortcuts ==========
     document.addEventListener('keydown', function(e) {
         if (e.key === 'Escape') {
             closeAddFieldModal();
+            closeSaveViewModal();
+            closeAllDropdowns();
             document.getElementById('fieldContextMenu').classList.remove('visible');
         }
     });
 
-    // Close modal when clicking overlay
-    document.getElementById('addFieldModal').addEventListener('click', function(e) {
-        if (e.target === this) {
-            closeAddFieldModal();
-        }
+    // Close modals when clicking overlay
+    document.querySelectorAll('.modal-overlay').forEach(modal => {
+        modal.addEventListener('click', function(e) {
+            if (e.target === this) {
+                this.classList.remove('visible');
+            }
+        });
     });
 
     // ========== Inline Editing ==========
     let currentEditingCell = null;
 
     function startEdit(cell) {
-        // Don't start new edit if already editing this cell
         if (cell.classList.contains('editing')) return;
 
-        // Close any existing edit
         if (currentEditingCell && currentEditingCell !== cell) {
             cancelEdit(currentEditingCell);
         }
@@ -633,7 +958,6 @@
 
         switch (fieldType) {
             case 'checkbox':
-                // Toggle immediately for checkbox
                 const newCheckboxValue = currentValue === '1' ? '0' : '1';
                 saveFieldValue(cell, leadId, fieldId, newCheckboxValue);
                 return;
@@ -683,7 +1007,7 @@
                 editor.addEventListener('blur', () => saveFieldValue(cell, leadId, fieldId, editor.value));
                 break;
 
-            default: // text, contact, duration, auto_number, symbol
+            default:
                 editor = document.createElement('input');
                 editor.type = 'text';
                 editor.className = 'cell-editor';
@@ -705,7 +1029,6 @@
     }
 
     function createMultiSelectEditor(cell, leadId, fieldId, options, currentValue) {
-        // Parse current values
         let selectedValues = [];
         if (currentValue) {
             try {
@@ -740,7 +1063,6 @@
             });
         }
 
-        // Done button
         const doneDiv = document.createElement('div');
         doneDiv.className = 'multi-select-done';
         doneDiv.innerHTML = '<button class="btn btn-primary btn-sm">Done</button>';
@@ -753,7 +1075,6 @@
 
         cell.appendChild(dropdown);
 
-        // Close on click outside
         const closeHandler = (e) => {
             if (!cell.contains(e.target)) {
                 document.removeEventListener('click', closeHandler);
@@ -791,11 +1112,9 @@
         .then(response => response.json())
         .then(result => {
             if (result.success) {
-                // Update the display
                 const displaySpan = cell.querySelector('.cell-display');
                 displaySpan.textContent = result.display_value || '-';
 
-                // Update the data attribute
                 if (Array.isArray(value)) {
                     cell.dataset.value = JSON.stringify(value);
                 } else {
