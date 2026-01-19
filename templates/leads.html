@@ -1407,10 +1407,8 @@
 
     // All leads data for instant search
     const allLeads = [
-        {% for status in statuses %}
-        {% for lead in leads_by_status[status] %}
+        {% for lead in all_leads %}
         { id: {{ lead['id'] }}, name: "{{ lead['name'] | replace('"', '\\"') }}", email: "{{ lead['email'] or '' }}", phone: "{{ lead['phone'] or '' }}", status: "{{ lead['status'] }}" },
-        {% endfor %}
         {% endfor %}
     ];
 

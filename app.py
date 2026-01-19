@@ -351,6 +351,7 @@ def leads():
     return render_template('leads.html',
                          grouped_leads=grouped_leads,
                          group_prefs=group_prefs,
+                         all_leads=all_leads,
                          statuses=STATUSES,
                          job_types=JOB_TYPES,
                          property_types=PROPERTY_TYPES,
