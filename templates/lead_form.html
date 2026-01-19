@@ -1,0 +1,90 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ 'Edit' if lead else 'Add' }} Lead - CRM{% endblock %}
+
+{% block content %}
+<div class="card" style="max-width: 800px;">
+    <div class="card-header">
+        <h2>{{ 'Edit' if lead else 'New' }} Lead</h2>
+    </div>
+    <div class="card-body">
+        <form method="POST">
+            <div class="form-grid">
+                <div class="form-group">
+                    <label class="form-label">Name *</label>
+                    <input type="text" name="name" class="form-control" required 
+                           value="{{ lead['name'] if lead else '' }}">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Email</label>
+                    <input type="email" name="email" class="form-control" 
+                           value="{{ lead['email'] if lead else '' }}">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Phone</label>
+                    <input type="tel" name="phone" class="form-control" 
+                           value="{{ lead['phone'] if lead else '' }}">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Status</label>
+                    <select name="status" class="form-control">
+                        {% for status in statuses %}
+                        <option value="{{ status }}" 
+                                {% if (lead and lead['status'] == status) or (not lead and status == 'New Lead') %}selected{% endif %}>
+                            {{ status }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="form-group full-width">
+                    <label class="form-label">Address</label>
+                    <input type="text" name="address" class="form-control" 
+                           value="{{ lead['address'] if lead else '' }}"
+                           placeholder="123 Main St, Key West, FL 33040">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Job Type</label>
+                    <select name="job_type" class="form-control">
+                        <option value="">Select...</option>
+                        {% for jt in job_types %}
+                        <option value="{{ jt }}" {% if lead and lead['job_type'] == jt %}selected{% endif %}>
+                            {{ jt }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Property Type</label>
+                    <select name="property_type" class="form-control">
+                        <option value="">Select...</option>
+                        {% for pt in property_types %}
+                        <option value="{{ pt }}" {% if lead and lead['property_type'] == pt %}selected{% endif %}>
+                            {{ pt }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="form-group full-width">
+                    <label class="form-label">Notes</label>
+                    <textarea name="notes" class="form-control" rows="4" 
+                              placeholder="Any additional notes about this lead...">{{ lead['notes'] if lead else '' }}</textarea>
+                </div>
+            </div>
+            
+            <div style="display: flex; gap: 0.75rem; margin-top: 1rem;">
+                <button type="submit" class="btn btn-primary">
+                    {{ 'Update' if lead else 'Add' }} Lead
+                </button>
+                <a href="{{ url_for('leads') }}" class="btn btn-secondary">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

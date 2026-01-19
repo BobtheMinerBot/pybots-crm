@@ -1,0 +1,143 @@
+{% extends 'base.html' %}
+
+{% block title %}Leads - CRM{% endblock %}
+
+{% block content %}
+<div class="toolbar">
+    <div class="search-box">
+        <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="11" cy="11" r="8"></circle>
+            <path d="m21 21-4.35-4.35"></path>
+        </svg>
+        <input type="text" class="form-control" placeholder="Search leads..." id="searchInput" value="{{ search }}">
+    </div>
+    
+    <div class="filter-group">
+        <label>Filter:</label>
+        <select class="form-control" id="statusFilter" style="width: auto;">
+            <option value="">All Stages</option>
+            {% for status in statuses %}
+            <option value="{{ status }}" {% if status_filter == status %}selected{% endif %}>{{ status }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    
+    <div style="margin-left: auto;">
+        <a href="{{ url_for('add_lead') }}" class="btn btn-primary">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 5v14M5 12h14"></path>
+            </svg>
+            Add Lead
+        </a>
+    </div>
+</div>
+
+{% for status in statuses %}
+{% set leads = leads_by_status[status] %}
+{% if not status_filter or status_filter == status %}
+<div class="grid-section" id="section-{{ status | replace(' ', '-') | lower }}">
+    <div class="grid-section-header" onclick="toggleSection(this.parentElement)">
+        <span class="grid-section-toggle">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="m6 9 6 6 6-6"></path>
+            </svg>
+        </span>
+        <h3>{{ status }}</h3>
+        <span class="grid-section-count">{{ leads | length }}</span>
+    </div>
+    
+    <div class="grid-table-wrapper">
+        {% if leads %}
+        <table class="grid-table">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Contact</th>
+                    <th>Address</th>
+                    <th>Job Type</th>
+                    <th>Property</th>
+                    <th>Created</th>
+                    <th>Stage</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for lead in leads %}
+                <tr>
+                    <td class="lead-name">
+                        <a href="{{ url_for('view_lead', id=lead['id']) }}">{{ lead['name'] }}</a>
+                    </td>
+                    <td>
+                        <div>{{ lead['email'] or '-' }}</div>
+                        <div class="text-muted text-sm">{{ lead['phone'] or '' }}</div>
+                    </td>
+                    <td>{{ lead['address'] or '-' }}</td>
+                    <td>{{ lead['job_type'] or '-' }}</td>
+                    <td>{{ lead['property_type'] or '-' }}</td>
+                    <td class="text-muted text-sm">{{ lead['created_at'] | strftime }}</td>
+                    <td class="actions-cell">
+                        <select class="status-select" onchange="updateStatus({{ lead['id'] }}, this.value)">
+                            {% for s in statuses %}
+                            <option value="{{ s }}" {% if lead['status'] == s %}selected{% endif %}>{{ s }}</option>
+                            {% endfor %}
+                        </select>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="empty-state">
+            No leads in this stage
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+{% endfor %}
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+function toggleSection(section) {
+    section.classList.toggle('collapsed');
+}
+
+function updateStatus(leadId, status) {
+    fetch(`/leads/${leadId}/status`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-Requested-With': 'XMLHttpRequest'
+        },
+        body: `status=${encodeURIComponent(status)}`
+    }).then(response => {
+        if (response.ok) {
+            window.location.reload();
+        }
+    });
+}
+
+// Search functionality
+let searchTimeout;
+document.getElementById('searchInput').addEventListener('input', function(e) {
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(() => {
+        updateFilters();
+    }, 300);
+});
+
+document.getElementById('statusFilter').addEventListener('change', updateFilters);
+
+function updateFilters() {
+    const search = document.getElementById('searchInput').value;
+    const status = document.getElementById('statusFilter').value;
+    
+    let url = '/leads?';
+    if (search) url += `search=${encodeURIComponent(search)}&`;
+    if (status) url += `status=${encodeURIComponent(status)}`;
+    
+    window.location.href = url;
+}
+</script>
+{% endblock %}
