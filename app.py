@@ -156,6 +156,13 @@ def init_db():
             db.execute("ALTER TABLE views ADD COLUMN default_fields TEXT DEFAULT '[\"email\",\"phone\",\"address\",\"job_type\",\"property_type\"]'")
             print("Added default_fields column to views table")
 
+        # Migration: Add deleted_at column to leads for soft deletes
+        try:
+            db.execute("SELECT deleted_at FROM leads LIMIT 1")
+        except:
+            db.execute("ALTER TABLE leads ADD COLUMN deleted_at TIMESTAMP DEFAULT NULL")
+            print("Added deleted_at column to leads table for soft deletes")
+
         # Create default admin if no users exist
         existing = query_db('SELECT id FROM users LIMIT 1', one=True)
         if not existing:
@@ -278,14 +285,14 @@ def leads():
             leads_by_status[status] = []
             continue
             
-        query = 'SELECT * FROM leads WHERE status = ?'
+        query = 'SELECT * FROM leads WHERE status = ? AND deleted_at IS NULL'
         args = [status]
-        
+
         if search:
             query += ' AND (name LIKE ? OR email LIKE ? OR address LIKE ? OR phone LIKE ?)'
             search_term = f'%{search}%'
             args.extend([search_term, search_term, search_term, search_term])
-        
+
         query += ' ORDER BY created_at DESC'
         leads_by_status[status] = query_db(query, args)
     
@@ -380,7 +387,7 @@ def add_lead():
 @app.route('/leads/<int:id>')
 @login_required
 def view_lead(id):
-    lead = query_db('SELECT * FROM leads WHERE id = ?', [id], one=True)
+    lead = query_db('SELECT * FROM leads WHERE id = ? AND deleted_at IS NULL', [id], one=True)
     if not lead:
         flash('Lead not found', 'error')
         return redirect(url_for('leads'))
@@ -405,7 +412,7 @@ def view_lead(id):
 @app.route('/leads/<int:id>/edit', methods=['GET', 'POST'])
 @login_required
 def edit_lead(id):
-    lead = query_db('SELECT * FROM leads WHERE id = ?', [id], one=True)
+    lead = query_db('SELECT * FROM leads WHERE id = ? AND deleted_at IS NULL', [id], one=True)
     if not lead:
         flash('Lead not found', 'error')
         return redirect(url_for('leads'))
@@ -458,11 +465,94 @@ def edit_lead(id):
 @app.route('/leads/<int:id>/delete', methods=['POST'])
 @login_required
 def delete_lead(id):
+    # Soft delete - just set deleted_at timestamp
+    execute_db('UPDATE leads SET deleted_at = CURRENT_TIMESTAMP WHERE id = ?', [id])
+
+    # Log the deletion in activities
+    execute_db(
+        'INSERT INTO activities (lead_id, user_id, note) VALUES (?, ?, ?)',
+        (id, session.get('user_id'), 'Lead moved to trash')
+    )
+
+    # Return JSON for AJAX requests
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return jsonify({'success': True})
+
+    flash('Lead moved to trash', 'success')
+    return redirect(url_for('leads'))
+
+# Trash routes for soft-deleted leads
+@app.route('/trash')
+@login_required
+def trash():
+    deleted_leads = query_db(
+        'SELECT * FROM leads WHERE deleted_at IS NOT NULL ORDER BY deleted_at DESC'
+    )
+    return render_template('trash.html', leads=deleted_leads)
+
+@app.route('/trash/<int:id>/restore', methods=['POST'])
+@login_required
+def restore_lead(id):
+    lead = query_db('SELECT * FROM leads WHERE id = ? AND deleted_at IS NOT NULL', [id], one=True)
+    if not lead:
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'success': False, 'error': 'Lead not found in trash'}), 404
+        flash('Lead not found in trash', 'error')
+        return redirect(url_for('trash'))
+
+    # Restore the lead by clearing deleted_at
+    execute_db('UPDATE leads SET deleted_at = NULL WHERE id = ?', [id])
+
+    # Log the restoration
+    execute_db(
+        'INSERT INTO activities (lead_id, user_id, note) VALUES (?, ?, ?)',
+        (id, session.get('user_id'), 'Lead restored from trash')
+    )
+
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return jsonify({'success': True})
+
+    flash(f'"{lead["name"]}" has been restored', 'success')
+    return redirect(url_for('trash'))
+
+@app.route('/trash/<int:id>/permanent-delete', methods=['POST'])
+@login_required
+def permanent_delete_lead(id):
+    lead = query_db('SELECT * FROM leads WHERE id = ? AND deleted_at IS NOT NULL', [id], one=True)
+    if not lead:
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'success': False, 'error': 'Lead not found in trash'}), 404
+        flash('Lead not found in trash', 'error')
+        return redirect(url_for('trash'))
+
+    # Permanently delete all associated data
     execute_db('DELETE FROM field_values WHERE lead_id = ?', [id])
     execute_db('DELETE FROM activities WHERE lead_id = ?', [id])
     execute_db('DELETE FROM leads WHERE id = ?', [id])
-    flash('Lead deleted successfully', 'success')
-    return redirect(url_for('leads'))
+
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return jsonify({'success': True})
+
+    flash(f'"{lead["name"]}" has been permanently deleted', 'success')
+    return redirect(url_for('trash'))
+
+@app.route('/trash/empty', methods=['POST'])
+@login_required
+def empty_trash():
+    # Get all deleted leads
+    deleted_leads = query_db('SELECT id FROM leads WHERE deleted_at IS NOT NULL')
+
+    # Permanently delete all
+    for lead in deleted_leads:
+        execute_db('DELETE FROM field_values WHERE lead_id = ?', [lead['id']])
+        execute_db('DELETE FROM activities WHERE lead_id = ?', [lead['id']])
+        execute_db('DELETE FROM leads WHERE id = ?', [lead['id']])
+
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return jsonify({'success': True, 'count': len(deleted_leads)})
+
+    flash(f'{len(deleted_leads)} lead(s) permanently deleted', 'success')
+    return redirect(url_for('trash'))
 
 @app.route('/leads/<int:id>/activity', methods=['POST'])
 @login_required
@@ -481,7 +571,7 @@ def add_activity(id):
 @app.route('/leads/<int:id>/status', methods=['POST'])
 @login_required
 def update_status(id):
-    lead = query_db('SELECT * FROM leads WHERE id = ?', [id], one=True)
+    lead = query_db('SELECT * FROM leads WHERE id = ? AND deleted_at IS NULL', [id], one=True)
     if not lead:
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
             return jsonify({'success': False, 'error': 'Lead not found'}), 404
@@ -515,7 +605,7 @@ def api_leads():
         # Validate API key
         settings = query_db('SELECT value FROM app_settings WHERE key = ?', ['api_key'], one=True)
         if settings and settings['value'] == api_key:
-            leads = query_db('SELECT * FROM leads ORDER BY created_at DESC')
+            leads = query_db('SELECT * FROM leads WHERE deleted_at IS NULL ORDER BY created_at DESC')
             return jsonify([lead_to_dict(lead) for lead in leads])
         return jsonify({'error': 'Invalid API key'}), 401
 
@@ -523,7 +613,7 @@ def api_leads():
     if 'user_id' not in session:
         return jsonify({'error': 'Authentication required'}), 401
 
-    leads = query_db('SELECT * FROM leads ORDER BY created_at DESC')
+    leads = query_db('SELECT * FROM leads WHERE deleted_at IS NULL ORDER BY created_at DESC')
     return jsonify([lead_to_dict(lead) for lead in leads])
 
 # API endpoint for creating leads via webhook (supports API key authentication)
@@ -588,11 +678,30 @@ def settings():
     api_key_setting = query_db('SELECT value FROM app_settings WHERE key = ?', ['api_key'], one=True)
     api_key = api_key_setting['value'] if api_key_setting else None
 
+    # Get backup settings
+    last_backup_setting = query_db('SELECT value FROM app_settings WHERE key = ?', ['last_backup'], one=True)
+    last_backup = last_backup_setting['value'] if last_backup_setting else None
+    backup_email_setting = query_db('SELECT value FROM app_settings WHERE key = ?', ['backup_email'], one=True)
+    backup_email = backup_email_setting['value'] if backup_email_setting else ''
+
+    # Get backup count
+    backup_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'backups')
+    backup_count = 0
+    if os.path.exists(backup_dir):
+        backup_count = len([f for f in os.listdir(backup_dir) if f.startswith('crm_backup_') and f.endswith('.db')])
+
+    # Get trash count
+    trash_count = query_db('SELECT COUNT(*) as count FROM leads WHERE deleted_at IS NOT NULL', one=True)['count']
+
     return render_template('settings.html',
                           zapier_webhook=ZAPIER_WEBHOOK_URL,
                           user=user,
                           users=users,
-                          api_key=api_key)
+                          api_key=api_key,
+                          last_backup=last_backup,
+                          backup_email=backup_email,
+                          backup_count=backup_count,
+                          trash_count=trash_count)
 
 @app.route('/settings/generate-api-key', methods=['POST'])
 @login_required
@@ -1122,7 +1231,7 @@ def api_update_field_value(lead_id, field_id):
 @login_required
 def api_update_lead_field(lead_id):
     """AJAX endpoint for inline editing of default lead fields (email, phone, address, job_type, property_type)"""
-    lead = query_db('SELECT * FROM leads WHERE id = ?', [lead_id], one=True)
+    lead = query_db('SELECT * FROM leads WHERE id = ? AND deleted_at IS NULL', [lead_id], one=True)
     if not lead:
         return jsonify({'success': False, 'error': 'Lead not found'}), 404
 
@@ -1260,6 +1369,87 @@ def strftime_filter(value, fmt='%b %d, %Y'):
             return value
     return value.strftime(fmt) if value else ''
 
+
+# Backup routes
+@app.route('/settings/backup', methods=['POST'])
+@login_required
+def manual_backup():
+    """Trigger a manual database backup"""
+    import subprocess
+
+    backup_script = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'backup.py')
+
+    try:
+        # Run backup script
+        result = subprocess.run(
+            ['python', backup_script],
+            capture_output=True,
+            text=True,
+            cwd=os.path.dirname(backup_script)
+        )
+
+        if result.returncode == 0:
+            # Store last backup time
+            execute_db(
+                '''INSERT OR REPLACE INTO app_settings (key, value)
+                   VALUES ('last_backup', ?)''',
+                [datetime.now().isoformat()]
+            )
+            flash('Backup created successfully', 'success')
+        else:
+            flash(f'Backup failed: {result.stderr}', 'error')
+    except Exception as e:
+        flash(f'Backup failed: {str(e)}', 'error')
+
+    return redirect(url_for('settings'))
+
+@app.route('/settings/backup-email', methods=['POST'])
+@login_required
+def save_backup_email():
+    """Save backup email settings"""
+    backup_email = request.form.get('backup_email', '').strip()
+
+    # Store in app_settings
+    existing = query_db('SELECT id FROM app_settings WHERE key = ?', ['backup_email'], one=True)
+    if existing:
+        execute_db('UPDATE app_settings SET value = ? WHERE key = ?', [backup_email, 'backup_email'])
+    else:
+        execute_db('INSERT INTO app_settings (key, value) VALUES (?, ?)', ['backup_email', backup_email])
+
+    if backup_email:
+        flash('Backup email saved', 'success')
+    else:
+        flash('Backup email cleared', 'success')
+    return redirect(url_for('settings'))
+
+@app.route('/settings/backup-download')
+@login_required
+def download_backup():
+    """Download the most recent backup"""
+    from flask import send_file
+
+    backup_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'backups')
+
+    if not os.path.exists(backup_dir):
+        flash('No backups found', 'error')
+        return redirect(url_for('settings'))
+
+    # Get most recent backup
+    backups = sorted([
+        f for f in os.listdir(backup_dir)
+        if f.startswith('crm_backup_') and f.endswith('.db')
+    ], reverse=True)
+
+    if not backups:
+        flash('No backups found', 'error')
+        return redirect(url_for('settings'))
+
+    backup_path = os.path.join(backup_dir, backups[0])
+    return send_file(
+        backup_path,
+        as_attachment=True,
+        download_name=backups[0]
+    )
 
 # GitHub webhook for auto-deploy
 DEPLOY_SECRET = os.environ.get('DEPLOY_SECRET', 'pybots-deploy-secret-2024')
