@@ -392,6 +392,20 @@ def strftime_filter(value, fmt='%b %d, %Y'):
             return value
     return value.strftime(fmt) if value else ''
 
+
+# GitHub webhook for auto-deploy
+DEPLOY_SECRET = os.environ.get('DEPLOY_SECRET', 'pybots-deploy-secret-2024')
+
+@app.route('/api/deploy', methods=['POST'])
+def github_deploy():
+    import subprocess
+    # Run deploy script
+    try:
+        subprocess.Popen(['/home/Pybots/deploy.sh'])
+        return jsonify({'status': 'Deployment started'}), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 if __name__ == '__main__':
     init_db()
     app.run(debug=True)
