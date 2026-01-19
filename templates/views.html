@@ -1,0 +1,60 @@
+{% extends 'base.html' %}
+
+{% block title %}Views - CRM{% endblock %}
+
+{% block content %}
+<div class="toolbar">
+    <h2 style="margin: 0;">Views</h2>
+    <div style="margin-left: auto;">
+        <a href="{{ url_for('add_view') }}" class="btn btn-primary">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 5v14M5 12h14"></path>
+            </svg>
+            Add View
+        </a>
+    </div>
+</div>
+
+<div class="card">
+    {% if views %}
+    <table class="grid-table">
+        <thead>
+            <tr>
+                <th>View Name</th>
+                <th>Description</th>
+                <th>Fields</th>
+                <th>Created By</th>
+                <th style="width: 150px;">Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for view in views %}
+            <tr>
+                <td><strong>{{ view['name'] }}</strong></td>
+                <td class="text-muted">{{ view['description'] or '-' }}</td>
+                <td>{{ view['field_count'] }} field{{ 's' if view['field_count'] != 1 else '' }}</td>
+                <td class="text-muted">{{ view['creator_name'] }}</td>
+                <td>
+                    <div style="display: flex; gap: 0.5rem;">
+                        <a href="{{ url_for('edit_view', id=view['id']) }}" class="btn btn-secondary btn-sm">Edit</a>
+                        <form method="POST" action="{{ url_for('delete_view', id=view['id']) }}"
+                            onsubmit="return confirm('Delete this view?');">
+                            <button type="submit" class="btn btn-danger btn-sm">Delete</button>
+                        </form>
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state">
+        <p>No views created yet.</p>
+        <p class="text-muted">Create views to show different sets of fields for different departments or purposes.</p>
+        <a href="{{ url_for('add_view') }}" class="btn btn-primary" style="margin-top: 1rem;">
+            Create Your First View
+        </a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
