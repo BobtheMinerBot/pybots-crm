@@ -312,6 +312,14 @@ def init_db():
                 pass
             print("Enhanced activities table with activity_type and metadata")
 
+        # Migration: Add field order columns to user_view_preferences
+        try:
+            db.execute("SELECT default_field_order FROM user_view_preferences LIMIT 1")
+        except:
+            db.execute("ALTER TABLE user_view_preferences ADD COLUMN default_field_order TEXT")
+            db.execute("ALTER TABLE user_view_preferences ADD COLUMN custom_field_order TEXT")
+            print("Added field order columns to user_view_preferences table")
+
         # Create handoff_summaries table for department transitions
         db.execute('''
             CREATE TABLE IF NOT EXISTS handoff_summaries (
@@ -640,16 +648,89 @@ def leads():
     all_views = get_all_views()
 
     # Determine visible fields based on view or default (show all)
+    # Default field definitions with labels
+    DEFAULT_FIELD_DEFS = [
+        {'key': 'email', 'label': 'Email/Phone'},
+        {'key': 'address', 'label': 'Address'},
+        {'key': 'job_type', 'label': 'Job Type'},
+        {'key': 'property_type', 'label': 'Property'}
+    ]
+
     if current_view:
-        # Get default fields from view
+        # Get default fields from view (order matters)
         visible_default_fields = json.loads(current_view['default_fields'] or '[]')
-        # Get custom field IDs from view
+        # Get custom field IDs from view (with sequence)
         view_custom_fields = get_fields_for_view(current_view['id'])
         visible_custom_field_ids = [f['id'] for f in view_custom_fields]
+
+        # Build field order for default fields based on view
+        default_field_order = []
+        for key in visible_default_fields:
+            field_def = next((f for f in DEFAULT_FIELD_DEFS if f['key'] == key), None)
+            if field_def:
+                default_field_order.append({**field_def, 'visible': True})
+        # Add remaining default fields (not in view) at the end
+        for field_def in DEFAULT_FIELD_DEFS:
+            if field_def['key'] not in visible_default_fields:
+                default_field_order.append({**field_def, 'visible': False})
+
+        # Build custom field order based on view
+        custom_field_order = []
+        for vf in view_custom_fields:
+            cf = next((c for c in all_custom_fields if c['id'] == vf['id']), None)
+            if cf:
+                custom_field_order.append({'id': cf['id'], 'name': cf['name'], 'visible': True})
+        # Add remaining custom fields not in view
+        for cf in all_custom_fields:
+            if cf['id'] not in visible_custom_field_ids:
+                custom_field_order.append({'id': cf['id'], 'name': cf['name'], 'visible': False})
     else:
+        # Get user's field order preferences (for "All Fields" view)
+        user_pref = query_db(
+            'SELECT default_field_order, custom_field_order FROM user_view_preferences WHERE user_id = ?',
+            [user_id], one=True
+        )
+
+        if user_pref and user_pref['default_field_order']:
+            # Use saved order
+            saved_default_order = json.loads(user_pref['default_field_order'])
+            default_field_order = []
+            for key in saved_default_order:
+                field_def = next((f for f in DEFAULT_FIELD_DEFS if f['key'] == key), None)
+                if field_def:
+                    default_field_order.append({**field_def, 'visible': True})
+            # Add any missing fields
+            for field_def in DEFAULT_FIELD_DEFS:
+                if field_def['key'] not in saved_default_order:
+                    default_field_order.append({**field_def, 'visible': True})
+        else:
+            # Default order - all visible
+            default_field_order = [{**f, 'visible': True} for f in DEFAULT_FIELD_DEFS]
+
+        if user_pref and user_pref['custom_field_order']:
+            saved_custom_order = json.loads(user_pref['custom_field_order'])
+            custom_field_order = []
+            for cf_id in saved_custom_order:
+                cf = next((c for c in all_custom_fields if c['id'] == cf_id), None)
+                if cf:
+                    custom_field_order.append({'id': cf['id'], 'name': cf['name'], 'visible': True})
+            # Add any missing custom fields
+            for cf in all_custom_fields:
+                if cf['id'] not in saved_custom_order:
+                    custom_field_order.append({'id': cf['id'], 'name': cf['name'], 'visible': True})
+        else:
+            # Default order - all visible
+            custom_field_order = [{'id': cf['id'], 'name': cf['name'], 'visible': True} for cf in all_custom_fields]
+
         # Show all fields by default
         visible_default_fields = ['email', 'phone', 'address', 'job_type', 'property_type']
         visible_custom_field_ids = [f['id'] for f in all_custom_fields]
+
+    # Combine field order for template
+    field_order = {
+        'default_fields': default_field_order,
+        'custom_fields': custom_field_order
+    }
 
     # Get statuses from database with colors
     db_statuses = get_all_statuses()
@@ -670,6 +751,7 @@ def leads():
                          visible_custom_field_ids=visible_custom_field_ids,
                          visible_default_fields=visible_default_fields,
                          field_values=all_lead_values,
+                         field_order=field_order,
                          all_views=all_views,
                          current_view=current_view)
 
@@ -1955,6 +2037,52 @@ def api_delete_view(id):
     """Delete a view"""
     execute_db('DELETE FROM views WHERE id = ?', [id])
     execute_db('UPDATE user_view_preferences SET current_view_id = NULL WHERE current_view_id = ?', [id])
+    return jsonify({'success': True})
+
+@app.route('/api/fields/order', methods=['POST'])
+@login_required
+def api_save_field_order():
+    """Save field order for the current view or default preference"""
+    import json
+    data = request.get_json()
+    default_field_order = data.get('default_fields', [])
+    custom_field_order = data.get('custom_fields', [])
+
+    user_id = session.get('user_id')
+    current_view_id = get_user_current_view(user_id)
+
+    if current_view_id:
+        # Update the current view's field order
+        view = get_view_by_id(current_view_id)
+        if view:
+            # Update default fields order
+            execute_db('''
+                UPDATE views SET default_fields = ?
+                WHERE id = ?
+            ''', [json.dumps(default_field_order), current_view_id])
+
+            # Update custom field sequence
+            for idx, field_id in enumerate(custom_field_order):
+                execute_db('''
+                    UPDATE view_fields SET sequence = ?
+                    WHERE view_id = ? AND field_id = ?
+                ''', [idx, current_view_id, field_id])
+    else:
+        # Save to user preferences for "All Fields" view
+        # Store in user_view_preferences or a new table
+        pref = query_db('SELECT id FROM user_view_preferences WHERE user_id = ?', [user_id], one=True)
+        if pref:
+            execute_db('''
+                UPDATE user_view_preferences
+                SET default_field_order = ?, custom_field_order = ?
+                WHERE user_id = ?
+            ''', [json.dumps(default_field_order), json.dumps(custom_field_order), user_id])
+        else:
+            execute_db('''
+                INSERT INTO user_view_preferences (user_id, default_field_order, custom_field_order)
+                VALUES (?, ?, ?)
+            ''', [user_id, json.dumps(default_field_order), json.dumps(custom_field_order)])
+
     return jsonify({'success': True})
 
 @app.route('/api/views/select', methods=['POST'])

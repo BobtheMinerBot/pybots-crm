@@ -69,47 +69,69 @@
             Fields
         </button>
         <div id="fieldsDropdown" class="dropdown-menu fields-dropdown">
-            <div class="dropdown-header">Show/Hide Columns</div>
+            <div class="dropdown-header">Show/Hide & Reorder Columns</div>
+            <div class="dropdown-subtext">Drag to reorder fields</div>
             <div class="dropdown-divider"></div>
 
-            <!-- Default Fields -->
-            <label class="dropdown-item field-checkbox disabled">
-                <input type="checkbox" checked disabled data-column="name">
-                <span>Name</span>
-                <span class="text-muted text-sm">(required)</span>
-            </label>
-            <label class="dropdown-item field-checkbox">
-                <input type="checkbox" data-column="email" {% if 'email' in visible_default_fields %}checked{% endif %}
-                    onchange="toggleColumn('email', this.checked)">
-                <span>Email/Phone</span>
-            </label>
-            <label class="dropdown-item field-checkbox">
-                <input type="checkbox" data-column="address" {% if 'address' in visible_default_fields %}checked{% endif
-                    %} onchange="toggleColumn('address', this.checked)">
-                <span>Address</span>
-            </label>
-            <label class="dropdown-item field-checkbox">
-                <input type="checkbox" data-column="job_type" {% if 'job_type' in visible_default_fields %}checked{%
-                    endif %} onchange="toggleColumn('job_type', this.checked)">
-                <span>Job Type</span>
-            </label>
-            <label class="dropdown-item field-checkbox">
-                <input type="checkbox" data-column="property_type" {% if 'property_type' in visible_default_fields
-                    %}checked{% endif %} onchange="toggleColumn('property_type', this.checked)">
-                <span>Property</span>
-            </label>
+            <!-- Sortable Fields List -->
+            <div id="fieldsList" class="fields-sortable-list">
+                <!-- Name field - not draggable -->
+                <div class="field-item field-item-fixed" data-field="name" data-type="default">
+                    <span class="field-drag-handle disabled">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                            <circle cx="9" cy="6" r="2"></circle><circle cx="15" cy="6" r="2"></circle>
+                            <circle cx="9" cy="12" r="2"></circle><circle cx="15" cy="12" r="2"></circle>
+                            <circle cx="9" cy="18" r="2"></circle><circle cx="15" cy="18" r="2"></circle>
+                        </svg>
+                    </span>
+                    <label class="field-checkbox">
+                        <input type="checkbox" checked disabled data-column="name">
+                        <span>Name</span>
+                    </label>
+                    <span class="text-muted text-sm">(required)</span>
+                </div>
 
-            {% if all_custom_fields %}
-            <div class="dropdown-divider"></div>
-            <div class="dropdown-header">Custom Fields</div>
-            {% for cf in all_custom_fields %}
-            <label class="dropdown-item field-checkbox">
-                <input type="checkbox" data-column="custom_{{ cf['id'] }}" {% if cf['id'] in visible_custom_field_ids
-                    %}checked{% endif %} onchange="toggleColumn('custom_{{ cf['id'] }}', this.checked)">
-                <span>{{ cf['name'] }}</span>
-            </label>
-            {% endfor %}
-            {% endif %}
+                <!-- Default Fields - draggable -->
+                {% for field in field_order.default_fields %}
+                <div class="field-item" draggable="true" data-field="{{ field.key }}" data-type="default">
+                    <span class="field-drag-handle">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                            <circle cx="9" cy="6" r="2"></circle><circle cx="15" cy="6" r="2"></circle>
+                            <circle cx="9" cy="12" r="2"></circle><circle cx="15" cy="12" r="2"></circle>
+                            <circle cx="9" cy="18" r="2"></circle><circle cx="15" cy="18" r="2"></circle>
+                        </svg>
+                    </span>
+                    <label class="field-checkbox">
+                        <input type="checkbox" data-column="{{ field.key }}" {% if field.visible %}checked{% endif %}
+                            onchange="toggleColumn('{{ field.key }}', this.checked)">
+                        <span>{{ field.label }}</span>
+                    </label>
+                </div>
+                {% endfor %}
+
+                {% if all_custom_fields %}
+                <div class="dropdown-divider"></div>
+                <div class="dropdown-header">Custom Fields</div>
+
+                <!-- Custom Fields - draggable -->
+                {% for cf in field_order.custom_fields %}
+                <div class="field-item" draggable="true" data-field="custom_{{ cf.id }}" data-type="custom" data-field-id="{{ cf.id }}">
+                    <span class="field-drag-handle">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                            <circle cx="9" cy="6" r="2"></circle><circle cx="15" cy="6" r="2"></circle>
+                            <circle cx="9" cy="12" r="2"></circle><circle cx="15" cy="12" r="2"></circle>
+                            <circle cx="9" cy="18" r="2"></circle><circle cx="15" cy="18" r="2"></circle>
+                        </svg>
+                    </span>
+                    <label class="field-checkbox">
+                        <input type="checkbox" data-column="custom_{{ cf.id }}" {% if cf.visible %}checked{% endif %}
+                            onchange="toggleColumn('custom_{{ cf.id }}', this.checked)">
+                        <span>{{ cf.name }}</span>
+                    </label>
+                </div>
+                {% endfor %}
+                {% endif %}
+            </div>
         </div>
     </div>
 
@@ -614,6 +636,10 @@
 
     .field-checkbox {
         cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        flex: 1;
     }
 
     .field-checkbox.disabled {
@@ -624,6 +650,75 @@
     .field-checkbox input {
         width: 16px;
         height: 16px;
+    }
+
+    /* Draggable Field Items */
+    .fields-sortable-list {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .dropdown-subtext {
+        font-size: 0.75rem;
+        color: var(--gray-500);
+        padding: 0 0.75rem 0.5rem;
+    }
+
+    .field-item {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.5rem 0.75rem;
+        cursor: grab;
+        border: 2px solid transparent;
+        border-radius: 0.375rem;
+        margin: 0.125rem 0.5rem;
+        transition: all 0.15s ease;
+        background: white;
+    }
+
+    .field-item:hover {
+        background: var(--gray-50);
+    }
+
+    .field-item.field-item-fixed {
+        cursor: default;
+        opacity: 0.8;
+    }
+
+    .field-item.dragging {
+        opacity: 0.5;
+        background: var(--primary-light);
+        border-color: var(--primary);
+    }
+
+    .field-item.drag-over {
+        border-color: var(--primary);
+        border-style: dashed;
+        background: var(--primary-light);
+    }
+
+    .field-drag-handle {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--gray-400);
+        padding: 0.25rem;
+        border-radius: 0.25rem;
+        transition: color 0.15s ease;
+    }
+
+    .field-item:hover .field-drag-handle:not(.disabled) {
+        color: var(--gray-600);
+    }
+
+    .field-drag-handle.disabled {
+        opacity: 0.3;
+        cursor: not-allowed;
+    }
+
+    .field-item:active:not(.field-item-fixed) {
+        cursor: grabbing;
     }
 
     /* Group Panel */
@@ -1638,6 +1733,178 @@
             }
         }
     }
+
+    // ========== Field Drag & Drop Reordering ==========
+    let draggedField = null;
+
+    function initFieldDragDrop() {
+        const fieldsList = document.getElementById('fieldsList');
+        if (!fieldsList) return;
+
+        const draggableItems = fieldsList.querySelectorAll('.field-item[draggable="true"]');
+
+        draggableItems.forEach(item => {
+            item.addEventListener('dragstart', handleFieldDragStart);
+            item.addEventListener('dragend', handleFieldDragEnd);
+            item.addEventListener('dragover', handleFieldDragOver);
+            item.addEventListener('dragleave', handleFieldDragLeave);
+            item.addEventListener('drop', handleFieldDrop);
+        });
+    }
+
+    function handleFieldDragStart(e) {
+        draggedField = this;
+        this.classList.add('dragging');
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', this.dataset.field);
+    }
+
+    function handleFieldDragEnd(e) {
+        this.classList.remove('dragging');
+        document.querySelectorAll('.field-item.drag-over').forEach(el => {
+            el.classList.remove('drag-over');
+        });
+        draggedField = null;
+    }
+
+    function handleFieldDragOver(e) {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+
+        if (this === draggedField || this.classList.contains('field-item-fixed')) return;
+
+        // Only allow dropping within same type (default or custom)
+        if (this.dataset.type !== draggedField.dataset.type) return;
+
+        this.classList.add('drag-over');
+    }
+
+    function handleFieldDragLeave(e) {
+        this.classList.remove('drag-over');
+    }
+
+    function handleFieldDrop(e) {
+        e.preventDefault();
+        this.classList.remove('drag-over');
+
+        if (this === draggedField || this.classList.contains('field-item-fixed')) return;
+        if (this.dataset.type !== draggedField.dataset.type) return;
+
+        // Reorder in DOM
+        const fieldsList = document.getElementById('fieldsList');
+        const allItems = [...fieldsList.querySelectorAll(`.field-item[data-type="${this.dataset.type}"]`)];
+        const draggedIdx = allItems.indexOf(draggedField);
+        const targetIdx = allItems.indexOf(this);
+
+        if (draggedIdx < targetIdx) {
+            this.parentNode.insertBefore(draggedField, this.nextSibling);
+        } else {
+            this.parentNode.insertBefore(draggedField, this);
+        }
+
+        // Save the new order
+        saveFieldOrder();
+
+        // Reorder table columns
+        reorderTableColumns();
+    }
+
+    function saveFieldOrder() {
+        const fieldsList = document.getElementById('fieldsList');
+
+        // Get ordered default fields (excluding 'name')
+        const defaultFieldOrder = [...fieldsList.querySelectorAll('.field-item[data-type="default"]:not(.field-item-fixed)')]
+            .map(el => el.dataset.field);
+
+        // Get ordered custom fields
+        const customFieldOrder = [...fieldsList.querySelectorAll('.field-item[data-type="custom"]')]
+            .map(el => parseInt(el.dataset.fieldId));
+
+        // Save to server
+        fetch('/api/fields/order', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify({
+                default_fields: defaultFieldOrder,
+                custom_fields: customFieldOrder
+            })
+        }).then(response => {
+            if (response.ok) {
+                showToast('Field order saved', 'success');
+            }
+        });
+    }
+
+    function reorderTableColumns() {
+        // Find all tables (could be multiple grouped tables)
+        const tables = document.querySelectorAll('.grid-table');
+        if (!tables.length) return;
+
+        const fieldsList = document.getElementById('fieldsList');
+
+        // Get current order from the fields list
+        // Only include fields that have data-column attributes in the table
+        const fieldOrder = ['name']; // Name is always first (but stays in place)
+
+        // Add default fields in order
+        fieldsList.querySelectorAll('.field-item[data-type="default"]:not(.field-item-fixed)').forEach(el => {
+            fieldOrder.push(el.dataset.field);
+        });
+
+        // Add custom fields in order
+        fieldsList.querySelectorAll('.field-item[data-type="custom"]').forEach(el => {
+            fieldOrder.push(el.dataset.field);
+        });
+
+        // Add fixed columns at the end
+        fieldOrder.push('created', 'stage');
+
+        tables.forEach(table => {
+            // Reorder header
+            const thead = table.querySelector('thead tr');
+            if (!thead) return;
+
+            // Get all header cells with data-column attribute
+            const headerCells = [...thead.querySelectorAll('th[data-column]')];
+
+            // Find the insertion point (after the actions-col-header)
+            const actionsHeader = thead.querySelector('.actions-col-header');
+            let insertionPoint = actionsHeader ? actionsHeader.nextSibling : thead.firstChild;
+
+            // Reorder based on fieldOrder
+            fieldOrder.forEach(field => {
+                const cell = headerCells.find(th => th.dataset.column === field);
+                if (cell) {
+                    // Insert before the add-field-header
+                    const addFieldHeader = thead.querySelector('.add-field-header');
+                    if (addFieldHeader) {
+                        thead.insertBefore(cell, addFieldHeader);
+                    } else {
+                        thead.appendChild(cell);
+                    }
+                }
+            });
+
+            // Reorder each body row
+            table.querySelectorAll('tbody tr').forEach(row => {
+                const cells = [...row.querySelectorAll('td[data-column]')];
+
+                fieldOrder.forEach(field => {
+                    const cell = cells.find(td => td.dataset.column === field);
+                    if (cell) {
+                        // Append to move to end (in order)
+                        row.appendChild(cell);
+                    }
+                });
+            });
+        });
+    }
+
+    // Initialize drag and drop when DOM is ready
+    document.addEventListener('DOMContentLoaded', initFieldDragDrop);
 
     // ========== Views ==========
     function loadView(viewId) {
