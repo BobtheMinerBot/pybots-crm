@@ -77,8 +77,10 @@ def init_db():
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 lead_id INTEGER NOT NULL,
                 user_id INTEGER,
-                note TEXT NOT NULL,
+                content TEXT NOT NULL,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                activity_type TEXT DEFAULT 'note',
+                metadata TEXT,
                 FOREIGN KEY (lead_id) REFERENCES leads (id) ON DELETE CASCADE,
                 FOREIGN KEY (user_id) REFERENCES users (id)
             );
@@ -702,7 +704,7 @@ def add_lead():
         
         # Log activity
         execute_db(
-            'INSERT INTO activities (lead_id, user_id, note) VALUES (?, ?, ?)',
+            'INSERT INTO activities (lead_id, user_id, content) VALUES (?, ?, ?)',
             (lead_id, session.get('user_id'), 'Lead created')
         )
         
@@ -781,7 +783,7 @@ def edit_lead(id):
         # Log status change
         if old_status != new_status:
             execute_db(
-                'INSERT INTO activities (lead_id, user_id, note) VALUES (?, ?, ?)',
+                'INSERT INTO activities (lead_id, user_id, content) VALUES (?, ?, ?)',
                 (id, session.get('user_id'), f'Status changed from "{old_status}" to "{new_status}"')
             )
         
@@ -813,7 +815,7 @@ def delete_lead(id):
 
     # Log the deletion in activities
     execute_db(
-        'INSERT INTO activities (lead_id, user_id, note) VALUES (?, ?, ?)',
+        'INSERT INTO activities (lead_id, user_id, content) VALUES (?, ?, ?)',
         (id, session.get('user_id'), 'Lead moved to trash')
     )
 
@@ -848,7 +850,7 @@ def restore_lead(id):
 
     # Log the restoration
     execute_db(
-        'INSERT INTO activities (lead_id, user_id, note) VALUES (?, ?, ?)',
+        'INSERT INTO activities (lead_id, user_id, content) VALUES (?, ?, ?)',
         (id, session.get('user_id'), 'Lead restored from trash')
     )
 
@@ -904,7 +906,7 @@ def add_activity(id):
     
     if note:
         execute_db(
-            'INSERT INTO activities (lead_id, user_id, note) VALUES (?, ?, ?)',
+            'INSERT INTO activities (lead_id, user_id, content) VALUES (?, ?, ?)',
             (id, session.get('user_id'), note)
         )
         flash('Activity added', 'success')
@@ -929,14 +931,14 @@ def update_status(id):
                    [new_status, id])
         
         execute_db(
-            'INSERT INTO activities (lead_id, user_id, note) VALUES (?, ?, ?)',
+            'INSERT INTO activities (lead_id, user_id, content) VALUES (?, ?, ?)',
             (id, session.get('user_id'), f'Status changed from "{old_status}" to "{new_status}"')
         )
-    
+
     # Return JSON for AJAX requests
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
         return jsonify({'success': True})
-    
+
     return redirect(url_for('leads'))
 
 # API endpoint for fetching leads (supports API key authentication)

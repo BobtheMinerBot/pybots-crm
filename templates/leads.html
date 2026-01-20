@@ -1739,7 +1739,7 @@
     // All leads data for instant search
     const allLeads = [
         {% for lead in all_leads %}
-    { id: { { lead['id'] } }, name: "{{ lead['name'] | replace('"', '\\"') }}", email: "{{ lead['email'] or '' }}", phone: "{{ lead['phone'] or '' }}", status: "{{ lead['status'] }}" },
+    { id: {{ lead['id'] }}, name: "{{ lead['name'] | replace('"', '\\"') }}", email: "{{ lead['email'] or '' }}", phone: "{{ lead['phone'] or '' }}", status: "{{ lead['status'] }}" },
     {% endfor %}
     ];
 
