@@ -445,7 +445,133 @@ def lead_to_dict(lead):
 @app.route('/')
 @login_required
 def index():
-    return redirect(url_for('leads'))
+    return redirect(url_for('dashboard'))
+
+
+@app.route('/dashboard')
+@login_required
+def dashboard():
+    """Dashboard with pipeline metrics and activity overview"""
+    from datetime import datetime, timedelta
+
+    # Get all active leads
+    all_leads = query_db('SELECT * FROM leads WHERE deleted_at IS NULL')
+    total_leads = len(all_leads)
+
+    # Get leads by status with colors
+    status_counts = {}
+    db_statuses = get_all_statuses()
+    status_colors = get_status_colors()
+
+    # Initialize all statuses with 0 count
+    for status in db_statuses:
+        status_counts[status['name']] = {
+            'count': 0,
+            'color': status['color'],
+            'bg_color': status['bg_color'],
+            'sequence': status['sequence']
+        }
+
+    # Count leads per status
+    for lead in all_leads:
+        status = lead['status']
+        if status in status_counts:
+            status_counts[status]['count'] += 1
+        else:
+            # Handle leads with statuses not in db
+            status_counts[status] = {
+                'count': 1,
+                'color': '#6b7280',
+                'bg_color': '#f3f4f6',
+                'sequence': 999
+            }
+
+    # Sort by sequence for pipeline display
+    pipeline_stages = sorted(
+        [{'name': k, **v} for k, v in status_counts.items()],
+        key=lambda x: x['sequence']
+    )
+
+    # Calculate percentages for pipeline bar
+    for stage in pipeline_stages:
+        stage['percentage'] = (stage['count'] / total_leads * 100) if total_leads > 0 else 0
+
+    # Get leads created this week
+    week_ago = (datetime.now() - timedelta(days=7)).strftime('%Y-%m-%d %H:%M:%S')
+    new_this_week = query_db(
+        'SELECT COUNT(*) as count FROM leads WHERE deleted_at IS NULL AND created_at >= ?',
+        [week_ago], one=True
+    )['count']
+
+    # Get stale leads (no activity in 7+ days, excluding Lost/Won statuses)
+    stale_leads = query_db('''
+        SELECT l.*,
+               MAX(a.created_at) as last_activity,
+               julianday('now') - julianday(COALESCE(MAX(a.created_at), l.created_at)) as days_stale
+        FROM leads l
+        LEFT JOIN activities a ON l.id = a.lead_id
+        WHERE l.deleted_at IS NULL
+          AND l.status NOT IN ('Lost', 'Won', 'Completed')
+        GROUP BY l.id
+        HAVING days_stale >= 7
+        ORDER BY days_stale DESC
+        LIMIT 10
+    ''')
+
+    # Get leads needing follow-up (status = 'Follow Up')
+    follow_up_leads = query_db(
+        "SELECT COUNT(*) as count FROM leads WHERE deleted_at IS NULL AND status = 'Follow Up'",
+        one=True
+    )['count']
+
+    # Get proposals pending (status = 'Proposal Sent')
+    proposals_pending = query_db(
+        "SELECT COUNT(*) as count FROM leads WHERE deleted_at IS NULL AND status = 'Proposal Sent'",
+        one=True
+    )['count']
+
+    # Get recent activity across all leads (last 15 actions)
+    recent_activities = query_db('''
+        SELECT a.*, l.name as lead_name, l.id as lead_id, u.name as user_name
+        FROM activities a
+        JOIN leads l ON a.lead_id = l.id
+        LEFT JOIN users u ON a.user_id = u.id
+        WHERE l.deleted_at IS NULL
+        ORDER BY a.created_at DESC
+        LIMIT 15
+    ''')
+
+    # Get job type distribution
+    job_type_counts = {}
+    job_type_colors = get_job_type_colors()
+    for lead in all_leads:
+        jt = lead['job_type'] or 'Unspecified'
+        if jt not in job_type_counts:
+            job_type_counts[jt] = {'count': 0, 'color': job_type_colors.get(jt, '#9AADBD')}
+        job_type_counts[jt]['count'] += 1
+
+    # Sort job types by count
+    job_type_distribution = sorted(
+        [{'name': k, **v} for k, v in job_type_counts.items()],
+        key=lambda x: x['count'],
+        reverse=True
+    )[:6]  # Top 6
+
+    # Calculate max for chart scaling
+    max_job_count = max([j['count'] for j in job_type_distribution]) if job_type_distribution else 1
+    for jt in job_type_distribution:
+        jt['percentage'] = (jt['count'] / max_job_count * 100) if max_job_count > 0 else 0
+
+    return render_template('dashboard.html',
+                         total_leads=total_leads,
+                         new_this_week=new_this_week,
+                         follow_up_count=follow_up_leads,
+                         proposals_pending=proposals_pending,
+                         pipeline_stages=pipeline_stages,
+                         stale_leads=stale_leads,
+                         recent_activities=recent_activities,
+                         job_type_distribution=job_type_distribution,
+                         status_colors=status_colors)
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():

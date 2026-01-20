@@ -1017,6 +1017,274 @@
     .multi-select-done button {
         width: 100%;
     }
+
+    /* ========== Mobile Responsive Styles ========== */
+    @media (max-width: 768px) {
+        /* Toolbar layout */
+        .toolbar {
+            flex-direction: column;
+            gap: 0.75rem;
+            padding-bottom: 0.5rem;
+        }
+
+        .toolbar > div[style*="margin-left: auto"] {
+            margin-left: 0 !important;
+            width: 100%;
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .toolbar > div[style*="margin-left: auto"] .btn {
+            flex: 1;
+            justify-content: center;
+        }
+
+        /* Filter groups stack */
+        .filter-group {
+            width: 100%;
+        }
+
+        .filter-group select {
+            flex: 1;
+        }
+
+        .dropdown-container {
+            position: static;
+        }
+
+        /* Dropdown menus - slide up from bottom on mobile */
+        .dropdown-menu {
+            position: fixed !important;
+            left: 0.75rem !important;
+            right: 0.75rem !important;
+            bottom: 0.75rem !important;
+            top: auto !important;
+            max-height: 70vh !important;
+            overflow-y: auto;
+            border-radius: 1rem;
+            box-shadow: 0 -4px 25px rgba(0, 0, 0, 0.2);
+            animation: slideUpMobile 0.25s ease;
+        }
+
+        @keyframes slideUpMobile {
+            from {
+                transform: translateY(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .dropdown-item {
+            padding: 0.75rem 1rem;
+            min-height: 44px;
+        }
+
+        .field-checkbox input {
+            width: 20px;
+            height: 20px;
+        }
+
+        /* Group panel adjustments */
+        .group-panel {
+            min-width: auto;
+        }
+
+        .group-panel-body {
+            max-height: 40vh;
+        }
+
+        .group-panel-footer {
+            flex-direction: column;
+            gap: 0.75rem;
+            align-items: stretch;
+        }
+
+        .group-panel-actions {
+            justify-content: space-between;
+        }
+
+        /* Context menus - similar treatment */
+        .context-menu {
+            position: fixed !important;
+            left: 0.75rem !important;
+            right: 0.75rem !important;
+            bottom: 0.75rem !important;
+            top: auto !important;
+            width: auto !important;
+            border-radius: 1rem;
+            box-shadow: 0 -4px 25px rgba(0, 0, 0, 0.2);
+        }
+
+        .context-menu-item {
+            padding: 0.875rem 1rem;
+            min-height: 44px;
+        }
+
+        /* Modals */
+        .modal-overlay {
+            padding: 0;
+            align-items: flex-end;
+        }
+
+        .modal {
+            max-width: 100%;
+            max-height: 90vh;
+            border-radius: 1rem 1rem 0 0;
+            margin: 0;
+        }
+
+        .modal-header {
+            padding: 1rem;
+        }
+
+        .modal-body {
+            padding: 1rem;
+        }
+
+        .modal-footer {
+            padding: 1rem;
+            flex-direction: column;
+        }
+
+        .modal-footer .btn {
+            width: 100%;
+            justify-content: center;
+        }
+
+        /* Table adjustments */
+        .grid-section-header {
+            padding: 0.625rem 0.75rem;
+        }
+
+        .grid-section-header h3 {
+            font-size: 0.875rem;
+        }
+
+        /* Editable cells - tap to edit */
+        .editable-cell {
+            padding: 0.75rem;
+        }
+
+        .editable-cell .cell-editor {
+            padding: 0.625rem;
+            font-size: 16px; /* Prevents zoom on iOS */
+        }
+
+        /* Multi-select dropdown */
+        .multi-select-dropdown {
+            position: fixed;
+            left: 0.75rem;
+            right: 0.75rem;
+            bottom: 0.75rem;
+            top: auto;
+            max-height: 50vh;
+            border-radius: 1rem;
+        }
+
+        .multi-select-option {
+            padding: 0.75rem 1rem;
+            min-height: 44px;
+        }
+
+        /* Bulk actions bar - full width */
+        .bulk-actions-bar {
+            left: 0.75rem !important;
+            right: 0.75rem !important;
+            transform: none !important;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+
+        .bulk-count {
+            width: 100%;
+            text-align: center;
+        }
+
+        /* Add field button */
+        .add-field-header,
+        .add-field-cell {
+            display: none;
+        }
+
+        /* Quick actions - always visible */
+        .quick-actions {
+            opacity: 1;
+        }
+
+        /* View dropdown */
+        .view-option {
+            min-height: 44px;
+            padding: 0.75rem 1rem;
+        }
+
+        .view-delete-btn {
+            min-width: 44px;
+            min-height: 44px;
+        }
+
+        /* Recently viewed section */
+        .recently-viewed-list {
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .recently-viewed-item {
+            width: 100%;
+        }
+    }
+
+    /* Extra small screens */
+    @media (max-width: 480px) {
+        .toolbar > div[style*="margin-left: auto"] {
+            flex-direction: column;
+        }
+
+        .toolbar > div[style*="margin-left: auto"] .btn {
+            width: 100%;
+        }
+
+        .dropdown-menu {
+            left: 0.5rem !important;
+            right: 0.5rem !important;
+            bottom: 0.5rem !important;
+        }
+
+        .grid-table th,
+        .grid-table td {
+            padding: 0.5rem 0.625rem;
+            font-size: 0.75rem;
+        }
+
+        .status-select {
+            font-size: 0.75rem;
+            padding: 0.375rem;
+        }
+
+        /* Badge sizes */
+        .badge {
+            font-size: 0.6875rem;
+            padding: 0.125rem 0.375rem;
+        }
+    }
+
+    /* Touch-friendly improvements */
+    @media (hover: none) and (pointer: coarse) {
+        .dropdown-item:active {
+            background: var(--gray-200);
+        }
+
+        .context-menu-item:active {
+            background: var(--gray-200);
+        }
+
+        .editable-cell:active {
+            background: var(--gray-200);
+        }
+    }
 </style>
 
 {% endblock %}

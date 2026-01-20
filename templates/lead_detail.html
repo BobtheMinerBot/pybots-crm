@@ -208,6 +208,75 @@
         </div>
     </div>
 </div>
+
+<style>
+/* Mobile responsive styles for lead detail */
+@media (max-width: 768px) {
+    /* Header layout */
+    .detail-header {
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .detail-header > div:last-child {
+        display: flex;
+        width: 100%;
+        gap: 0.5rem;
+    }
+
+    .detail-header > div:last-child .btn,
+    .detail-header > div:last-child form {
+        flex: 1;
+    }
+
+    .detail-header > div:last-child form .btn {
+        width: 100%;
+        justify-content: center;
+    }
+
+    /* Activity form */
+    .card-body form[action*="activity"] > div {
+        flex-direction: column;
+    }
+
+    .card-body form[action*="activity"] > div .btn {
+        width: 100%;
+    }
+
+    /* Custom fields grid */
+    .card-body > div[style*="display: grid"] {
+        grid-template-columns: 1fr !important;
+    }
+
+    /* Quick action buttons for contact */
+    .detail-value a[href^="tel:"],
+    .detail-value a[href^="mailto:"] {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.5rem 1rem;
+        background: var(--primary-light);
+        border-radius: 0.375rem;
+        text-decoration: none;
+        font-weight: 500;
+    }
+}
+
+@media (max-width: 480px) {
+    .detail-title {
+        font-size: 1.125rem;
+    }
+
+    .detail-header > div:last-child {
+        flex-direction: column;
+    }
+
+    .detail-header > div:last-child .btn,
+    .detail-header > div:last-child form {
+        width: 100%;
+    }
+}
+</style>
 {% endblock %}
 
 {% block scripts %}

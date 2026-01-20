@@ -120,6 +120,47 @@
     .mapping-item select {
         width: 100%;
     }
+
+    /* Mobile responsive styles */
+    @media (max-width: 768px) {
+        .card-header {
+            flex-direction: column;
+            gap: 0.75rem;
+            align-items: flex-start;
+        }
+
+        .card-header .btn {
+            width: 100%;
+            justify-content: center;
+        }
+
+        .import-instructions ol {
+            margin-left: 1rem;
+        }
+
+        .file-upload-area {
+            padding: 1.5rem !important;
+        }
+
+        .mapping-grid {
+            grid-template-columns: 1fr !important;
+        }
+
+        /* Duplicate options stack */
+        div[style*="display: flex; gap: 1rem; flex-wrap: wrap"] {
+            flex-direction: column;
+        }
+
+        /* Submit buttons stack */
+        div[style*="margin-top: 1.5rem; display: flex; gap: 1rem"] {
+            flex-direction: column;
+        }
+
+        div[style*="margin-top: 1.5rem; display: flex; gap: 1rem"] .btn {
+            width: 100%;
+            justify-content: center;
+        }
+    }
 </style>
 
 <script>
