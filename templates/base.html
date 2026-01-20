@@ -2543,78 +2543,20 @@
         }
 
         /* Dynamic status colors - injected from database */
-            {
-            % if status_colors %
+        {% if status_colors %}
+        {% for status_name, colors in status_colors.items() %}
+        .badge-{{ status_name | lower | replace(' ', '-') }} {
+            background: {{ colors.bg }};
+            color: {{ colors.color }};
         }
-
-            {
-            % for status_name,
-            colors in status_colors.items() %
+        .status-dot-{{ status_name | lower | replace(' ', '-') }} {
+            background: {{ colors.color }};
         }
-
-        .badge- {
-                {
-                status_name | lower | replace(' ', '-')
-            }
+        .group-header-{{ status_name | lower | replace(' ', '-') }} {
+            border-left-color: {{ colors.color }};
         }
-
-            {
-            background: {
-                    {
-                    colors.bg
-                }
-            }
-
-            ;
-
-            color: {
-                    {
-                    colors.color
-                }
-            }
-
-            ;
-        }
-
-        .status-dot- {
-                {
-                status_name | lower | replace(' ', '-')
-            }
-        }
-
-            {
-            background: {
-                    {
-                    colors.color
-                }
-            }
-
-            ;
-        }
-
-        .group-header- {
-                {
-                status_name | lower | replace(' ', '-')
-            }
-        }
-
-            {
-            border-left-color: {
-                    {
-                    colors.color
-                }
-            }
-
-            ;
-        }
-
-            {
-            % endfor %
-        }
-
-            {
-            % endif %
-        }
+        {% endfor %}
+        {% endif %}
     </style>
 </head>
 
