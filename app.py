@@ -1345,7 +1345,8 @@ def slugify(text):
 
 def get_custom_fields():
     """Get all custom fields ordered by sequence"""
-    return query_db('SELECT * FROM custom_fields ORDER BY sequence, id')
+    rows = query_db('SELECT * FROM custom_fields ORDER BY sequence, id')
+    return [dict(row) for row in rows] if rows else []
 
 def get_visible_fields(user_id):
     """Get fields visible to a specific user with their visibility settings"""
