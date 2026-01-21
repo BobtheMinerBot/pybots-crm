@@ -585,174 +585,148 @@
             border: 1px solid #fecaca;
         }
 
-        /* Status badges - Bold filled pill design */
+        /* =====================================================
+           STATUS BADGES - Style C: Neon Glow (LOCKED IN)
+           ===================================================== */
+
+        /* Base badge styles - full cell width like Monday.com */
         .badge {
             display: inline-flex;
             align-items: center;
-            padding: 0.375rem 0.875rem;
-            border-radius: 20px;
-            font-size: 0.75rem;
+            justify-content: center;
+            width: 100%;
+            min-width: 120px;
+            padding: 0.5rem 0.75rem;
+            font-size: 0.8125rem;
             font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.03em;
             color: white;
+            text-align: center;
             position: relative;
             overflow: hidden;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-            transition:
-                transform var(--transition-fast) var(--ease-out-quart),
-                box-shadow var(--transition-fast) ease,
-                filter var(--transition-fast) ease;
+            cursor: default;
+            border-radius: 6px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            transition: box-shadow 0.3s ease, transform 0.2s ease;
         }
 
-        /* Glossy shine effect on badges */
-        .badge::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 50%;
-            background: linear-gradient(
-                to bottom,
-                rgba(255, 255, 255, 0.25),
-                rgba(255, 255, 255, 0.05)
-            );
-            border-radius: 20px 20px 0 0;
-        }
-
-        /* Shimmer effect on hover */
-        .badge::after {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: -100%;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(
-                90deg,
-                transparent,
-                rgba(255, 255, 255, 0.4),
-                transparent
-            );
-            transition: left 0.5s ease;
-        }
-
-        .badge:hover::after {
-            left: 100%;
-        }
-
-        .badge:hover {
-            transform: translateY(-2px) scale(1.05);
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-            filter: brightness(1.1);
-        }
-
-        .badge:active {
-            transform: scale(0.98);
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
-        }
-
-        /* Status dot indicator - now white for contrast */
-        .status-dot {
-            width: 6px;
-            height: 6px;
-            border-radius: 50%;
-            margin-right: 0.5rem;
-            background: rgba(255, 255, 255, 0.9);
-            box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.3);
-            transition: transform var(--transition-fast) ease;
-        }
-
-        .badge:hover .status-dot {
-            transform: scale(1.3);
-        }
-
-        /* Default status badges - FILLED vibrant colors */
-        .badge-new-lead {
-            background: linear-gradient(135deg, #0073EA 0%, #0060C2 100%);
-        }
-
-        .badge-inspection-scheduled {
-            background: linear-gradient(135deg, #FDAB3D 0%, #E89A2E 100%);
-        }
-
-        .badge-estimating {
-            background: linear-gradient(135deg, #A25DDC 0%, #8B4BC9 100%);
-        }
-
-        .badge-proposal-sent {
-            background: linear-gradient(135deg, #00C875 0%, #00A863 100%);
-        }
-
-        .badge-follow-up {
-            background: linear-gradient(135deg, #FF158A 0%, #E01278 100%);
-        }
-
-        .badge-nurturing {
-            background: linear-gradient(135deg, #579BFC 0%, #4080E0 100%);
-        }
-
-        .badge-lost {
-            background: linear-gradient(135deg, #E2445C 0%, #C93A4E 100%);
-        }
-
-        /* Soft/muted badge variant for less emphasis */
-        .badge-soft {
-            color: inherit;
-            box-shadow: none;
-        }
-
-        .badge-new-lead.badge-soft {
-            background: #E6F4FF;
-            color: #0073EA;
-        }
-
-        .badge-inspection-scheduled.badge-soft {
-            background: #FFF4E5;
-            color: #D4922E;
-        }
-
-        .badge-estimating.badge-soft {
-            background: #F4ECFB;
-            color: #8B4BC9;
-        }
-
-        .badge-proposal-sent.badge-soft {
-            background: #E5FBF3;
-            color: #00A863;
-        }
-
-        .badge-follow-up.badge-soft {
-            background: #FFE5F0;
-            color: #E01278;
-        }
-
-        .badge-nurturing.badge-soft {
-            background: #E5F0FF;
-            color: #4080E0;
-        }
-
-        .badge-lost.badge-soft {
-            background: #FFE5E9;
-            color: #C93A4E;
-        }
-
-        .badge-soft::before {
+        /* Hide status dot by default for full-cell style */
+        .badge .status-dot {
             display: none;
         }
 
-        /* Priority badges - filled style */
+        .badge:hover {
+            transform: translateY(-1px);
+        }
+
+        /* Neon Glow effect on hover - color matched */
+        .badge-new-lead:hover {
+            box-shadow: 0 4px 20px rgba(0, 115, 234, 0.5);
+        }
+        .badge-inspection-scheduled:hover {
+            box-shadow: 0 4px 20px rgba(253, 171, 61, 0.5);
+        }
+        .badge-estimating:hover {
+            box-shadow: 0 4px 20px rgba(162, 93, 220, 0.5);
+        }
+        .badge-proposal-sent:hover {
+            box-shadow: 0 4px 20px rgba(0, 200, 117, 0.5);
+        }
+        .badge-follow-up:hover {
+            box-shadow: 0 4px 20px rgba(255, 21, 138, 0.5);
+        }
+        .badge-nurturing:hover {
+            box-shadow: 0 4px 20px rgba(87, 155, 252, 0.5);
+        }
+        .badge-lost:hover {
+            box-shadow: 0 4px 20px rgba(226, 68, 92, 0.5);
+        }
+        .badge-won:hover {
+            box-shadow: 0 4px 20px rgba(0, 200, 117, 0.5);
+        }
+
+        /* =====================================================
+           TABLE STYLES - Floating Clean (Light & Airy)
+           ===================================================== */
+
+        .grid-table {
+            border-collapse: separate;
+            border-spacing: 8px 6px;
+            background: transparent;
+        }
+
+        .grid-table th {
+            background: transparent;
+            border: none;
+            color: #a0a7b0;
+            font-weight: 500;
+            text-transform: uppercase;
+            font-size: 0.6rem;
+            letter-spacing: 0.08em;
+            padding: 0.5rem 0.75rem;
+        }
+
+        .grid-table td {
+            background: #fafbfc;
+            border: 1px solid #f0f2f5;
+            border-radius: 12px;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            padding: 0.65rem 0.85rem;
+            vertical-align: middle;
+        }
+
+        .grid-table tbody tr:hover td {
+            background: white;
+            border-color: #e8edf2;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+            transform: translateY(-1px);
+        }
+
+        /* =========== Status Colors - Vibrant Solids =========== */
+        .badge-new-lead {
+            background: #0073EA;
+        }
+
+        .badge-inspection-scheduled {
+            background: #FDAB3D;
+        }
+
+        .badge-estimating {
+            background: #A25DDC;
+        }
+
+        .badge-proposal-sent {
+            background: #00C875;
+        }
+
+        .badge-follow-up {
+            background: #FF158A;
+        }
+
+        .badge-nurturing {
+            background: #579BFC;
+        }
+
+        .badge-lost {
+            background: #E2445C;
+        }
+
+        /* Won status */
+        .badge-won {
+            background: #00C875;
+        }
+
+        /* Priority badges */
         .badge-priority-high {
-            background: linear-gradient(135deg, #E2445C 0%, #C93A4E 100%);
+            background: #E2445C;
         }
 
         .badge-priority-medium {
-            background: linear-gradient(135deg, #FDAB3D 0%, #E89A2E 100%);
+            background: #FDAB3D;
         }
 
         .badge-priority-low {
-            background: linear-gradient(135deg, #00C875 0%, #00A863 100%);
+            background: #00C875;
         }
 
         /* Grid table */

@@ -282,12 +282,13 @@
             </td>
             {% endfor %}
             <td class="text-muted text-sm" data-column="created">{{ lead['created_at'] | strftime }}</td>
-            <td data-column="stage">
-                <select class="status-select" onchange="updateStatus({{ lead['id'] }}, this.value)">
-                    {% for s in statuses %}
-                    <option value="{{ s }}" {% if lead['status']==s %}selected{% endif %}>{{ s }}</option>
-                    {% endfor %}
-                </select>
+            <td data-column="stage" class="stage-cell">
+                <div class="stage-badge badge badge-{{ lead['status'] | lower | replace(' ', '-') }}"
+                     onclick="openStatusDropdown(event, {{ lead['id'] }}, '{{ lead['status'] }}')"
+                     data-lead-id="{{ lead['id'] }}"
+                     data-current-status="{{ lead['status'] }}">
+                    {{ lead['status'] }}
+                </div>
             </td>
             <td class="add-field-cell"></td>
         </tr>
@@ -1122,6 +1123,89 @@
         cursor: pointer;
     }
 
+    /* Stage cell - full width colored badge */
+    .stage-cell {
+        padding: 0.25rem !important;
+    }
+
+    .stage-badge {
+        cursor: pointer;
+        user-select: none;
+    }
+
+    /* Status Dropdown */
+    .status-dropdown-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 999;
+    }
+
+    .status-dropdown {
+        position: fixed;
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+        min-width: 180px;
+        z-index: 1000;
+        overflow: hidden;
+        animation: dropdownSlide 0.15s ease-out;
+    }
+
+    @keyframes dropdownSlide {
+        from {
+            opacity: 0;
+            transform: translateY(-8px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .status-dropdown-item {
+        display: flex;
+        align-items: center;
+        padding: 0;
+        cursor: pointer;
+        transition: filter 0.1s ease;
+    }
+
+    .status-dropdown-item:hover {
+        filter: brightness(0.95);
+    }
+
+    .status-dropdown-item .badge {
+        border-radius: 0;
+        width: 100%;
+    }
+
+    .status-dropdown-item:first-child .badge {
+        border-radius: 8px 8px 0 0;
+    }
+
+    .status-dropdown-item:last-child .badge {
+        border-radius: 0 0 8px 8px;
+    }
+
+    .status-dropdown-item:only-child .badge {
+        border-radius: 8px;
+    }
+
+    .status-dropdown-item.current {
+        position: relative;
+    }
+
+    .status-dropdown-item.current::after {
+        content: '✓';
+        position: absolute;
+        right: 12px;
+        font-size: 14px;
+        font-weight: bold;
+    }
+
     /* Multi-select dropdown */
     .multi-select-dropdown {
         position: absolute;
@@ -1533,7 +1617,17 @@
         }).then(response => {
             if (response.ok) {
                 showToast(`Lead moved to "${status}"`, 'success');
-                setTimeout(() => window.location.reload(), 500);
+                // Update the badge without full reload
+                const badge = document.querySelector(`.stage-badge[data-lead-id="${leadId}"]`);
+                if (badge) {
+                    // Remove old status class
+                    badge.className = badge.className.replace(/badge-[\w-]+/g, '');
+                    // Add new status class
+                    const statusClass = 'badge-' + status.toLowerCase().replace(/ /g, '-');
+                    badge.classList.add('stage-badge', 'badge', statusClass);
+                    badge.textContent = status;
+                    badge.dataset.currentStatus = status;
+                }
             } else {
                 showToast('Failed to update status', 'error');
             }
@@ -1541,6 +1635,77 @@
             showToast('Failed to update status', 'error');
         });
     }
+
+    // All available statuses for dropdown
+    const allStatuses = {{ statuses | tojson }};
+
+    function openStatusDropdown(e, leadId, currentStatus) {
+        e.stopPropagation();
+
+        // Close any existing dropdown
+        closeStatusDropdown();
+
+        const badge = e.target;
+        const rect = badge.getBoundingClientRect();
+
+        // Create overlay
+        const overlay = document.createElement('div');
+        overlay.className = 'status-dropdown-overlay';
+        overlay.onclick = closeStatusDropdown;
+
+        // Create dropdown
+        const dropdown = document.createElement('div');
+        dropdown.className = 'status-dropdown';
+        dropdown.id = 'activeStatusDropdown';
+
+        // Position dropdown below the badge
+        dropdown.style.top = (rect.bottom + 4) + 'px';
+        dropdown.style.left = rect.left + 'px';
+        dropdown.style.minWidth = rect.width + 'px';
+
+        // Add status options
+        allStatuses.forEach(status => {
+            const item = document.createElement('div');
+            item.className = 'status-dropdown-item' + (status === currentStatus ? ' current' : '');
+
+            const statusClass = 'badge-' + status.toLowerCase().replace(/ /g, '-');
+            item.innerHTML = `<div class="badge ${statusClass}">${status}</div>`;
+
+            item.onclick = (e) => {
+                e.stopPropagation();
+                if (status !== currentStatus) {
+                    updateStatus(leadId, status);
+                }
+                closeStatusDropdown();
+            };
+
+            dropdown.appendChild(item);
+        });
+
+        document.body.appendChild(overlay);
+        document.body.appendChild(dropdown);
+
+        // Adjust if dropdown goes off screen
+        const dropdownRect = dropdown.getBoundingClientRect();
+        if (dropdownRect.bottom > window.innerHeight) {
+            dropdown.style.top = (rect.top - dropdownRect.height - 4) + 'px';
+        }
+        if (dropdownRect.right > window.innerWidth) {
+            dropdown.style.left = (window.innerWidth - dropdownRect.width - 8) + 'px';
+        }
+    }
+
+    function closeStatusDropdown() {
+        const dropdown = document.getElementById('activeStatusDropdown');
+        const overlay = document.querySelector('.status-dropdown-overlay');
+        if (dropdown) dropdown.remove();
+        if (overlay) overlay.remove();
+    }
+
+    // Close status dropdown on escape
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') closeStatusDropdown();
+    });
 
     // ========== Dropdowns ==========
     function toggleViewsDropdown(e) {
