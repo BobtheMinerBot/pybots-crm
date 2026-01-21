@@ -305,12 +305,20 @@ def init_db():
         except:
             db.execute("ALTER TABLE activities ADD COLUMN activity_type TEXT DEFAULT 'note'")
             db.execute("ALTER TABLE activities ADD COLUMN metadata TEXT")
-            # Rename 'note' column to 'content' if it exists
+            print("Enhanced activities table with activity_type and metadata")
+
+        # Migration: Ensure content column exists in activities table
+        try:
+            db.execute("SELECT content FROM activities LIMIT 1")
+        except:
+            # Try to rename 'note' column to 'content' if it exists
             try:
                 db.execute("ALTER TABLE activities RENAME COLUMN note TO content")
+                print("Renamed activities.note to activities.content")
             except:
-                pass
-            print("Enhanced activities table with activity_type and metadata")
+                # If rename fails, add content column
+                db.execute("ALTER TABLE activities ADD COLUMN content TEXT NOT NULL DEFAULT ''")
+                print("Added content column to activities table")
 
         # Migration: Add field order columns to user_view_preferences
         try:
@@ -803,7 +811,8 @@ def add_lead():
                          job_types=JOB_TYPES,
                          property_types=PROPERTY_TYPES,
                          custom_fields=custom_fields,
-                         field_values={})
+                         field_values={},
+                         google_places_api_key=get_google_places_api_key())
 
 @app.route('/leads/<int:id>')
 @login_required
@@ -887,7 +896,8 @@ def edit_lead(id):
                          job_types=JOB_TYPES,
                          property_types=PROPERTY_TYPES,
                          custom_fields=custom_fields,
-                         field_values=field_values)
+                         field_values=field_values,
+                         google_places_api_key=get_google_places_api_key())
 
 @app.route('/leads/<int:id>/delete', methods=['POST'])
 @login_required
@@ -1129,7 +1139,27 @@ def settings():
                           backup_email=backup_email,
                           backup_count=backup_count,
                           trash_count=trash_count,
-                          status_colors=get_status_colors())
+                          status_colors=get_status_colors(),
+                          google_places_api_key=get_google_places_api_key())
+
+@app.route('/settings/save-google-places-key', methods=['POST'])
+@login_required
+def save_google_places_key():
+    if request.form.get('remove_key'):
+        execute_db('DELETE FROM app_settings WHERE key = ?', ['google_places_api_key'])
+        flash('Google Places API key removed', 'success')
+    else:
+        api_key = request.form.get('google_places_api_key', '').strip()
+        if api_key:
+            existing = query_db('SELECT id FROM app_settings WHERE key = ?', ['google_places_api_key'], one=True)
+            if existing:
+                execute_db('UPDATE app_settings SET value = ? WHERE key = ?', [api_key, 'google_places_api_key'])
+            else:
+                execute_db('INSERT INTO app_settings (key, value) VALUES (?, ?)', ['google_places_api_key', api_key])
+            flash('Google Places API key saved. Address autocomplete is now enabled.', 'success')
+        else:
+            flash('Please enter a valid API key', 'error')
+    return redirect(url_for('settings') + '#integrations')
 
 @app.route('/settings/generate-api-key', methods=['POST'])
 @login_required
@@ -1412,6 +1442,11 @@ def get_status_colors():
     """Get status colors as dict for CSS injection"""
     statuses = get_all_statuses()
     return {s['name']: {'color': s['color'], 'bg': s['bg_color']} for s in statuses}
+
+def get_google_places_api_key():
+    """Get Google Places API key from app_settings"""
+    setting = query_db('SELECT value FROM app_settings WHERE key = ?', ['google_places_api_key'], one=True)
+    return setting['value'] if setting else None
 
 def get_status_names():
     """Get list of status names (for dropdown compatibility)"""

@@ -182,6 +182,32 @@
 
                     <hr style="margin: 1.5rem 0; border: none; border-top: 1px solid var(--gray-200);">
 
+                    <!-- Google Places API -->
+                    <h3 style="font-size: 1rem; margin-bottom: 1rem;">Google Places API (Address Autocomplete)</h3>
+                    <form method="POST" action="{{ url_for('save_google_places_key') }}">
+                        <div class="form-group">
+                            <label class="form-label">Google Places API Key</label>
+                            <input type="text" name="google_places_api_key" class="form-control"
+                                   value="{{ google_places_api_key or '' }}"
+                                   placeholder="AIzaSy...">
+                            <p class="text-muted text-sm" style="margin-top: 0.5rem;">
+                                Enable address autocomplete in lead forms.
+                                <a href="https://developers.google.com/maps/documentation/places/web-service/get-api-key" target="_blank" rel="noopener">
+                                    Get an API key from Google Cloud Console
+                                </a>
+                            </p>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Save API Key</button>
+                        {% if google_places_api_key %}
+                        <button type="submit" name="remove_key" value="1" class="btn btn-secondary"
+                                onclick="return confirm('Remove Google Places API key? Address autocomplete will be disabled.')">
+                            Remove Key
+                        </button>
+                        {% endif %}
+                    </form>
+
+                    <hr style="margin: 1.5rem 0; border: none; border-top: 1px solid var(--gray-200);">
+
                     <!-- Outgoing Webhook -->
                     <h3 style="font-size: 1rem; margin-bottom: 1rem;">Outgoing Webhook (Zapier)</h3>
                     <form method="POST">
