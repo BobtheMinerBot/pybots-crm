@@ -2165,8 +2165,7 @@
         closeAllDropdowns();
 
         if (!isVisible) {
-            // Re-initialize state from current saved state
-            initializeFieldState();
+            // Just render current state - don't re-initialize (that would reset to page load state)
             renderFieldLists();
             dropdown.classList.add('visible');
         }
