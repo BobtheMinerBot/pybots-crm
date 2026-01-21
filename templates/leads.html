@@ -695,6 +695,16 @@
         cursor: grabbing;
     }
 
+    .field-item.field-item-fixed {
+        cursor: default;
+        background: var(--gray-50);
+        border-color: var(--gray-200);
+    }
+
+    .field-item.field-item-fixed:hover {
+        background: var(--gray-50);
+    }
+
     .field-item-name {
         flex: 1;
         white-space: nowrap;
@@ -1808,9 +1818,10 @@
         fieldState.visibleFields = [];
         fieldState.hiddenFields = [];
 
-        // Add default fields
+        // Add default fields (excluding name - it's always first)
         const defaultOrder = {{ field_order.default_fields | tojson }};
         defaultOrder.forEach(f => {
+            if (f.key === 'name') return; // Handle name separately
             const field = { key: f.key, label: f.label, type: 'default' };
             if (f.visible) {
                 fieldState.visibleFields.push(field);
@@ -1818,19 +1829,6 @@
                 fieldState.hiddenFields.push(field);
             }
         });
-
-        // Add name field (always visible by default if not in order)
-        if (!fieldState.visibleFields.find(f => f.key === 'name') && !fieldState.hiddenFields.find(f => f.key === 'name')) {
-            fieldState.visibleFields.unshift({ key: 'name', label: 'Name', type: 'default' });
-        }
-
-        // Add created and stage if not present
-        if (!fieldState.visibleFields.find(f => f.key === 'created') && !fieldState.hiddenFields.find(f => f.key === 'created')) {
-            fieldState.visibleFields.push({ key: 'created', label: 'Created', type: 'default' });
-        }
-        if (!fieldState.visibleFields.find(f => f.key === 'stage') && !fieldState.hiddenFields.find(f => f.key === 'stage')) {
-            fieldState.visibleFields.push({ key: 'stage', label: 'Stage', type: 'default' });
-        }
 
         // Add custom fields
         const customOrder = {{ field_order.custom_fields | tojson }};
@@ -1842,6 +1840,17 @@
                 fieldState.hiddenFields.push(field);
             }
         });
+
+        // Add created and stage if not present
+        if (!fieldState.visibleFields.find(f => f.key === 'created') && !fieldState.hiddenFields.find(f => f.key === 'created')) {
+            fieldState.visibleFields.push({ key: 'created', label: 'Created', type: 'default' });
+        }
+        if (!fieldState.visibleFields.find(f => f.key === 'stage') && !fieldState.hiddenFields.find(f => f.key === 'stage')) {
+            fieldState.visibleFields.push({ key: 'stage', label: 'Stage', type: 'default' });
+        }
+
+        // Name field is ALWAYS first and ALWAYS visible
+        fieldState.visibleFields.unshift({ key: 'name', label: 'Name', type: 'default' });
 
         // Save original state for comparison
         originalFieldState = JSON.parse(JSON.stringify(fieldState));
@@ -1872,7 +1881,10 @@
     }
 
     function createFieldItemHTML(field, listType) {
-        const dragHandle = listType === 'visible' ? `
+        const isNameField = field.key === 'name';
+
+        // Name field is fixed - no drag handle
+        const dragHandle = (listType === 'visible' && !isNameField) ? `
             <span class="field-drag-handle">
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
                     <circle cx="9" cy="6" r="2"></circle><circle cx="15" cy="6" r="2"></circle>
@@ -1881,20 +1893,31 @@
                 </svg>
             </span>` : '';
 
-        const actionBtn = listType === 'hidden' ? `
+        // Name field can't be hidden - no action button
+        let actionBtn = '';
+        if (isNameField) {
+            actionBtn = '<span class="text-muted text-sm" style="margin-left: auto;">(fixed)</span>';
+        } else if (listType === 'hidden') {
+            actionBtn = `
             <button type="button" class="field-action-btn add-btn" onclick="addFieldToVisible('${field.key}')" title="Add to display">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M5 12h14M12 5l7 7-7 7"/>
                 </svg>
-            </button>` : `
+            </button>`;
+        } else {
+            actionBtn = `
             <button type="button" class="field-action-btn remove-btn" onclick="removeFieldFromVisible('${field.key}')" title="Remove from display">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M18 6L6 18M6 6l12 12"/>
                 </svg>
             </button>`;
+        }
+
+        // Name field is not draggable
+        const isDraggable = listType === 'visible' && !isNameField;
 
         return `
-            <div class="field-item" draggable="${listType === 'visible'}" data-field-key="${field.key}" data-field-type="${field.type}">
+            <div class="field-item${isNameField ? ' field-item-fixed' : ''}" draggable="${isDraggable}" data-field-key="${field.key}" data-field-type="${field.type}">
                 ${dragHandle}
                 <span class="field-item-name">${field.label}</span>
                 ${actionBtn}
@@ -1912,6 +1935,9 @@
     }
 
     function removeFieldFromVisible(fieldKey) {
+        // Name field cannot be hidden
+        if (fieldKey === 'name') return;
+
         const idx = fieldState.visibleFields.findIndex(f => f.key === fieldKey);
         if (idx === -1) return;
 
@@ -1953,6 +1979,8 @@
     function handleVisibleDragOver(e) {
         e.preventDefault();
         if (this === draggedFieldItem) return;
+        // Don't allow dropping on the Name field (it stays first)
+        if (this.dataset.fieldKey === 'name') return;
         e.dataTransfer.dropEffect = 'move';
         this.classList.add('drag-over');
     }
@@ -1970,10 +1998,16 @@
         const draggedKey = draggedFieldItem.dataset.fieldKey;
         const targetKey = this.dataset.fieldKey;
 
+        // Don't allow dropping on Name field
+        if (targetKey === 'name') return;
+
         const draggedIdx = fieldState.visibleFields.findIndex(f => f.key === draggedKey);
-        const targetIdx = fieldState.visibleFields.findIndex(f => f.key === targetKey);
+        let targetIdx = fieldState.visibleFields.findIndex(f => f.key === targetKey);
 
         if (draggedIdx === -1 || targetIdx === -1) return;
+
+        // Ensure we never move anything before Name (index 0)
+        if (targetIdx === 0) targetIdx = 1;
 
         // Remove dragged item and insert at new position
         const [draggedField] = fieldState.visibleFields.splice(draggedIdx, 1);
@@ -2063,7 +2097,7 @@
         const tables = document.querySelectorAll('.grid-table');
         if (!tables.length) return;
 
-        // Build field order from visible fields
+        // Build field order from visible fields (Name is always first)
         const fieldOrder = fieldState.visibleFields.map(f => f.key);
 
         tables.forEach(table => {
@@ -2073,15 +2107,15 @@
             // Get all header cells with data-column
             const headerCells = [...thead.querySelectorAll('th[data-column]')];
             const addFieldHeader = thead.querySelector('.add-field-header');
+            const actionsHeader = thead.querySelector('.actions-col-header');
 
-            // Show/hide and reorder headers
+            // Reorder headers: insert each in order after actions column
+            let insertPoint = actionsHeader ? actionsHeader.nextSibling : thead.firstChild;
             fieldOrder.forEach(fieldKey => {
                 const cell = headerCells.find(th => th.dataset.column === fieldKey);
                 if (cell) {
                     cell.style.display = '';
-                    if (addFieldHeader) {
-                        thead.insertBefore(cell, addFieldHeader);
-                    }
+                    thead.insertBefore(cell, addFieldHeader);
                 }
             });
 
@@ -2094,23 +2128,28 @@
 
             // Reorder body cells to match header order
             table.querySelectorAll('tbody tr').forEach(row => {
-                const checkboxCol = row.querySelector('.checkbox-col');
                 const actionsCol = row.querySelector('.actions-col');
                 const cells = [...row.querySelectorAll('td[data-column]')];
 
-                // Show/hide and reorder cells
+                // First, hide all data cells
+                cells.forEach(cell => {
+                    cell.style.display = 'none';
+                });
+
+                // Then show and reorder only visible fields
+                // Insert after actions column, in order
+                let insertAfter = actionsCol;
                 fieldOrder.forEach(fieldKey => {
                     const cell = cells.find(td => td.dataset.column === fieldKey);
                     if (cell) {
                         cell.style.display = '';
-                        row.appendChild(cell);
-                    }
-                });
-
-                // Hide cells not in visible list
-                cells.forEach(cell => {
-                    if (!fieldOrder.includes(cell.dataset.column)) {
-                        cell.style.display = 'none';
+                        // Insert after the previous cell
+                        if (insertAfter && insertAfter.nextSibling) {
+                            row.insertBefore(cell, insertAfter.nextSibling);
+                        } else {
+                            row.appendChild(cell);
+                        }
+                        insertAfter = cell;
                     }
                 });
             });
