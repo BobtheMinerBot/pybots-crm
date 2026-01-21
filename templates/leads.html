@@ -69,68 +69,27 @@
             Fields
         </button>
         <div id="fieldsDropdown" class="dropdown-menu fields-dropdown">
-            <div class="dropdown-header">Show/Hide & Reorder Columns</div>
-            <div class="dropdown-subtext">Drag to reorder fields</div>
-            <div class="dropdown-divider"></div>
-
-            <!-- Sortable Fields List -->
-            <div id="fieldsList" class="fields-sortable-list">
-                <!-- Name field - not draggable -->
-                <div class="field-item field-item-fixed" data-field="name" data-type="default">
-                    <span class="field-drag-handle disabled">
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
-                            <circle cx="9" cy="6" r="2"></circle><circle cx="15" cy="6" r="2"></circle>
-                            <circle cx="9" cy="12" r="2"></circle><circle cx="15" cy="12" r="2"></circle>
-                            <circle cx="9" cy="18" r="2"></circle><circle cx="15" cy="18" r="2"></circle>
-                        </svg>
-                    </span>
-                    <label class="field-checkbox">
-                        <input type="checkbox" checked disabled data-column="name">
-                        <span>Name</span>
-                    </label>
-                    <span class="text-muted text-sm">(required)</span>
+            <div class="fields-dropdown-header">
+                <h4>Manage Columns</h4>
+                <span id="fieldsUnsavedBadge" class="fields-unsaved-badge">Unsaved changes</span>
+            </div>
+            <div class="fields-columns">
+                <div class="fields-column">
+                    <div class="fields-column-header">Fields Not Displayed</div>
+                    <div id="hiddenFieldsList" class="fields-list">
+                        <!-- Hidden fields populated by JS -->
+                    </div>
                 </div>
-
-                <!-- Default Fields - draggable -->
-                {% for field in field_order.default_fields %}
-                <div class="field-item" draggable="true" data-field="{{ field.key }}" data-type="default">
-                    <span class="field-drag-handle">
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
-                            <circle cx="9" cy="6" r="2"></circle><circle cx="15" cy="6" r="2"></circle>
-                            <circle cx="9" cy="12" r="2"></circle><circle cx="15" cy="12" r="2"></circle>
-                            <circle cx="9" cy="18" r="2"></circle><circle cx="15" cy="18" r="2"></circle>
-                        </svg>
-                    </span>
-                    <label class="field-checkbox">
-                        <input type="checkbox" data-column="{{ field.key }}" {% if field.visible %}checked{% endif %}
-                            onchange="toggleColumn('{{ field.key }}', this.checked)">
-                        <span>{{ field.label }}</span>
-                    </label>
+                <div class="fields-column">
+                    <div class="fields-column-header">Fields Displayed</div>
+                    <div id="visibleFieldsList" class="fields-list">
+                        <!-- Visible fields populated by JS -->
+                    </div>
                 </div>
-                {% endfor %}
-
-                {% if all_custom_fields %}
-                <div class="dropdown-divider"></div>
-                <div class="dropdown-header">Custom Fields</div>
-
-                <!-- Custom Fields - draggable -->
-                {% for cf in field_order.custom_fields %}
-                <div class="field-item" draggable="true" data-field="custom_{{ cf.id }}" data-type="custom" data-field-id="{{ cf.id }}">
-                    <span class="field-drag-handle">
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
-                            <circle cx="9" cy="6" r="2"></circle><circle cx="15" cy="6" r="2"></circle>
-                            <circle cx="9" cy="12" r="2"></circle><circle cx="15" cy="12" r="2"></circle>
-                            <circle cx="9" cy="18" r="2"></circle><circle cx="15" cy="18" r="2"></circle>
-                        </svg>
-                    </span>
-                    <label class="field-checkbox">
-                        <input type="checkbox" data-column="custom_{{ cf.id }}" {% if cf.visible %}checked{% endif %}
-                            onchange="toggleColumn('custom_{{ cf.id }}', this.checked)">
-                        <span>{{ cf.name }}</span>
-                    </label>
-                </div>
-                {% endfor %}
-                {% endif %}
+            </div>
+            <div class="fields-dropdown-footer">
+                <button type="button" class="btn btn-secondary btn-sm" onclick="cancelFieldChanges()">Cancel</button>
+                <button type="button" class="btn btn-primary btn-sm" id="saveFieldsBtn" onclick="saveFieldChanges()">Save</button>
             </div>
         </div>
     </div>
@@ -634,56 +593,90 @@
         background: var(--gray-100);
     }
 
-    .field-checkbox {
-        cursor: pointer;
+    /* Two-Column Fields Dropdown */
+    .fields-dropdown {
+        min-width: 520px;
+        padding: 0;
+    }
+
+    .fields-dropdown-header {
         display: flex;
+        justify-content: space-between;
         align-items: center;
-        gap: 0.5rem;
+        padding: 0.75rem 1rem;
+        border-bottom: 1px solid var(--gray-200);
+    }
+
+    .fields-dropdown-header h4 {
+        margin: 0;
+        font-size: 0.9375rem;
+        font-weight: 600;
+    }
+
+    .fields-unsaved-badge {
+        display: none;
+        font-size: 0.75rem;
+        color: var(--warning-dark, #b45309);
+        background: var(--warning-light, #fef3c7);
+        padding: 0.25rem 0.5rem;
+        border-radius: 4px;
+        font-weight: 500;
+    }
+
+    .fields-unsaved-badge.visible {
+        display: inline-block;
+    }
+
+    .fields-columns {
+        display: flex;
+        gap: 0;
+        min-height: 280px;
+        max-height: 400px;
+    }
+
+    .fields-column {
         flex: 1;
-    }
-
-    .field-checkbox.disabled {
-        opacity: 0.6;
-        cursor: not-allowed;
-    }
-
-    .field-checkbox input {
-        width: 16px;
-        height: 16px;
-    }
-
-    /* Draggable Field Items */
-    .fields-sortable-list {
         display: flex;
         flex-direction: column;
+        border-right: 1px solid var(--gray-200);
     }
 
-    .dropdown-subtext {
+    .fields-column:last-child {
+        border-right: none;
+    }
+
+    .fields-column-header {
         font-size: 0.75rem;
+        font-weight: 600;
         color: var(--gray-500);
-        padding: 0 0.75rem 0.5rem;
+        text-transform: uppercase;
+        padding: 0.5rem 0.75rem;
+        background: var(--gray-50);
+        border-bottom: 1px solid var(--gray-200);
+    }
+
+    .fields-list {
+        flex: 1;
+        overflow-y: auto;
+        padding: 0.5rem;
     }
 
     .field-item {
         display: flex;
         align-items: center;
         gap: 0.5rem;
-        padding: 0.5rem 0.75rem;
+        padding: 0.5rem 0.625rem;
         cursor: grab;
         border: 2px solid transparent;
         border-radius: 0.375rem;
-        margin: 0.125rem 0.5rem;
+        margin-bottom: 0.25rem;
         transition: all 0.15s ease;
         background: white;
+        font-size: 0.875rem;
     }
 
     .field-item:hover {
         background: var(--gray-50);
-    }
-
-    .field-item.field-item-fixed {
-        cursor: default;
-        opacity: 0.8;
     }
 
     .field-item.dragging {
@@ -698,27 +691,75 @@
         background: var(--primary-light);
     }
 
+    .field-item:active {
+        cursor: grabbing;
+    }
+
+    .field-item-name {
+        flex: 1;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
     .field-drag-handle {
         display: flex;
         align-items: center;
         justify-content: center;
         color: var(--gray-400);
-        padding: 0.25rem;
+        padding: 0.125rem;
         border-radius: 0.25rem;
         transition: color 0.15s ease;
+        cursor: grab;
     }
 
-    .field-item:hover .field-drag-handle:not(.disabled) {
+    .field-item:hover .field-drag-handle {
         color: var(--gray-600);
     }
 
-    .field-drag-handle.disabled {
-        opacity: 0.3;
-        cursor: not-allowed;
+    .field-action-btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 24px;
+        height: 24px;
+        border: none;
+        background: transparent;
+        cursor: pointer;
+        border-radius: 4px;
+        color: var(--gray-500);
+        transition: all 0.15s ease;
     }
 
-    .field-item:active:not(.field-item-fixed) {
-        cursor: grabbing;
+    .field-action-btn:hover {
+        background: var(--gray-100);
+    }
+
+    .field-action-btn.add-btn:hover {
+        color: var(--success, #16a34a);
+        background: var(--success-light, #dcfce7);
+    }
+
+    .field-action-btn.remove-btn:hover {
+        color: var(--danger, #dc2626);
+        background: var(--danger-light, #fee2e2);
+    }
+
+    .fields-dropdown-footer {
+        display: flex;
+        justify-content: flex-end;
+        gap: 0.5rem;
+        padding: 0.75rem 1rem;
+        border-top: 1px solid var(--gray-200);
+        background: var(--gray-50);
+    }
+
+    .fields-list-empty {
+        color: var(--gray-400);
+        font-size: 0.8125rem;
+        text-align: center;
+        padding: 2rem 1rem;
+        font-style: italic;
     }
 
     /* Group Panel */
@@ -1161,6 +1202,29 @@
             animation: slideUpMobile 0.25s ease;
         }
 
+        /* Fields dropdown - stack columns on mobile */
+        .fields-dropdown {
+            min-width: auto !important;
+        }
+
+        .fields-columns {
+            flex-direction: column;
+            max-height: 50vh;
+        }
+
+        .fields-column {
+            border-right: none;
+            border-bottom: 1px solid var(--gray-200);
+        }
+
+        .fields-column:last-child {
+            border-bottom: none;
+        }
+
+        .fields-list {
+            max-height: 25vh;
+        }
+
         @keyframes slideUpMobile {
             from {
                 transform: translateY(100%);
@@ -1469,12 +1533,6 @@
     }
 
     // ========== Dropdowns ==========
-    function toggleFieldsDropdown(e) {
-        e.stopPropagation();
-        closeAllDropdowns();
-        document.getElementById('fieldsDropdown').classList.toggle('visible');
-    }
-
     function toggleViewsDropdown(e) {
         e.stopPropagation();
         closeAllDropdowns();
@@ -1689,15 +1747,27 @@
 
     function hideColumnFromDisplay() {
         hideColumnContextMenu();
-        if (!contextColumn || contextColumn.key === 'name') return;
+        if (!contextColumn) return;
 
-        // Hide the column
-        toggleColumn(contextColumn.key, false);
+        // Ensure field state is initialized
+        if (fieldState.visibleFields.length === 0) {
+            initializeFieldState();
+        }
 
-        // Update checkbox in Fields dropdown
-        const checkbox = document.querySelector(`#fieldsDropdown input[data-column="${contextColumn.key}"]`);
-        if (checkbox) checkbox.checked = false;
+        // Move field to hidden in field state
+        const idx = fieldState.visibleFields.findIndex(f => f.key === contextColumn.key);
+        if (idx === -1) return;
 
+        const field = fieldState.visibleFields.splice(idx, 1)[0];
+        fieldState.hiddenFields.push(field);
+
+        // Hide column in DOM immediately
+        document.querySelectorAll(`[data-column="${contextColumn.key}"]`).forEach(el => {
+            el.style.display = 'none';
+        });
+
+        // Save changes to server
+        saveFieldChanges();
         showToast(`"${contextColumn.name}" hidden`, 'success');
     }
 
@@ -1708,119 +1778,233 @@
         }
     });
 
-    // ========== Column Visibility ==========
-    function toggleColumn(columnId, visible) {
-        // Update all cells with this column ID
-        document.querySelectorAll(`[data-column="${columnId}"]`).forEach(el => {
-            el.style.display = visible ? '' : 'none';
+    // ========== Two-Column Field Management ==========
+    // All available fields (passed from backend)
+    const allFields = {
+        default: [
+            { key: 'name', label: 'Name' },
+            { key: 'email', label: 'Email/Phone' },
+            { key: 'address', label: 'Address' },
+            { key: 'job_type', label: 'Job Type' },
+            { key: 'property_type', label: 'Property' },
+            { key: 'created', label: 'Created' },
+            { key: 'stage', label: 'Stage' }
+        ],
+        custom: {{ all_custom_fields | tojson }}
+    };
+
+    // Current field state (working copy for editing)
+    let fieldState = {
+        visibleFields: [],  // Ordered list of visible fields [{key, label, type, id?}]
+        hiddenFields: [],   // List of hidden fields [{key, label, type, id?}]
+        hasUnsavedChanges: false
+    };
+
+    // Original state for comparison
+    let originalFieldState = null;
+
+    function initializeFieldState() {
+        // Build visible fields list in order
+        fieldState.visibleFields = [];
+        fieldState.hiddenFields = [];
+
+        // Add default fields
+        const defaultOrder = {{ field_order.default_fields | tojson }};
+        defaultOrder.forEach(f => {
+            const field = { key: f.key, label: f.label, type: 'default' };
+            if (f.visible) {
+                fieldState.visibleFields.push(field);
+            } else {
+                fieldState.hiddenFields.push(field);
+            }
         });
 
-        // Update visibility state arrays
-        if (columnId.startsWith('custom_')) {
-            const fieldId = parseInt(columnId.replace('custom_', ''));
-            const idx = visibleCustomFieldIds.indexOf(fieldId);
-            if (visible && idx === -1) {
-                visibleCustomFieldIds.push(fieldId);
-            } else if (!visible && idx > -1) {
-                visibleCustomFieldIds.splice(idx, 1);
-            }
-        } else {
-            const idx = visibleDefaultFields.indexOf(columnId);
-            if (visible && idx === -1) {
-                visibleDefaultFields.push(columnId);
-            } else if (!visible && idx > -1) {
-                visibleDefaultFields.splice(idx, 1);
-            }
+        // Add name field (always visible by default if not in order)
+        if (!fieldState.visibleFields.find(f => f.key === 'name') && !fieldState.hiddenFields.find(f => f.key === 'name')) {
+            fieldState.visibleFields.unshift({ key: 'name', label: 'Name', type: 'default' });
         }
+
+        // Add created and stage if not present
+        if (!fieldState.visibleFields.find(f => f.key === 'created') && !fieldState.hiddenFields.find(f => f.key === 'created')) {
+            fieldState.visibleFields.push({ key: 'created', label: 'Created', type: 'default' });
+        }
+        if (!fieldState.visibleFields.find(f => f.key === 'stage') && !fieldState.hiddenFields.find(f => f.key === 'stage')) {
+            fieldState.visibleFields.push({ key: 'stage', label: 'Stage', type: 'default' });
+        }
+
+        // Add custom fields
+        const customOrder = {{ field_order.custom_fields | tojson }};
+        customOrder.forEach(cf => {
+            const field = { key: `custom_${cf.id}`, label: cf.name, type: 'custom', id: cf.id };
+            if (cf.visible) {
+                fieldState.visibleFields.push(field);
+            } else {
+                fieldState.hiddenFields.push(field);
+            }
+        });
+
+        // Save original state for comparison
+        originalFieldState = JSON.parse(JSON.stringify(fieldState));
+        fieldState.hasUnsavedChanges = false;
     }
 
-    // ========== Field Drag & Drop Reordering ==========
-    let draggedField = null;
+    function renderFieldLists() {
+        const hiddenList = document.getElementById('hiddenFieldsList');
+        const visibleList = document.getElementById('visibleFieldsList');
 
-    function initFieldDragDrop() {
-        const fieldsList = document.getElementById('fieldsList');
-        if (!fieldsList) return;
+        // Render hidden fields
+        if (fieldState.hiddenFields.length === 0) {
+            hiddenList.innerHTML = '<div class="fields-list-empty">All fields are displayed</div>';
+        } else {
+            hiddenList.innerHTML = fieldState.hiddenFields.map(f => createFieldItemHTML(f, 'hidden')).join('');
+        }
 
-        const draggableItems = fieldsList.querySelectorAll('.field-item[draggable="true"]');
+        // Render visible fields
+        if (fieldState.visibleFields.length === 0) {
+            visibleList.innerHTML = '<div class="fields-list-empty">No fields displayed</div>';
+        } else {
+            visibleList.innerHTML = fieldState.visibleFields.map(f => createFieldItemHTML(f, 'visible')).join('');
+        }
 
-        draggableItems.forEach(item => {
-            item.addEventListener('dragstart', handleFieldDragStart);
-            item.addEventListener('dragend', handleFieldDragEnd);
-            item.addEventListener('dragover', handleFieldDragOver);
-            item.addEventListener('dragleave', handleFieldDragLeave);
-            item.addEventListener('drop', handleFieldDrop);
+        // Initialize drag and drop for visible fields
+        initVisibleFieldDragDrop();
+        updateUnsavedBadge();
+    }
+
+    function createFieldItemHTML(field, listType) {
+        const dragHandle = listType === 'visible' ? `
+            <span class="field-drag-handle">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                    <circle cx="9" cy="6" r="2"></circle><circle cx="15" cy="6" r="2"></circle>
+                    <circle cx="9" cy="12" r="2"></circle><circle cx="15" cy="12" r="2"></circle>
+                    <circle cx="9" cy="18" r="2"></circle><circle cx="15" cy="18" r="2"></circle>
+                </svg>
+            </span>` : '';
+
+        const actionBtn = listType === 'hidden' ? `
+            <button type="button" class="field-action-btn add-btn" onclick="addFieldToVisible('${field.key}')" title="Add to display">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M5 12h14M12 5l7 7-7 7"/>
+                </svg>
+            </button>` : `
+            <button type="button" class="field-action-btn remove-btn" onclick="removeFieldFromVisible('${field.key}')" title="Remove from display">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M18 6L6 18M6 6l12 12"/>
+                </svg>
+            </button>`;
+
+        return `
+            <div class="field-item" draggable="${listType === 'visible'}" data-field-key="${field.key}" data-field-type="${field.type}">
+                ${dragHandle}
+                <span class="field-item-name">${field.label}</span>
+                ${actionBtn}
+            </div>`;
+    }
+
+    function addFieldToVisible(fieldKey) {
+        const idx = fieldState.hiddenFields.findIndex(f => f.key === fieldKey);
+        if (idx === -1) return;
+
+        const field = fieldState.hiddenFields.splice(idx, 1)[0];
+        fieldState.visibleFields.push(field);
+        fieldState.hasUnsavedChanges = true;
+        renderFieldLists();
+    }
+
+    function removeFieldFromVisible(fieldKey) {
+        const idx = fieldState.visibleFields.findIndex(f => f.key === fieldKey);
+        if (idx === -1) return;
+
+        const field = fieldState.visibleFields.splice(idx, 1)[0];
+        fieldState.hiddenFields.push(field);
+        fieldState.hasUnsavedChanges = true;
+        renderFieldLists();
+    }
+
+    // ========== Drag & Drop for Visible Fields ==========
+    let draggedFieldItem = null;
+
+    function initVisibleFieldDragDrop() {
+        const visibleList = document.getElementById('visibleFieldsList');
+        const items = visibleList.querySelectorAll('.field-item[draggable="true"]');
+
+        items.forEach(item => {
+            item.addEventListener('dragstart', handleVisibleDragStart);
+            item.addEventListener('dragend', handleVisibleDragEnd);
+            item.addEventListener('dragover', handleVisibleDragOver);
+            item.addEventListener('dragleave', handleVisibleDragLeave);
+            item.addEventListener('drop', handleVisibleDrop);
         });
     }
 
-    function handleFieldDragStart(e) {
-        draggedField = this;
+    function handleVisibleDragStart(e) {
+        draggedFieldItem = this;
         this.classList.add('dragging');
         e.dataTransfer.effectAllowed = 'move';
-        e.dataTransfer.setData('text/plain', this.dataset.field);
+        e.dataTransfer.setData('text/plain', this.dataset.fieldKey);
     }
 
-    function handleFieldDragEnd(e) {
+    function handleVisibleDragEnd(e) {
         this.classList.remove('dragging');
-        document.querySelectorAll('.field-item.drag-over').forEach(el => {
-            el.classList.remove('drag-over');
-        });
-        draggedField = null;
+        document.querySelectorAll('.field-item.drag-over').forEach(el => el.classList.remove('drag-over'));
+        draggedFieldItem = null;
     }
 
-    function handleFieldDragOver(e) {
+    function handleVisibleDragOver(e) {
         e.preventDefault();
+        if (this === draggedFieldItem) return;
         e.dataTransfer.dropEffect = 'move';
-
-        if (this === draggedField || this.classList.contains('field-item-fixed')) return;
-
-        // Only allow dropping within same type (default or custom)
-        if (this.dataset.type !== draggedField.dataset.type) return;
-
         this.classList.add('drag-over');
     }
 
-    function handleFieldDragLeave(e) {
+    function handleVisibleDragLeave(e) {
         this.classList.remove('drag-over');
     }
 
-    function handleFieldDrop(e) {
+    function handleVisibleDrop(e) {
         e.preventDefault();
         this.classList.remove('drag-over');
 
-        if (this === draggedField || this.classList.contains('field-item-fixed')) return;
-        if (this.dataset.type !== draggedField.dataset.type) return;
+        if (this === draggedFieldItem) return;
 
-        // Reorder in DOM
-        const fieldsList = document.getElementById('fieldsList');
-        const allItems = [...fieldsList.querySelectorAll(`.field-item[data-type="${this.dataset.type}"]`)];
-        const draggedIdx = allItems.indexOf(draggedField);
-        const targetIdx = allItems.indexOf(this);
+        const draggedKey = draggedFieldItem.dataset.fieldKey;
+        const targetKey = this.dataset.fieldKey;
 
-        if (draggedIdx < targetIdx) {
-            this.parentNode.insertBefore(draggedField, this.nextSibling);
-        } else {
-            this.parentNode.insertBefore(draggedField, this);
-        }
+        const draggedIdx = fieldState.visibleFields.findIndex(f => f.key === draggedKey);
+        const targetIdx = fieldState.visibleFields.findIndex(f => f.key === targetKey);
 
-        // Save the new order
-        saveFieldOrder();
+        if (draggedIdx === -1 || targetIdx === -1) return;
 
-        // Reorder table columns
-        reorderTableColumns();
+        // Remove dragged item and insert at new position
+        const [draggedField] = fieldState.visibleFields.splice(draggedIdx, 1);
+        fieldState.visibleFields.splice(targetIdx, 0, draggedField);
+
+        fieldState.hasUnsavedChanges = true;
+        renderFieldLists();
     }
 
-    function saveFieldOrder() {
-        const fieldsList = document.getElementById('fieldsList');
+    function updateUnsavedBadge() {
+        const badge = document.getElementById('fieldsUnsavedBadge');
+        if (fieldState.hasUnsavedChanges) {
+            badge.classList.add('visible');
+        } else {
+            badge.classList.remove('visible');
+        }
+    }
 
-        // Get ordered default fields (excluding 'name')
-        const defaultFieldOrder = [...fieldsList.querySelectorAll('.field-item[data-type="default"]:not(.field-item-fixed)')]
-            .map(el => el.dataset.field);
+    // ========== Save & Cancel ==========
+    function saveFieldChanges() {
+        // Get visible field keys in order
+        const defaultFieldOrder = fieldState.visibleFields
+            .filter(f => f.type === 'default' && f.key !== 'name' && f.key !== 'created' && f.key !== 'stage')
+            .map(f => f.key);
+        const customFieldOrder = fieldState.visibleFields
+            .filter(f => f.type === 'custom')
+            .map(f => f.id);
 
-        // Get ordered custom fields
-        const customFieldOrder = [...fieldsList.querySelectorAll('.field-item[data-type="custom"]')]
-            .map(el => parseInt(el.dataset.fieldId));
+        // Also need to save the full order including name, created, stage
+        const fullFieldOrder = fieldState.visibleFields.map(f => f.key);
 
-        // Save to server
         fetch('/api/fields/order', {
             method: 'POST',
             headers: {
@@ -1829,82 +2013,135 @@
             },
             body: JSON.stringify({
                 default_fields: defaultFieldOrder,
-                custom_fields: customFieldOrder
+                custom_fields: customFieldOrder,
+                full_order: fullFieldOrder,
+                visible_fields: fieldState.visibleFields.map(f => f.key),
+                hidden_fields: fieldState.hiddenFields.map(f => f.key)
             })
         }).then(response => {
             if (response.ok) {
-                showToast('Field order saved', 'success');
+                showToast('Column settings saved', 'success');
+                originalFieldState = JSON.parse(JSON.stringify(fieldState));
+                fieldState.hasUnsavedChanges = false;
+                updateUnsavedBadge();
+
+                // Apply changes to table
+                applyFieldChangesToTable();
+                closeFieldsDropdown();
+            } else {
+                showToast('Failed to save settings', 'error');
             }
         });
     }
 
-    function reorderTableColumns() {
-        // Find all tables (could be multiple grouped tables)
+    function cancelFieldChanges() {
+        if (fieldState.hasUnsavedChanges) {
+            showConfirmDialog({
+                title: 'Discard Changes?',
+                message: 'You have unsaved changes to column settings. Are you sure you want to discard them?',
+                confirmText: 'Discard',
+                cancelText: 'Keep Editing',
+                type: 'warning',
+                onConfirm: () => {
+                    fieldState = JSON.parse(JSON.stringify(originalFieldState));
+                    fieldState.hasUnsavedChanges = false;
+                    renderFieldLists();
+                    closeFieldsDropdown();
+                }
+            });
+        } else {
+            closeFieldsDropdown();
+        }
+    }
+
+    function closeFieldsDropdown() {
+        document.getElementById('fieldsDropdown').classList.remove('visible');
+    }
+
+    // ========== Apply Changes to Table ==========
+    function applyFieldChangesToTable() {
         const tables = document.querySelectorAll('.grid-table');
         if (!tables.length) return;
 
-        const fieldsList = document.getElementById('fieldsList');
-
-        // Get current order from the fields list
-        // Only include fields that have data-column attributes in the table
-        const fieldOrder = ['name']; // Name is always first (but stays in place)
-
-        // Add default fields in order
-        fieldsList.querySelectorAll('.field-item[data-type="default"]:not(.field-item-fixed)').forEach(el => {
-            fieldOrder.push(el.dataset.field);
-        });
-
-        // Add custom fields in order
-        fieldsList.querySelectorAll('.field-item[data-type="custom"]').forEach(el => {
-            fieldOrder.push(el.dataset.field);
-        });
-
-        // Add fixed columns at the end
-        fieldOrder.push('created', 'stage');
+        // Build field order from visible fields
+        const fieldOrder = fieldState.visibleFields.map(f => f.key);
 
         tables.forEach(table => {
-            // Reorder header
             const thead = table.querySelector('thead tr');
             if (!thead) return;
 
-            // Get all header cells with data-column attribute
+            // Get all header cells with data-column
             const headerCells = [...thead.querySelectorAll('th[data-column]')];
+            const addFieldHeader = thead.querySelector('.add-field-header');
 
-            // Find the insertion point (after the actions-col-header)
-            const actionsHeader = thead.querySelector('.actions-col-header');
-            let insertionPoint = actionsHeader ? actionsHeader.nextSibling : thead.firstChild;
-
-            // Reorder based on fieldOrder
-            fieldOrder.forEach(field => {
-                const cell = headerCells.find(th => th.dataset.column === field);
+            // Show/hide and reorder headers
+            fieldOrder.forEach(fieldKey => {
+                const cell = headerCells.find(th => th.dataset.column === fieldKey);
                 if (cell) {
-                    // Insert before the add-field-header
-                    const addFieldHeader = thead.querySelector('.add-field-header');
+                    cell.style.display = '';
                     if (addFieldHeader) {
                         thead.insertBefore(cell, addFieldHeader);
-                    } else {
-                        thead.appendChild(cell);
                     }
                 }
             });
 
-            // Reorder each body row
+            // Hide fields not in visible list
+            headerCells.forEach(cell => {
+                if (!fieldOrder.includes(cell.dataset.column)) {
+                    cell.style.display = 'none';
+                }
+            });
+
+            // Reorder body cells to match header order
             table.querySelectorAll('tbody tr').forEach(row => {
+                const checkboxCol = row.querySelector('.checkbox-col');
+                const actionsCol = row.querySelector('.actions-col');
                 const cells = [...row.querySelectorAll('td[data-column]')];
 
-                fieldOrder.forEach(field => {
-                    const cell = cells.find(td => td.dataset.column === field);
+                // Show/hide and reorder cells
+                fieldOrder.forEach(fieldKey => {
+                    const cell = cells.find(td => td.dataset.column === fieldKey);
                     if (cell) {
-                        // Append to move to end (in order)
+                        cell.style.display = '';
                         row.appendChild(cell);
+                    }
+                });
+
+                // Hide cells not in visible list
+                cells.forEach(cell => {
+                    if (!fieldOrder.includes(cell.dataset.column)) {
+                        cell.style.display = 'none';
                     }
                 });
             });
         });
     }
 
-    // Initialize drag and drop when DOM is ready
-    document.addEventListener('DOMContentLoaded', initFieldDragDrop);
+    // ========== Toggle Fields Dropdown ==========
+    function toggleFieldsDropdown(e) {
+        e.stopPropagation();
+        const dropdown = document.getElementById('fieldsDropdown');
+        const isVisible = dropdown.classList.contains('visible');
+
+        closeAllDropdowns();
+
+        if (!isVisible) {
+            // Re-initialize state from current saved state
+            initializeFieldState();
+            renderFieldLists();
+            dropdown.classList.add('visible');
+        }
+    }
+
+    // Prevent closing dropdown when clicking inside
+    document.getElementById('fieldsDropdown').addEventListener('click', (e) => {
+        e.stopPropagation();
+    });
+
+    // Initialize on page load
+    document.addEventListener('DOMContentLoaded', () => {
+        initializeFieldState();
+    });
 
     // ========== Views ==========
     function loadView(viewId) {

@@ -34,8 +34,6 @@
                 class="{% if request.endpoint == 'dashboard' %}active{% endif %}">Dashboard</a>
             <a href="{{ url_for('leads') }}"
                 class="{% if request.endpoint in ['leads', 'view_lead', 'add_lead', 'edit_lead', 'import_leads'] %}active{% endif %}">Leads</a>
-            <a href="{{ url_for('projects') }}"
-                class="{% if request.endpoint in ['projects', 'import_projects'] %}active{% endif %}">Projects</a>
             <a href="{{ url_for('settings') }}"
                 class="{% if request.endpoint in ['settings', 'trash'] %}active{% endif %}">Settings</a>
             <span class="user-info">{{ session.user_name }}</span>
@@ -76,12 +74,6 @@
                     <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
                 </svg>
                 Leads
-            </a>
-            <a href="{{ url_for('projects') }}" class="{% if request.endpoint in ['projects', 'import_projects'] %}active{% endif %}">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
-                </svg>
-                Projects
             </a>
             <a href="{{ url_for('settings') }}" class="{% if request.endpoint in ['settings', 'trash'] %}active{% endif %}">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">

@@ -655,16 +655,64 @@ def leads():
     current_view = get_user_current_view(user_id)
     all_views = get_all_views()
 
-    # Determine visible fields based on view or default (show all)
-    # Default field definitions with labels
+    # Default field definitions with labels (all movable, including name, created, stage)
     DEFAULT_FIELD_DEFS = [
+        {'key': 'name', 'label': 'Name'},
         {'key': 'email', 'label': 'Email/Phone'},
         {'key': 'address', 'label': 'Address'},
         {'key': 'job_type', 'label': 'Job Type'},
-        {'key': 'property_type', 'label': 'Property'}
+        {'key': 'property_type', 'label': 'Property'},
+        {'key': 'created', 'label': 'Created'},
+        {'key': 'stage', 'label': 'Stage'}
     ]
 
-    if current_view:
+    # Load global field order from app_settings
+    global_field_config = query_db(
+        'SELECT value FROM app_settings WHERE key = ?',
+        ['global_field_order'], one=True
+    )
+
+    if global_field_config:
+        # Use global field configuration
+        config = json.loads(global_field_config['value'])
+        visible_field_keys = config.get('visible_fields', [])
+        hidden_field_keys = config.get('hidden_fields', [])
+        full_order = config.get('full_order', [])
+
+        # Build default field order based on global config
+        default_field_order = []
+        for key in full_order:
+            if not key.startswith('custom_'):
+                field_def = next((f for f in DEFAULT_FIELD_DEFS if f['key'] == key), None)
+                if field_def:
+                    default_field_order.append({**field_def, 'visible': True})
+
+        # Add any missing default fields as hidden
+        for field_def in DEFAULT_FIELD_DEFS:
+            if field_def['key'] not in [f['key'] for f in default_field_order]:
+                is_visible = field_def['key'] not in hidden_field_keys
+                default_field_order.append({**field_def, 'visible': is_visible})
+
+        # Build custom field order
+        custom_field_order = []
+        for key in full_order:
+            if key.startswith('custom_'):
+                cf_id = int(key.replace('custom_', ''))
+                cf = next((c for c in all_custom_fields if c['id'] == cf_id), None)
+                if cf:
+                    custom_field_order.append({'id': cf['id'], 'name': cf['name'], 'visible': True})
+
+        # Add any missing custom fields as hidden
+        for cf in all_custom_fields:
+            if cf['id'] not in [f['id'] for f in custom_field_order]:
+                is_visible = f"custom_{cf['id']}" not in hidden_field_keys
+                custom_field_order.append({'id': cf['id'], 'name': cf['name'], 'visible': is_visible})
+
+        # Determine visible fields for table display
+        visible_default_fields = [f['key'] for f in default_field_order if f['visible']]
+        visible_custom_field_ids = [f['id'] for f in custom_field_order if f['visible']]
+
+    elif current_view:
         # Get default fields from view (order matters)
         visible_default_fields = json.loads(current_view['default_fields'] or '[]')
         # Get custom field IDs from view (with sequence)
@@ -693,46 +741,13 @@ def leads():
             if cf['id'] not in visible_custom_field_ids:
                 custom_field_order.append({'id': cf['id'], 'name': cf['name'], 'visible': False})
     else:
-        # Get user's field order preferences (for "All Fields" view)
-        user_pref = query_db(
-            'SELECT default_field_order, custom_field_order FROM user_view_preferences WHERE user_id = ?',
-            [user_id], one=True
-        )
-
-        if user_pref and user_pref['default_field_order']:
-            # Use saved order
-            saved_default_order = json.loads(user_pref['default_field_order'])
-            default_field_order = []
-            for key in saved_default_order:
-                field_def = next((f for f in DEFAULT_FIELD_DEFS if f['key'] == key), None)
-                if field_def:
-                    default_field_order.append({**field_def, 'visible': True})
-            # Add any missing fields
-            for field_def in DEFAULT_FIELD_DEFS:
-                if field_def['key'] not in saved_default_order:
-                    default_field_order.append({**field_def, 'visible': True})
-        else:
-            # Default order - all visible
-            default_field_order = [{**f, 'visible': True} for f in DEFAULT_FIELD_DEFS]
-
-        if user_pref and user_pref['custom_field_order']:
-            saved_custom_order = json.loads(user_pref['custom_field_order'])
-            custom_field_order = []
-            for cf_id in saved_custom_order:
-                cf = next((c for c in all_custom_fields if c['id'] == cf_id), None)
-                if cf:
-                    custom_field_order.append({'id': cf['id'], 'name': cf['name'], 'visible': True})
-            # Add any missing custom fields
-            for cf in all_custom_fields:
-                if cf['id'] not in saved_custom_order:
-                    custom_field_order.append({'id': cf['id'], 'name': cf['name'], 'visible': True})
-        else:
-            # Default order - all visible
-            custom_field_order = [{'id': cf['id'], 'name': cf['name'], 'visible': True} for cf in all_custom_fields]
+        # Default: all fields visible in default order
+        default_field_order = [{**f, 'visible': True} for f in DEFAULT_FIELD_DEFS]
+        custom_field_order = [{'id': cf['id'], 'name': cf['name'], 'visible': True} for cf in all_custom_fields]
 
         # Show all fields by default
-        visible_default_fields = ['email', 'phone', 'address', 'job_type', 'property_type']
-        visible_custom_field_ids = [f['id'] for f in all_custom_fields]
+        visible_default_fields = [f['key'] for f in DEFAULT_FIELD_DEFS]
+        visible_custom_field_ids = [cf['id'] for cf in all_custom_fields]
 
     # Combine field order for template
     field_order = {
@@ -2077,46 +2092,37 @@ def api_delete_view(id):
 @app.route('/api/fields/order', methods=['POST'])
 @login_required
 def api_save_field_order():
-    """Save field order for the current view or default preference"""
+    """Save field order globally (shared across all users)"""
     import json
     data = request.get_json()
+
+    # New format: full_order contains the complete visible field order
+    full_order = data.get('full_order', [])
+    visible_fields = data.get('visible_fields', [])
+    hidden_fields = data.get('hidden_fields', [])
+
+    # Legacy format support
     default_field_order = data.get('default_fields', [])
     custom_field_order = data.get('custom_fields', [])
 
-    user_id = session.get('user_id')
-    current_view_id = get_user_current_view(user_id)
+    # Save globally to app_settings
+    field_config = {
+        'full_order': full_order,
+        'visible_fields': visible_fields,
+        'hidden_fields': hidden_fields,
+        'default_fields': default_field_order,
+        'custom_fields': custom_field_order
+    }
 
-    if current_view_id:
-        # Update the current view's field order
-        view = get_view_by_id(current_view_id)
-        if view:
-            # Update default fields order
-            execute_db('''
-                UPDATE views SET default_fields = ?
-                WHERE id = ?
-            ''', [json.dumps(default_field_order), current_view_id])
-
-            # Update custom field sequence
-            for idx, field_id in enumerate(custom_field_order):
-                execute_db('''
-                    UPDATE view_fields SET sequence = ?
-                    WHERE view_id = ? AND field_id = ?
-                ''', [idx, current_view_id, field_id])
+    existing = query_db('SELECT id FROM app_settings WHERE key = ?', ['global_field_order'], one=True)
+    if existing:
+        execute_db('''
+            UPDATE app_settings SET value = ? WHERE key = ?
+        ''', [json.dumps(field_config), 'global_field_order'])
     else:
-        # Save to user preferences for "All Fields" view
-        # Store in user_view_preferences or a new table
-        pref = query_db('SELECT id FROM user_view_preferences WHERE user_id = ?', [user_id], one=True)
-        if pref:
-            execute_db('''
-                UPDATE user_view_preferences
-                SET default_field_order = ?, custom_field_order = ?
-                WHERE user_id = ?
-            ''', [json.dumps(default_field_order), json.dumps(custom_field_order), user_id])
-        else:
-            execute_db('''
-                INSERT INTO user_view_preferences (user_id, default_field_order, custom_field_order)
-                VALUES (?, ?, ?)
-            ''', [user_id, json.dumps(default_field_order), json.dumps(custom_field_order)])
+        execute_db('''
+            INSERT INTO app_settings (key, value) VALUES (?, ?)
+        ''', ['global_field_order', json.dumps(field_config)])
 
     return jsonify({'success': True})
 
@@ -2566,28 +2572,6 @@ CUSTOMER_CSV_MAPPINGS = {
     'Job Scope': 'notes'
 }
 
-# Default column mappings for Project CSV  
-PROJECT_CSV_MAPPINGS = {
-    'Title': 'title',
-    'Link to Customer Database': 'customer_name',  # Will be resolved to customer_id
-    'Location Address': 'address',
-    'Project Stage': 'stage',
-    'Current Stage': 'current_stage',
-    'Job Type': 'job_type',
-    'Job Number': 'job_number',
-    'Auto Number': 'auto_number',
-    'Budget Cost': 'budget_cost',
-    'Actual Cost': 'actual_cost',
-    'Approved Orders': 'approved_orders',
-    'Budget Variance': 'budget_variance',
-    'Needs Permits?': 'permit_required',
-    'Permit NO:': 'permit_no',
-    'Jurisdiction': 'jurisdiction',
-    'Engineering Plans Required?': 'engineering_plans_required',
-    'First Site Visit Date': 'first_site_visit_date',
-    'Date Completed': 'date_completed',
-    'Scope of Work': 'scope_of_work'
-}
 
 @app.route('/leads/import', methods=['GET', 'POST'])
 @login_required
@@ -2743,179 +2727,6 @@ def preview_import():
         })
     except Exception as e:
         return jsonify({'error': str(e)}), 500
-
-# Project import routes
-@app.route('/projects')
-@login_required
-def projects():
-    """List all projects"""
-    all_projects = query_db('''
-        SELECT p.*, l.name as customer_name 
-        FROM projects p 
-        LEFT JOIN leads l ON p.customer_id = l.id 
-        ORDER BY p.created_at DESC
-    ''')
-    return render_template('projects.html', projects=all_projects)
-
-@app.route('/projects/import', methods=['GET', 'POST'])
-@login_required
-def import_projects():
-    if request.method == 'POST':
-        if 'csv_file' not in request.files:
-            flash('No file uploaded', 'error')
-            return redirect(request.url)
-        
-        file = request.files['csv_file']
-        if file.filename == '':
-            flash('No file selected', 'error')
-            return redirect(request.url)
-        
-        if not file.filename.endswith('.csv'):
-            flash('Please upload a CSV file', 'error')
-            return redirect(request.url)
-        
-        try:
-            stream = io.StringIO(file.stream.read().decode('utf-8-sig'))
-            reader = csv.DictReader(stream)
-            rows = list(reader)
-            
-            if not rows:
-                flash('CSV file is empty', 'error')
-                return redirect(request.url)
-            
-            # Get column mappings from form
-            mappings = {}
-            for csv_col in reader.fieldnames:
-                mapped_field = request.form.get(f'mapping_{csv_col}')
-                if mapped_field and mapped_field != 'skip':
-                    mappings[csv_col] = mapped_field
-            
-            if not mappings:
-                mappings = {k: v for k, v in PROJECT_CSV_MAPPINGS.items() if k in reader.fieldnames}
-            
-            duplicate_action = request.form.get('duplicate_action', 'skip')
-            
-            imported = 0
-            skipped = 0
-            updated = 0
-            
-            for row in rows:
-                project_data = {}
-                customer_name = None
-                
-                for csv_col, db_field in mappings.items():
-                    if csv_col in row:
-                        value = row[csv_col].strip() if row[csv_col] else ''
-                        if db_field == 'customer_name':
-                            customer_name = value
-                        else:
-                            project_data[db_field] = value
-                
-                if not project_data.get('title'):
-                    skipped += 1
-                    continue
-                
-                # Resolve customer_id from customer_name
-                customer_id = None
-                if customer_name:
-                    customer = query_db(
-                        'SELECT id FROM leads WHERE name = ? AND deleted_at IS NULL',
-                        [customer_name], one=True
-                    )
-                    if customer:
-                        customer_id = customer['id']
-                
-                # Convert boolean fields
-                for bool_field in ['permit_required', 'engineering_plans_required']:
-                    if bool_field in project_data:
-                        val = project_data[bool_field].lower()
-                        project_data[bool_field] = 1 if val in ['yes', 'true', '1'] else 0
-                
-                # Convert numeric fields
-                for num_field in ['budget_cost', 'actual_cost', 'approved_orders', 'budget_variance']:
-                    if num_field in project_data and project_data[num_field]:
-                        try:
-                            project_data[num_field] = float(project_data[num_field].replace(',', ''))
-                        except:
-                            project_data[num_field] = None
-                
-                # Check for duplicates by title and address
-                existing = None
-                if project_data.get('title'):
-                    existing = query_db(
-                        'SELECT id FROM projects WHERE title = ? AND address = ?',
-                        [project_data.get('title'), project_data.get('address', '')], one=True
-                    )
-                
-                if existing:
-                    if duplicate_action == 'skip':
-                        skipped += 1
-                        continue
-                    elif duplicate_action == 'update':
-                        update_fields = []
-                        update_values = []
-                        for field, value in project_data.items():
-                            if value is not None:
-                                update_fields.append(f'{field} = ?')
-                                update_values.append(value)
-                        if customer_id:
-                            update_fields.append('customer_id = ?')
-                            update_values.append(customer_id)
-                        if update_fields:
-                            update_values.append(existing['id'])
-                            execute_db(
-                                f'UPDATE projects SET {", ".join(update_fields)}, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
-                                update_values
-                            )
-                            updated += 1
-                        continue
-                
-                # Insert new project
-                execute_db(
-                    '''INSERT INTO projects (title, customer_id, stage, current_stage, address, job_type, 
-                       job_number, auto_number, budget_cost, actual_cost, approved_orders, budget_variance,
-                       permit_required, permit_no, jurisdiction, engineering_plans_required,
-                       first_site_visit_date, date_completed, scope_of_work)
-                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
-                    (
-                        project_data.get('title', ''),
-                        customer_id,
-                        project_data.get('stage', ''),
-                        project_data.get('current_stage', ''),
-                        project_data.get('address', ''),
-                        project_data.get('job_type', ''),
-                        project_data.get('job_number', ''),
-                        project_data.get('auto_number', ''),
-                        project_data.get('budget_cost'),
-                        project_data.get('actual_cost'),
-                        project_data.get('approved_orders'),
-                        project_data.get('budget_variance'),
-                        project_data.get('permit_required', 0),
-                        project_data.get('permit_no', ''),
-                        project_data.get('jurisdiction', ''),
-                        project_data.get('engineering_plans_required', 0),
-                        project_data.get('first_site_visit_date', ''),
-                        project_data.get('date_completed', ''),
-                        project_data.get('scope_of_work', '')
-                    )
-                )
-                imported += 1
-            
-            flash(f'Import complete: {imported} added, {updated} updated, {skipped} skipped', 'success')
-            return redirect(url_for('projects'))
-            
-        except Exception as e:
-            flash(f'Error processing CSV: {str(e)}', 'error')
-            return redirect(request.url)
-    
-    # GET request
-    project_fields = ['title', 'stage', 'current_stage', 'address', 'job_type', 'job_number', 
-                     'auto_number', 'budget_cost', 'actual_cost', 'approved_orders', 
-                     'permit_required', 'permit_no', 'jurisdiction', 'scope_of_work', 'customer_name']
-    return render_template('import_projects.html',
-                         default_mappings=PROJECT_CSV_MAPPINGS,
-                         project_fields=project_fields)
-
 
 if __name__ == '__main__':
     init_db()
