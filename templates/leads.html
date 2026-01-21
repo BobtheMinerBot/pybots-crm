@@ -250,18 +250,23 @@
                 if 'address' not in visible_default_fields %}style="display:none" {% endif %}>
                 <span class="cell-display">{{ lead['address'] or '-' }}</span>
             </td>
-            <td class="editable-cell" data-column="job_type" data-lead-id="{{ lead['id'] }}" data-field-name="job_type"
-                data-field-type="dropdown" data-field-options="{{ job_types | join('\n') }}"
-                data-value="{{ lead['job_type'] or '' }}" onclick="startDefaultEdit(this)" {% if 'job_type' not in
-                visible_default_fields %}style="display:none" {% endif %}>
-                <span class="cell-display">{{ lead['job_type'] or '-' }}</span>
+            <td data-column="job_type" class="dropdown-cell" {% if 'job_type' not in visible_default_fields %}style="display:none" {% endif %}>
+                <div class="dropdown-badge {% if lead['job_type'] %}badge-job-{{ job_types.index(lead['job_type']) % 6 if lead['job_type'] in job_types else 0 }}{% else %}badge-neutral{% endif %}"
+                     onclick="openFieldDropdown(event, {{ lead['id'] }}, 'job_type', '{{ lead['job_type'] or '' }}')"
+                     data-lead-id="{{ lead['id'] }}"
+                     data-field="job_type"
+                     data-value="{{ lead['job_type'] or '' }}">
+                    {{ lead['job_type'] or '-' }}
+                </div>
             </td>
-            <td class="editable-cell" data-column="property_type" data-lead-id="{{ lead['id'] }}"
-                data-field-name="property_type" data-field-type="dropdown"
-                data-field-options="{{ property_types | join('\n') }}" data-value="{{ lead['property_type'] or '' }}"
-                onclick="startDefaultEdit(this)" {% if 'property_type' not in visible_default_fields
-                %}style="display:none" {% endif %}>
-                <span class="cell-display">{{ lead['property_type'] or '-' }}</span>
+            <td data-column="property_type" class="dropdown-cell" {% if 'property_type' not in visible_default_fields %}style="display:none" {% endif %}>
+                <div class="dropdown-badge {% if lead['property_type'] %}badge-prop-{{ property_types.index(lead['property_type']) % 6 if lead['property_type'] in property_types else 0 }}{% else %}badge-neutral{% endif %}"
+                     onclick="openFieldDropdown(event, {{ lead['id'] }}, 'property_type', '{{ lead['property_type'] or '' }}')"
+                     data-lead-id="{{ lead['id'] }}"
+                     data-field="property_type"
+                     data-value="{{ lead['property_type'] or '' }}">
+                    {{ lead['property_type'] or '-' }}
+                </div>
             </td>
             {% for cf in all_custom_fields %}
             {% set lead_vals = field_values.get(lead['id'], {}) %}
@@ -1206,6 +1211,122 @@
         font-weight: bold;
     }
 
+    /* Dropdown cell styling (job_type, property_type) */
+    .dropdown-cell {
+        padding: 0.5rem !important;
+    }
+
+    .dropdown-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0.4rem 1rem;
+        font-size: 0.75rem;
+        font-weight: 500;
+        text-align: center;
+        cursor: pointer;
+        border-radius: 20px;
+        transition: all 0.15s ease;
+        white-space: nowrap;
+    }
+
+    .badge-neutral {
+        background: #f0f2f5;
+        color: #1a1f36;
+        border: 1px solid #e4e7eb;
+    }
+
+    .badge-neutral:hover {
+        background: #e4e7eb;
+        border-color: #d0d4dc;
+    }
+
+    /* Job Type Colors - Cool tones */
+    .badge-job-0 { background: #e3f2fd; color: #1565c0; border: 1px solid #bbdefb; }
+    .badge-job-0:hover { background: #bbdefb; }
+    .badge-job-1 { background: #e0f2f1; color: #00796b; border: 1px solid #b2dfdb; }
+    .badge-job-1:hover { background: #b2dfdb; }
+    .badge-job-2 { background: #f3e5f5; color: #7b1fa2; border: 1px solid #e1bee7; }
+    .badge-job-2:hover { background: #e1bee7; }
+    .badge-job-3 { background: #e8eaf6; color: #3949ab; border: 1px solid #c5cae9; }
+    .badge-job-3:hover { background: #c5cae9; }
+    .badge-job-4 { background: #e0f7fa; color: #0097a7; border: 1px solid #b2ebf2; }
+    .badge-job-4:hover { background: #b2ebf2; }
+    .badge-job-5 { background: #fce4ec; color: #c2185b; border: 1px solid #f8bbd9; }
+    .badge-job-5:hover { background: #f8bbd9; }
+
+    /* Property Type Colors - Warm tones */
+    .badge-prop-0 { background: #fff3e0; color: #e65100; border: 1px solid #ffe0b2; }
+    .badge-prop-0:hover { background: #ffe0b2; }
+    .badge-prop-1 { background: #e8f5e9; color: #2e7d32; border: 1px solid #c8e6c9; }
+    .badge-prop-1:hover { background: #c8e6c9; }
+    .badge-prop-2 { background: #fff8e1; color: #f57f17; border: 1px solid #ffecb3; }
+    .badge-prop-2:hover { background: #ffecb3; }
+    .badge-prop-3 { background: #efebe9; color: #5d4037; border: 1px solid #d7ccc8; }
+    .badge-prop-3:hover { background: #d7ccc8; }
+    .badge-prop-4 { background: #fbe9e7; color: #d84315; border: 1px solid #ffccbc; }
+    .badge-prop-4:hover { background: #ffccbc; }
+    .badge-prop-5 { background: #f1f8e9; color: #558b2f; border: 1px solid #dcedc8; }
+    .badge-prop-5:hover { background: #dcedc8; }
+
+    /* Dropdown item colors */
+    .field-dropdown-item .color-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        margin-right: 8px;
+        flex-shrink: 0;
+    }
+
+    /* Field Dropdown (for job_type, property_type) */
+    .field-dropdown-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 999;
+    }
+
+    .field-dropdown {
+        position: fixed;
+        background: white;
+        border-radius: 10px;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+        min-width: 160px;
+        max-height: 280px;
+        overflow-y: auto;
+        z-index: 1000;
+        padding: 6px;
+        animation: dropdownSlide 0.15s ease-out;
+    }
+
+    .field-dropdown-item {
+        display: flex;
+        align-items: center;
+        padding: 0.5rem 0.875rem;
+        cursor: pointer;
+        border-radius: 6px;
+        font-size: 0.8125rem;
+        color: #1a1f36;
+        transition: background-color 0.1s ease;
+    }
+
+    .field-dropdown-item:hover {
+        background: #f0f2f5;
+    }
+
+    .field-dropdown-item.current {
+        background: #e6f4ff;
+        color: #0073ea;
+        font-weight: 500;
+    }
+
+    .field-dropdown-item.empty-option {
+        color: #9699a9;
+        font-style: italic;
+    }
+
     /* Multi-select dropdown */
     .multi-select-dropdown {
         position: absolute;
@@ -1704,8 +1825,131 @@
 
     // Close status dropdown on escape
     document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape') closeStatusDropdown();
+        if (e.key === 'Escape') {
+            closeStatusDropdown();
+            closeFieldDropdown();
+        }
     });
+
+    // ========== Field Dropdowns (job_type, property_type) ==========
+    const fieldOptions = {
+        job_type: {{ job_types | tojson }},
+        property_type: {{ property_types | tojson }}
+    };
+
+    // Color mapping for dropdown items
+    const fieldColors = {
+        job_type: ['#1565c0', '#00796b', '#7b1fa2', '#3949ab', '#0097a7', '#c2185b'],
+        property_type: ['#e65100', '#2e7d32', '#f57f17', '#5d4037', '#d84315', '#558b2f']
+    };
+
+    function getFieldColorClass(fieldName, value) {
+        const options = fieldOptions[fieldName] || [];
+        const index = options.indexOf(value);
+        if (index === -1 || !value) return 'badge-neutral';
+        const prefix = fieldName === 'job_type' ? 'badge-job-' : 'badge-prop-';
+        return prefix + (index % 6);
+    }
+
+    function openFieldDropdown(e, leadId, fieldName, currentValue) {
+        e.stopPropagation();
+        closeFieldDropdown();
+        closeStatusDropdown();
+
+        const badge = e.target;
+        const rect = badge.getBoundingClientRect();
+        const options = fieldOptions[fieldName] || [];
+        const colors = fieldColors[fieldName] || [];
+
+        // Create overlay
+        const overlay = document.createElement('div');
+        overlay.className = 'field-dropdown-overlay';
+        overlay.onclick = closeFieldDropdown;
+
+        // Create dropdown
+        const dropdown = document.createElement('div');
+        dropdown.className = 'field-dropdown';
+        dropdown.id = 'activeFieldDropdown';
+
+        // Position dropdown below the badge
+        dropdown.style.top = (rect.bottom + 4) + 'px';
+        dropdown.style.left = rect.left + 'px';
+
+        // Add empty option
+        const emptyItem = document.createElement('div');
+        emptyItem.className = 'field-dropdown-item empty-option' + (!currentValue ? ' current' : '');
+        emptyItem.innerHTML = '<span class="color-dot" style="background: #ccc;"></span>(None)';
+        emptyItem.onclick = (ev) => {
+            ev.stopPropagation();
+            updateFieldValue(leadId, fieldName, '', -1);
+            closeFieldDropdown();
+        };
+        dropdown.appendChild(emptyItem);
+
+        // Add options with color dots
+        options.forEach((option, index) => {
+            const item = document.createElement('div');
+            item.className = 'field-dropdown-item' + (option === currentValue ? ' current' : '');
+            const color = colors[index % colors.length];
+            item.innerHTML = `<span class="color-dot" style="background: ${color};"></span>${option}`;
+            item.onclick = (ev) => {
+                ev.stopPropagation();
+                if (option !== currentValue) {
+                    updateFieldValue(leadId, fieldName, option, index);
+                }
+                closeFieldDropdown();
+            };
+            dropdown.appendChild(item);
+        });
+
+        document.body.appendChild(overlay);
+        document.body.appendChild(dropdown);
+
+        // Adjust if dropdown goes off screen
+        const dropdownRect = dropdown.getBoundingClientRect();
+        if (dropdownRect.bottom > window.innerHeight) {
+            dropdown.style.top = (rect.top - dropdownRect.height - 4) + 'px';
+        }
+        if (dropdownRect.right > window.innerWidth) {
+            dropdown.style.left = (window.innerWidth - dropdownRect.width - 8) + 'px';
+        }
+    }
+
+    function closeFieldDropdown() {
+        const dropdown = document.getElementById('activeFieldDropdown');
+        const overlay = document.querySelector('.field-dropdown-overlay');
+        if (dropdown) dropdown.remove();
+        if (overlay) overlay.remove();
+    }
+
+    function updateFieldValue(leadId, fieldName, value, optionIndex) {
+        fetch(`/api/leads/${leadId}/update`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ field: fieldName, value: value })
+        }).then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Update the badge without full reload
+                const badge = document.querySelector(`.dropdown-badge[data-lead-id="${leadId}"][data-field="${fieldName}"]`);
+                if (badge) {
+                    badge.textContent = data.display_value || value || '-';
+                    badge.dataset.value = value;
+
+                    // Update color class
+                    badge.className = badge.className.replace(/badge-(job|prop)-\d|badge-neutral/g, '').trim();
+                    const newColorClass = getFieldColorClass(fieldName, value);
+                    badge.classList.add('dropdown-badge', newColorClass);
+                }
+                const label = fieldName.replace('_', ' ');
+                showToast(`Updated ${label}`, 'success');
+            } else {
+                showToast(data.error || 'Failed to update field', 'error');
+            }
+        }).catch(() => {
+            showToast('Failed to update field', 'error');
+        });
+    }
 
     // ========== Dropdowns ==========
     function toggleViewsDropdown(e) {

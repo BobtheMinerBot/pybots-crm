@@ -589,97 +589,110 @@
            STATUS BADGES - Style C: Neon Glow (LOCKED IN)
            ===================================================== */
 
-        /* Base badge styles - full cell width like Monday.com */
+        /* Base badge styles - clean pill design */
         .badge {
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            width: 100%;
-            min-width: 120px;
-            padding: 0.5rem 0.75rem;
-            font-size: 0.8125rem;
+            padding: 0.4rem 1rem;
+            font-size: 0.75rem;
             font-weight: 600;
             color: white;
             text-align: center;
-            position: relative;
-            overflow: hidden;
-            cursor: default;
-            border-radius: 6px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-            transition: box-shadow 0.3s ease, transform 0.2s ease;
+            cursor: pointer;
+            border-radius: 20px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            transition: box-shadow 0.2s ease, transform 0.15s ease;
+            white-space: nowrap;
         }
 
-        /* Hide status dot by default for full-cell style */
+        /* Hide status dot by default for pill style */
         .badge .status-dot {
             display: none;
         }
 
         .badge:hover {
             transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
         }
 
-        /* Neon Glow effect on hover - color matched */
+        /* Glow effect on hover - color matched */
         .badge-new-lead:hover {
-            box-shadow: 0 4px 20px rgba(0, 115, 234, 0.5);
+            box-shadow: 0 4px 16px rgba(0, 115, 234, 0.4);
         }
         .badge-inspection-scheduled:hover {
-            box-shadow: 0 4px 20px rgba(253, 171, 61, 0.5);
+            box-shadow: 0 4px 16px rgba(253, 171, 61, 0.4);
         }
         .badge-estimating:hover {
-            box-shadow: 0 4px 20px rgba(162, 93, 220, 0.5);
+            box-shadow: 0 4px 16px rgba(162, 93, 220, 0.4);
         }
         .badge-proposal-sent:hover {
-            box-shadow: 0 4px 20px rgba(0, 200, 117, 0.5);
+            box-shadow: 0 4px 16px rgba(0, 200, 117, 0.4);
         }
         .badge-follow-up:hover {
-            box-shadow: 0 4px 20px rgba(255, 21, 138, 0.5);
+            box-shadow: 0 4px 16px rgba(255, 21, 138, 0.4);
         }
         .badge-nurturing:hover {
-            box-shadow: 0 4px 20px rgba(87, 155, 252, 0.5);
+            box-shadow: 0 4px 16px rgba(87, 155, 252, 0.4);
         }
         .badge-lost:hover {
-            box-shadow: 0 4px 20px rgba(226, 68, 92, 0.5);
+            box-shadow: 0 4px 16px rgba(226, 68, 92, 0.4);
         }
         .badge-won:hover {
-            box-shadow: 0 4px 20px rgba(0, 200, 117, 0.5);
+            box-shadow: 0 4px 16px rgba(0, 200, 117, 0.4);
         }
 
         /* =====================================================
-           TABLE STYLES - Floating Clean (Light & Airy)
+           TABLE STYLES - Clean Modern
            ===================================================== */
 
         .grid-table {
-            border-collapse: separate;
-            border-spacing: 8px 6px;
-            background: transparent;
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 4px 12px rgba(0, 0, 0, 0.05);
         }
 
         .grid-table th {
-            background: transparent;
-            border: none;
-            color: #a0a7b0;
-            font-weight: 500;
+            background: linear-gradient(to bottom, #fafbfc, #f4f5f7);
+            color: #5e6c84;
+            font-weight: 600;
             text-transform: uppercase;
-            font-size: 0.6rem;
-            letter-spacing: 0.08em;
-            padding: 0.5rem 0.75rem;
+            font-size: 0.7rem;
+            letter-spacing: 0.05em;
+            padding: 1rem 1rem;
+            border-bottom: 2px solid #e4e7eb;
+            text-align: left;
+            position: sticky;
+            top: 0;
         }
 
         .grid-table td {
-            background: #fafbfc;
-            border: 1px solid #f0f2f5;
-            border-radius: 12px;
-            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            padding: 0.65rem 0.85rem;
+            padding: 0.875rem 1rem;
+            border-bottom: 1px solid #f0f2f5;
             vertical-align: middle;
+            background: white;
+            transition: background-color 0.15s ease;
         }
 
         .grid-table tbody tr:hover td {
-            background: white;
-            border-color: #e8edf2;
-            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
-            transform: translateY(-1px);
+            background: #f8fafc;
+        }
+
+        .grid-table tbody tr:last-child td {
+            border-bottom: none;
+        }
+
+        /* Make lead name stand out */
+        .grid-table .lead-name a {
+            font-weight: 600;
+            color: #1a1f36;
+        }
+
+        .grid-table .lead-name a:hover {
+            color: #0073ea;
         }
 
         /* =========== Status Colors - Vibrant Solids =========== */
@@ -738,13 +751,15 @@
             display: flex;
             align-items: center;
             gap: 0.75rem;
-            padding: 0.75rem 1rem;
-            background: var(--gray-50);
-            border: 1px solid var(--gray-200);
-            border-radius: 0.5rem 0.5rem 0 0;
+            padding: 0.875rem 1.25rem;
+            background: white;
+            border: none;
+            border-radius: 12px 12px 0 0;
             cursor: pointer;
             user-select: none;
             border-left: 4px solid var(--gray-300);
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+            transition: background-color 0.15s ease;
         }
 
         /* Stage-specific left border colors */
@@ -777,20 +792,21 @@
         }
 
         .grid-section-header:hover {
-            background: var(--gray-100);
+            background: #f8fafc;
         }
 
         .grid-section-header h3 {
-            font-size: 0.9375rem;
+            font-size: 0.875rem;
             font-weight: 600;
             flex: 1;
+            color: #1a1f36;
         }
 
         .grid-section-count {
-            background: var(--gray-200);
-            color: var(--gray-600);
-            padding: 0.125rem 0.5rem;
-            border-radius: 9999px;
+            background: #e8ecf0;
+            color: #5e6c84;
+            padding: 0.2rem 0.625rem;
+            border-radius: 10px;
             font-size: 0.75rem;
             font-weight: 600;
         }
@@ -809,12 +825,10 @@
         }
 
         .grid-table-wrapper {
-            border: 1px solid var(--gray-200);
-            border-top: none;
-            border-radius: 0 0 0.5rem 0.5rem;
+            border: none;
+            border-radius: 0 0 12px 12px;
             overflow-x: auto;
             overflow-y: visible;
-            /* Smooth momentum scrolling on trackpad/touch */
             -webkit-overflow-scrolling: touch;
             scroll-behavior: smooth;
         }
@@ -846,108 +860,31 @@
             scrollbar-color: var(--gray-300) var(--gray-100);
         }
 
-        .grid-table {
-            width: 100%;
-            min-width: max-content;
-            border-collapse: collapse;
-        }
-
-        .grid-table th {
-            text-align: left;
-            padding: 0.625rem 1rem;
-            background: white;
-            font-weight: 500;
-            font-size: 0.8125rem;
-            color: var(--gray-500);
-            border-bottom: 1px solid var(--gray-200);
-            white-space: nowrap;
-            min-width: 100px;
-        }
-
-        .grid-table td {
-            padding: 0.75rem 1rem;
-            border-bottom: 1px solid var(--gray-100);
-            font-size: 0.875rem;
-            white-space: nowrap;
-            min-width: 100px;
-        }
-
-        /* Name column should be wider */
-        .grid-table th[data-column="name"],
-        .grid-table td[data-column="name"],
-        .grid-table td.lead-name {
-            min-width: 180px;
-        }
-
-        /* Checkbox and Actions columns - smaller fixed widths */
+        /* Column widths */
         .grid-table th.checkbox-col,
         .grid-table td.checkbox-col {
-            min-width: 40px;
             width: 40px;
+            text-align: center;
         }
 
         .grid-table th.actions-col-header,
         .grid-table td.actions-col {
-            min-width: 50px;
             width: 50px;
+            text-align: center;
         }
 
-        /* Add field column - small fixed width */
         .grid-table th.add-field-header,
         .grid-table td.add-field-cell {
-            min-width: 40px;
             width: 40px;
         }
 
-        .grid-table tr:last-child td {
-            border-bottom: none;
-        }
-
-        /* Enhanced table row interactions */
+        /* Row interactions */
         .grid-table tbody tr {
-            transition:
-                background-color var(--transition-fast) ease,
-                transform var(--transition-fast) var(--ease-out-quart),
-                box-shadow var(--transition-fast) ease;
             cursor: pointer;
         }
 
-        .grid-table tbody tr:hover {
-            background: linear-gradient(to right, rgba(0, 115, 234, 0.03), rgba(0, 115, 234, 0.01));
-        }
-
-        .grid-table tbody tr:hover td {
-            background: transparent;
-        }
-
-        .grid-table tbody tr:hover td:first-child {
-            box-shadow: inset 3px 0 0 var(--primary);
-        }
-
-        /* Selected row state */
-        .grid-table tbody tr.selected {
-            background: var(--primary-light) !important;
-        }
-
-        .grid-table tbody tr.selected td:first-child {
-            box-shadow: inset 3px 0 0 var(--primary);
-        }
-
-        .lead-name {
-            font-weight: 500;
-            color: var(--primary);
-            transition: color var(--transition-fast) ease;
-        }
-
-        .lead-name a {
-            color: inherit;
-            text-decoration: none;
-            transition: all var(--transition-fast) ease;
-        }
-
-        .lead-name a:hover {
-            text-decoration: underline;
-            color: var(--primary-dark);
+        .grid-table tbody tr.selected td {
+            background: #e6f4ff !important;
         }
 
         .text-muted {
