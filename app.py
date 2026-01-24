@@ -2905,11 +2905,20 @@ def deploy_webhook():
             timeout=30
         )
         
+        # Touch WSGI file to trigger PythonAnywhere reload
+        wsgi_file = '/var/www/pybots_pythonanywhere_com_wsgi.py'
+        reload_msg = ''
+        if os.path.exists(wsgi_file):
+            import pathlib
+            pathlib.Path(wsgi_file).touch()
+            reload_msg = 'App reload triggered'
+        
         return jsonify({
             'success': True,
             'output': result.stdout,
             'errors': result.stderr,
-            'return_code': result.returncode
+            'return_code': result.returncode,
+            'reload': reload_msg
         })
     except subprocess.TimeoutExpired:
         return jsonify({'error': 'Git pull timed out'}), 500
