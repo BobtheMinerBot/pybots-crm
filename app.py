@@ -2916,6 +2916,9 @@ def deploy_webhook():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+# Auto-run database migrations on startup (works on both local and WSGI)
+# This ensures tables are always in sync with the code
+init_db()
+
 if __name__ == '__main__':
-    init_db()
     app.run(debug=True)
