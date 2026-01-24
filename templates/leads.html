@@ -3644,32 +3644,42 @@
         if (!status || selectedLeadIds.size === 0) return;
 
         const count = selectedLeadIds.size;
-        showConfirmDialog({
-            title: 'Change Status',
-            message: `Change status of ${count} lead${count > 1 ? 's' : ''} to "${status}"?`,
-            confirmText: 'Change Status',
-            cancelText: 'Cancel',
-            type: 'warning',
-            onConfirm: () => {
-                const promises = Array.from(selectedLeadIds).map(leadId =>
-                    fetch(`/leads/${leadId}/status`, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/x-www-form-urlencoded',
-                            'X-Requested-With': 'XMLHttpRequest'
-                        },
-                        body: `status=${encodeURIComponent(status)}`
-                    })
-                );
+        
+        // Function to actually perform the status change
+        const doStatusChange = () => {
+            const promises = Array.from(selectedLeadIds).map(leadId =>
+                fetch(`/leads/${leadId}/status`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    body: `status=${encodeURIComponent(status)}`
+                })
+            );
 
-                Promise.all(promises).then(() => {
-                    showToast(`${count} lead${count > 1 ? 's' : ''} moved to "${status}"`, 'success');
-                    setTimeout(() => window.location.reload(), 500);
-                }).catch(() => {
-                    showToast('Failed to update some leads', 'error');
-                });
-            }
-        });
+            Promise.all(promises).then(() => {
+                showToast(`${count} lead${count > 1 ? 's' : ''} moved to "${status}"`, 'success');
+                setTimeout(() => window.location.reload(), 500);
+            }).catch(() => {
+                showToast('Failed to update some leads', 'error');
+            });
+        };
+
+        // Only show confirmation for multiple leads (2+), single lead changes happen immediately
+        if (count > 1) {
+            showConfirmDialog({
+                title: 'Change Status',
+                message: `Change status of ${count} leads to "${status}"?`,
+                confirmText: 'Change Status',
+                cancelText: 'Cancel',
+                type: 'warning',
+                onConfirm: doStatusChange
+            });
+        } else {
+            // Single lead - just do it, no confirmation needed
+            doStatusChange();
+        }
 
         // Reset the select dropdown
         document.getElementById('bulkStatusSelect').value = '';
