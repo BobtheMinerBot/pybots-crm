@@ -3,30 +3,58 @@
 {% block title %}Leads - CRM{% endblock %}
 
 {% block content %}
-<div class="toolbar">
-    <div class="search-box">
-        <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-            stroke-width="2">
-            <circle cx="11" cy="11" r="8"></circle>
-            <path d="m21 21-4.35-4.35"></path>
-        </svg>
-        <input type="text" class="form-control" placeholder="Search leads... (press /)" id="searchInput"
-            value="{{ search }}" autocomplete="off">
-        <div id="searchResults" class="search-results"></div>
+<div class="leads-page">
+    <!-- Page Header -->
+    <div class="dashboard-header">
+        <div>
+            <h1 class="dashboard-title">Leads</h1>
+            <p class="dashboard-subtitle">Manage and track your sales pipeline</p>
+        </div>
+        <div class="dashboard-actions">
+            <a href="{{ url_for('import_leads') }}" class="btn btn-secondary" title="Import from CSV">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                    <polyline points="17 8 12 3 7 8"></polyline>
+                    <line x1="12" y1="3" x2="12" y2="15"></line>
+                </svg>
+                Import
+            </a>
+            <a href="{{ url_for('add_lead') }}" class="btn btn-primary">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 5v14M5 12h14"></path>
+                </svg>
+                Add Lead
+            </a>
+        </div>
     </div>
 
-    <div class="filter-group">
-        <label>Filter:</label>
-        <select class="form-control" id="statusFilter" style="width: auto;">
-            <option value="">All Stages</option>
-            {% for status in statuses %}
-            <option value="{{ status }}" {% if status_filter==status %}selected{% endif %}>{{ status }}</option>
-            {% endfor %}
-        </select>
-    </div>
+    <!-- Toolbar Card -->
+    <div class="leads-toolbar-card">
+        <div class="leads-toolbar">
+            <div class="search-box">
+                <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                    stroke-width="2">
+                    <circle cx="11" cy="11" r="8"></circle>
+                    <path d="m21 21-4.35-4.35"></path>
+                </svg>
+                <input type="text" class="form-control" placeholder="Search leads... (press /)" id="searchInput"
+                    value="{{ search }}" autocomplete="off">
+                <div id="searchResults" class="search-results"></div>
+            </div>
 
-    <!-- Group By Dropdown -->
-    <div class="filter-group dropdown-container">
+            <div class="toolbar-divider"></div>
+
+            <div class="filter-group">
+                <select class="form-control toolbar-select" id="statusFilter">
+                    <option value="">All Stages</option>
+                    {% for status in statuses %}
+                    <option value="{{ status }}" {% if status_filter==status %}selected{% endif %}>{{ status }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Group By Dropdown -->
+            <div class="filter-group dropdown-container">
         <button class="btn btn-secondary dropdown-toggle" onclick="toggleGroupPanel(event)" id="groupByBtn">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <rect x="3" y="3" width="18" height="6" rx="1"></rect>
@@ -131,23 +159,11 @@
         </div>
     </div>
 
-    <div style="margin-left: auto; display: flex; gap: 0.5rem;">
-        <a href="{{ url_for('import_leads') }}" class="btn btn-secondary" title="Import from CSV">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                <polyline points="17 8 12 3 7 8"></polyline>
-                <line x1="12" y1="3" x2="12" y2="15"></line>
-            </svg>
-            Import
-        </a>
-        <a href="{{ url_for('add_lead') }}" class="btn btn-primary">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M12 5v14M5 12h14"></path>
-            </svg>
-            Add Lead
-        </a>
+        </div>
     </div>
-</div>
+
+    <!-- Leads Table Card -->
+    <div class="leads-table-card">
 
 <!-- Recently Viewed Leads -->
 <div id="recentlyViewedSection" class="recently-viewed" style="display: none;">
@@ -564,7 +580,59 @@
     </div>
 </div>
 
+    </div><!-- /.leads-table-card -->
+</div><!-- /.leads-page -->
+
 <style>
+    /* Leads Page Layout */
+    .leads-page {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-5);
+    }
+
+    .leads-toolbar-card {
+        background: white;
+        border-radius: var(--radius-lg);
+        padding: var(--space-4);
+        box-shadow: var(--shadow-sm);
+    }
+
+    .leads-toolbar {
+        display: flex;
+        align-items: center;
+        gap: var(--space-3);
+        flex-wrap: wrap;
+    }
+
+    .toolbar-divider {
+        width: 1px;
+        height: 28px;
+        background: var(--gray-200);
+        margin: 0 var(--space-2);
+    }
+
+    .toolbar-select {
+        border: 1px solid var(--gray-200);
+        border-radius: var(--radius-md);
+        padding: var(--space-2) var(--space-3);
+        font-size: 0.875rem;
+        background: white;
+        min-width: 140px;
+    }
+
+    .leads-table-card {
+        background: white;
+        border-radius: var(--radius-lg);
+        box-shadow: var(--shadow-sm);
+        overflow: hidden;
+    }
+
+    /* Clean up old toolbar */
+    .toolbar {
+        display: none;
+    }
+
     /* Dropdown styles */
     .dropdown-container {
         position: relative;
