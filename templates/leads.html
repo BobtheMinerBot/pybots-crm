@@ -271,6 +271,29 @@
             {% for cf in all_custom_fields %}
             {% set lead_vals = field_values.get(lead['id'], {}) %}
             {% set val = lead_vals.get(cf['field_key'], {}).get('value', '') %}
+            {% if cf['field_type'] == 'file' %}
+            <td class="file-cell" data-column="custom_{{ cf['id'] }}" data-lead-id="{{ lead['id'] }}"
+                data-field-id="{{ cf['id'] }}" data-field-type="file" {% if cf['id'] not in visible_custom_field_ids %}style="display:none" {% endif %}>
+                <div class="file-field-container">
+                    {% if val %}
+                    {% set file_info = val | safe %}
+                    <div class="file-display" data-file-info="{{ val | e }}">
+                        <a href="{{ (val | fromjson).path }}" target="_blank" class="file-link" title="View file">
+                            <span class="file-icon">📎</span>
+                            <span class="file-name">{{ (val | fromjson).original_name }}</span>
+                        </a>
+                        <button class="file-delete-btn" onclick="deleteFile(event, {{ lead['id'] }}, {{ cf['id'] }})" title="Delete file">×</button>
+                    </div>
+                    {% else %}
+                    <label class="file-upload-btn">
+                        <input type="file" class="file-input" onchange="uploadFile(this, {{ lead['id'] }}, {{ cf['id'] }})" style="display:none">
+                        <span class="upload-icon">📤</span>
+                        <span class="upload-text">Upload</span>
+                    </label>
+                    {% endif %}
+                </div>
+            </td>
+            {% else %}
             <td class="editable-cell" data-column="custom_{{ cf['id'] }}" data-lead-id="{{ lead['id'] }}"
                 data-field-id="{{ cf['id'] }}" data-field-type="{{ cf['field_type'] }}"
                 data-field-options="{{ cf['options'] or '' }}" data-value="{{ val }}" onclick="startEdit(this)" {% if
@@ -285,6 +308,7 @@
                     {% endif %}
                 </span>
             </td>
+            {% endif %}
             {% endfor %}
             <td class="text-muted text-sm" data-column="created">{{ lead['created_at'] | strftime }}</td>
             <td data-column="stage" class="stage-cell">
@@ -3267,6 +3291,93 @@
             .finally(() => {
                 cancelEdit(cell);
             });
+    }
+
+    // ========== File Upload Functions ==========
+    function uploadFile(input, leadId, fieldId) {
+        const file = input.files[0];
+        if (!file) return;
+
+        const formData = new FormData();
+        formData.append('file', file);
+
+        const container = input.closest('.file-field-container');
+        container.innerHTML = '<span class="uploading-indicator">Uploading...</span>';
+
+        fetch(`/api/leads/${leadId}/fields/${fieldId}/upload`, {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(result => {
+            if (result.success) {
+                const fileInfo = result.file_info;
+                container.innerHTML = `
+                    <div class="file-display" data-file-info='${JSON.stringify(fileInfo)}'>
+                        <a href="${fileInfo.path}" target="_blank" class="file-link" title="View file">
+                            <span class="file-icon">📎</span>
+                            <span class="file-name">${fileInfo.original_name}</span>
+                        </a>
+                        <button class="file-delete-btn" onclick="deleteFile(event, ${leadId}, ${fieldId})" title="Delete file">×</button>
+                    </div>
+                `;
+            } else {
+                alert(result.error || 'Upload failed');
+                container.innerHTML = `
+                    <label class="file-upload-btn">
+                        <input type="file" class="file-input" onchange="uploadFile(this, ${leadId}, ${fieldId})" style="display:none">
+                        <span class="upload-icon">📤</span>
+                        <span class="upload-text">Upload</span>
+                    </label>
+                `;
+            }
+        })
+        .catch(err => {
+            console.error('Upload error:', err);
+            alert('Upload failed');
+            container.innerHTML = `
+                <label class="file-upload-btn">
+                    <input type="file" class="file-input" onchange="uploadFile(this, ${leadId}, ${fieldId})" style="display:none">
+                    <span class="upload-icon">📤</span>
+                    <span class="upload-text">Upload</span>
+                </label>
+            `;
+        });
+    }
+
+    function deleteFile(event, leadId, fieldId) {
+        event.preventDefault();
+        event.stopPropagation();
+
+        if (!confirm('Delete this file?')) return;
+
+        const container = event.target.closest('.file-field-container');
+
+        fetch(`/api/leads/${leadId}/fields/${fieldId}/delete-file`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => response.json())
+        .then(result => {
+            if (result.success) {
+                container.innerHTML = `
+                    <label class="file-upload-btn">
+                        <input type="file" class="file-input" onchange="uploadFile(this, ${leadId}, ${fieldId})" style="display:none">
+                        <span class="upload-icon">📤</span>
+                        <span class="upload-text">Upload</span>
+                    </label>
+                `;
+            } else {
+                alert(result.error || 'Delete failed');
+            }
+        })
+        .catch(err => {
+            console.error('Delete error:', err);
+            alert('Delete failed');
+        });
     }
 
     // ========== Bulk Selection ==========

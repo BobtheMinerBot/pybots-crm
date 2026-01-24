@@ -422,8 +422,29 @@ FIELD_TYPES = {
     'contact': {'label': 'Contact', 'icon': '👤'},
     'duration': {'label': 'Duration', 'icon': '⏱️'},
     'auto_number': {'label': 'Auto-Number', 'icon': '#'},
-    'symbol': {'label': 'Symbol', 'icon': '⭐'}
+    'symbol': {'label': 'Symbol', 'icon': '⭐'},
+    'file': {'label': 'File Upload', 'icon': '📎'}
 }
+
+# File upload configuration
+UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static', 'uploads')
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'pdf', 'doc', 'docx', 'xls', 'xlsx', 'txt', 'csv'}
+MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
+
+# Ensure upload folder exists
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+def get_file_extension(filename):
+    return filename.rsplit('.', 1)[1].lower() if '.' in filename else ''
+
+def generate_unique_filename(original_filename):
+    """Generate a unique filename to prevent collisions"""
+    ext = get_file_extension(original_filename)
+    unique_name = f"{datetime.now().strftime('%Y%m%d_%H%M%S')}_{os.urandom(4).hex()}"
+    return f"{unique_name}.{ext}" if ext else unique_name
 
 # Auth decorator
 def login_required(f):
@@ -1992,6 +2013,123 @@ def api_update_field_value(lead_id, field_id):
 
     return jsonify({'success': True, 'display_value': display_value})
 
+
+@app.route('/api/leads/<int:lead_id>/fields/<int:field_id>/upload', methods=['POST'])
+@login_required
+def api_upload_file(lead_id, field_id):
+    """Handle file upload for file-type custom fields"""
+    from werkzeug.utils import secure_filename
+    
+    # Verify lead exists
+    lead = query_db('SELECT * FROM leads WHERE id = ? AND deleted_at IS NULL', [lead_id], one=True)
+    if not lead:
+        return jsonify({'success': False, 'error': 'Lead not found'}), 404
+    
+    # Verify field exists and is a file type
+    field = query_db('SELECT * FROM custom_fields WHERE id = ?', [field_id], one=True)
+    if not field:
+        return jsonify({'success': False, 'error': 'Field not found'}), 404
+    if field['field_type'] != 'file':
+        return jsonify({'success': False, 'error': 'Field is not a file type'}), 400
+    
+    if 'file' not in request.files:
+        return jsonify({'success': False, 'error': 'No file provided'}), 400
+    
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({'success': False, 'error': 'No file selected'}), 400
+    
+    if not allowed_file(file.filename):
+        return jsonify({'success': False, 'error': f'File type not allowed. Allowed: {", ".join(ALLOWED_EXTENSIONS)}'}), 400
+    
+    # Check file size
+    file.seek(0, 2)  # Seek to end
+    file_size = file.tell()
+    file.seek(0)  # Seek back to start
+    if file_size > MAX_FILE_SIZE:
+        return jsonify({'success': False, 'error': f'File too large. Max size: {MAX_FILE_SIZE // (1024*1024)}MB'}), 400
+    
+    # Generate unique filename and save
+    original_filename = secure_filename(file.filename)
+    unique_filename = generate_unique_filename(original_filename)
+    
+    # Create lead-specific folder
+    lead_folder = os.path.join(UPLOAD_FOLDER, str(lead_id))
+    os.makedirs(lead_folder, exist_ok=True)
+    
+    file_path = os.path.join(lead_folder, unique_filename)
+    file.save(file_path)
+    
+    # Store file info as JSON in field_values
+    file_info = json.dumps({
+        'filename': unique_filename,
+        'original_name': original_filename,
+        'size': file_size,
+        'uploaded_at': datetime.now().isoformat(),
+        'path': f'/static/uploads/{lead_id}/{unique_filename}'
+    })
+    
+    # Delete old file if exists
+    existing = query_db(
+        'SELECT value FROM field_values WHERE lead_id = ? AND field_id = ?',
+        [lead_id, field_id], one=True
+    )
+    if existing and existing['value']:
+        try:
+            old_info = json.loads(existing['value'])
+            old_path = os.path.join(UPLOAD_FOLDER, str(lead_id), old_info.get('filename', ''))
+            if os.path.exists(old_path):
+                os.remove(old_path)
+        except:
+            pass
+    
+    # Upsert the value
+    if existing:
+        execute_db(
+            'UPDATE field_values SET value = ? WHERE lead_id = ? AND field_id = ?',
+            [file_info, lead_id, field_id]
+        )
+    else:
+        execute_db(
+            'INSERT INTO field_values (lead_id, field_id, value) VALUES (?, ?, ?)',
+            [lead_id, field_id, file_info]
+        )
+    
+    return jsonify({
+        'success': True,
+        'file_info': json.loads(file_info),
+        'display_value': original_filename
+    })
+
+
+@app.route('/api/leads/<int:lead_id>/fields/<int:field_id>/delete-file', methods=['POST'])
+@login_required
+def api_delete_file(lead_id, field_id):
+    """Delete an uploaded file"""
+    # Get existing file info
+    existing = query_db(
+        'SELECT value FROM field_values WHERE lead_id = ? AND field_id = ?',
+        [lead_id, field_id], one=True
+    )
+    
+    if existing and existing['value']:
+        try:
+            file_info = json.loads(existing['value'])
+            file_path = os.path.join(UPLOAD_FOLDER, str(lead_id), file_info.get('filename', ''))
+            if os.path.exists(file_path):
+                os.remove(file_path)
+        except:
+            pass
+    
+    # Clear the field value
+    execute_db(
+        'UPDATE field_values SET value = NULL WHERE lead_id = ? AND field_id = ?',
+        [lead_id, field_id]
+    )
+    
+    return jsonify({'success': True})
+
+
 @app.route('/api/leads/<int:lead_id>/update', methods=['POST'])
 @login_required
 def api_update_lead_field(lead_id):
@@ -2464,6 +2602,17 @@ def strftime_filter(value, fmt='%b %d, %Y'):
         except:
             return value
     return value.strftime(fmt) if value else ''
+
+
+@app.template_filter('fromjson')
+def fromjson_filter(value):
+    """Parse JSON string to dict"""
+    if not value:
+        return {}
+    try:
+        return json.loads(value)
+    except:
+        return {}
 
 
 # Backup routes
