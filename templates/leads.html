@@ -599,9 +599,9 @@
         overflow-x: hidden;
     }
 
-    /* Bulk Actions Bar - Hidden by default */
+    /* Bulk Actions Bar - Hidden by default, shown when .visible */
     .bulk-actions-bar {
-        display: none;
+        display: none !important;
         align-items: center;
         gap: var(--space-3);
         padding: var(--space-3) var(--space-4);
@@ -610,7 +610,7 @@
     }
 
     .bulk-actions-bar.visible {
-        display: flex;
+        display: flex !important;
     }
 
     .leads-toolbar-card {
