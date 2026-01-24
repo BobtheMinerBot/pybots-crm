@@ -599,18 +599,14 @@
         overflow-x: hidden;
     }
 
-    /* Bulk Actions Bar - Hidden by default, shown when .visible */
+    /* Bulk Actions Bar - Hidden by default, JS controls visibility via inline style */
     .bulk-actions-bar {
-        display: none !important;
+        display: none;
         align-items: center;
         gap: var(--space-3);
         padding: var(--space-3) var(--space-4);
         background: white;
         border-top: 1px solid var(--gray-200);
-    }
-
-    .bulk-actions-bar.visible {
-        display: flex !important;
     }
 
     .leads-toolbar-card {
@@ -3625,10 +3621,11 @@
         const count = document.getElementById('selectedCount');
         count.textContent = selectedLeadIds.size;
 
+        // Use direct style manipulation instead of CSS class
         if (selectedLeadIds.size > 0) {
-            bar.classList.add('visible');
+            bar.style.display = 'flex';
         } else {
-            bar.classList.remove('visible');
+            bar.style.display = 'none';
         }
     }
 
