@@ -1463,6 +1463,81 @@
 
     /* ========== Mobile Responsive Styles ========== */
     @media (max-width: 768px) {
+        /* Prevent horizontal overflow */
+        .leads-page {
+            width: 100%;
+            max-width: 100%;
+            overflow-x: hidden;
+            padding: 0;
+        }
+
+        /* Page header - stack on mobile */
+        .leads-page .dashboard-header {
+            flex-direction: column;
+            gap: var(--space-3);
+            align-items: stretch !important;
+            padding: var(--space-4);
+        }
+
+        .leads-page .dashboard-header > div:first-child {
+            text-align: center;
+        }
+
+        .leads-page .dashboard-title {
+            font-size: 1.5rem;
+        }
+
+        .leads-page .dashboard-actions {
+            display: flex;
+            gap: var(--space-2);
+            justify-content: center;
+        }
+
+        .leads-page .dashboard-actions .btn {
+            flex: 1;
+            justify-content: center;
+            padding: var(--space-2) var(--space-3);
+            font-size: 0.875rem;
+        }
+
+        /* Toolbar card - full width, no overflow */
+        .leads-toolbar-card {
+            border-radius: 0;
+            margin: 0;
+            padding: var(--space-3);
+        }
+
+        .leads-toolbar {
+            flex-direction: column;
+            gap: var(--space-2);
+            align-items: stretch;
+        }
+
+        .leads-toolbar .search-box {
+            width: 100%;
+            min-width: auto;
+        }
+
+        .leads-toolbar .toolbar-divider {
+            display: none;
+        }
+
+        .leads-toolbar .filter-group {
+            width: 100%;
+        }
+
+        .leads-toolbar .toolbar-select {
+            width: 100%;
+        }
+
+        /* Table card - scrollable horizontally */
+        .leads-table-card {
+            border-radius: 0;
+            margin: 0;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
         /* Toolbar layout */
         .toolbar {
             flex-direction: column;
@@ -1493,6 +1568,26 @@
 
         .dropdown-container {
             position: static;
+        }
+
+        /* Bulk actions bar - fixed at bottom */
+        .bulk-actions-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            padding: var(--space-3);
+            background: white;
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+            z-index: 100;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        /* Group headers */
+        .group-section-header {
+            padding: var(--space-2) var(--space-3);
+            font-size: 0.875rem;
         }
 
         /* Dropdown menus - slide up from bottom on mobile */
