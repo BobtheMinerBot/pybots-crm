@@ -438,29 +438,6 @@
 {% endfor %}
 {% endif %}
 
-<!-- Bulk Actions Bar - Hidden by default, shown when items selected via JS -->
-<div id="bulkActionsBar" class="bulk-actions-bar">
-    <span class="bulk-count"><span id="selectedCount">0</span> selected</span>
-    <select id="bulkStatusSelect" class="btn" onchange="bulkChangeStatus(this.value)">
-        <option value="">Change Status</option>
-        {% for status in statuses %}
-        <option value="{{ status }}">{{ status }}</option>
-        {% endfor %}
-    </select>
-    <button class="btn btn-danger" onclick="bulkDelete()">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-        </svg>
-        Delete
-    </button>
-    <button class="bulk-close" onclick="clearBulkSelection()" title="Clear selection">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <line x1="18" y1="6" x2="6" y2="18"></line>
-            <line x1="6" y1="6" x2="18" y2="18"></line>
-        </svg>
-    </button>
-</div>
-
 <!-- Context Menu for Custom Field Headers -->
 <div id="fieldContextMenu" class="context-menu">
     <div class="context-menu-item" onclick="addFieldToRight()">
@@ -582,6 +559,29 @@
 
     </div><!-- /.leads-table-card -->
 </div><!-- /.leads-page -->
+
+<!-- Bulk Actions Bar - OUTSIDE all containers for proper fixed positioning -->
+<div id="bulkActionsBar" class="bulk-actions-bar">
+    <span class="bulk-count"><span id="selectedCount">0</span> selected</span>
+    <select id="bulkStatusSelect" class="btn" onchange="bulkChangeStatus(this.value)">
+        <option value="">Change Status</option>
+        {% for status in statuses %}
+        <option value="{{ status }}">{{ status }}</option>
+        {% endfor %}
+    </select>
+    <button class="btn btn-danger" onclick="bulkDelete()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+        </svg>
+        Delete
+    </button>
+    <button class="bulk-close" onclick="clearBulkSelection()" title="Clear selection">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>
+    </button>
+</div>
 
 <style>
     /* ========== GLOBAL OVERFLOW FIX ========== */
