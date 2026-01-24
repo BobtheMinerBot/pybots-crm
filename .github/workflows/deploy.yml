@@ -1,0 +1,15 @@
+name: Deploy to PythonAnywhere
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger deploy webhook
+        run: |
+          curl -X POST \
+            -H "X-Deploy-Token: ${{ secrets.DEPLOY_SECRET }}" \
+            https://pybots.pythonanywhere.com/deploy
