@@ -1,0 +1,34 @@
+{% extends 'base.html' %}
+
+{% block title %}Login - CRM{% endblock %}
+
+{% block content %}
+<div class="login-container">
+    <div class="login-box">
+        <div class="card">
+            <div class="card-body">
+                <div class="login-header">
+                    <h1>🏗️ CRM</h1>
+                    <p class="text-muted">Sign in to your account</p>
+                </div>
+                
+                <form method="POST">
+                    <div class="form-group">
+                        <label class="form-label">Email</label>
+                        <input type="email" name="email" class="form-control" required autofocus>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Password</label>
+                        <input type="password" name="password" class="form-control" required>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 0.5rem;">
+                        Sign In
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

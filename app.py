@@ -2878,6 +2878,44 @@ def preview_import():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+# =============================================================================
+# DEPLOY WEBHOOK - Auto-deploy from GitHub
+# =============================================================================
+DEPLOY_SECRET = os.environ.get('DEPLOY_SECRET', '')
+
+@app.route('/deploy', methods=['POST'])
+def deploy_webhook():
+    """Webhook endpoint for auto-deployment from GitHub Actions"""
+    # Check secret token
+    token = request.headers.get('X-Deploy-Token') or request.args.get('token')
+    if not DEPLOY_SECRET or token != DEPLOY_SECRET:
+        return jsonify({'error': 'Unauthorized'}), 401
+    
+    try:
+        import subprocess
+        # Get the directory where app.py lives
+        app_dir = os.path.dirname(os.path.abspath(__file__))
+        
+        # Run git pull
+        result = subprocess.run(
+            ['git', 'pull', 'origin', 'main'],
+            cwd=app_dir,
+            capture_output=True,
+            text=True,
+            timeout=30
+        )
+        
+        return jsonify({
+            'success': True,
+            'output': result.stdout,
+            'errors': result.stderr,
+            'return_code': result.returncode
+        })
+    except subprocess.TimeoutExpired:
+        return jsonify({'error': 'Git pull timed out'}), 500
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 if __name__ == '__main__':
     init_db()
     app.run(debug=True)
