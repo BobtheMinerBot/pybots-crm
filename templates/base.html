@@ -4,8 +4,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}CRM{% endblock %}</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+    <title>{% block title %}ISLA CRM{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/smartsuite.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         /* Dynamic status colors - injected from database */
         {% if status_colors %}
@@ -23,88 +24,114 @@
         {% endfor %}
         {% endif %}
     </style>
+    {% block head %}{% endblock %}
 </head>
 
-<body>
+<body class="{% if not session.user_id %}ss-login-page{% endif %}">
     {% if session.user_id %}
-    <nav class="navbar">
-        <a href="{{ url_for('dashboard') }}" class="navbar-brand">🏗️ CRM</a>
-        <div class="navbar-nav">
-            <a href="{{ url_for('dashboard') }}"
-                class="{% if request.endpoint == 'dashboard' %}active{% endif %}">Dashboard</a>
-            <a href="{{ url_for('leads') }}"
-                class="{% if request.endpoint in ['leads', 'view_lead', 'add_lead', 'edit_lead', 'import_leads'] %}active{% endif %}">Leads</a>
-            <a href="{{ url_for('settings') }}"
-                class="{% if request.endpoint in ['settings', 'trash'] %}active{% endif %}">Settings</a>
-            <span class="user-info">{{ session.user_name }}</span>
-            <a href="{{ url_for('logout') }}">Logout</a>
+    <!-- ========== HEADER - Blue Top Bar ========== -->
+    <header class="ss-header">
+        <div class="ss-header-left">
+            <button class="ss-header-btn ss-menu-toggle" onclick="toggleSidebar()" title="Toggle Sidebar">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="3" y1="6" x2="21" y2="6"></line>
+                    <line x1="3" y1="12" x2="21" y2="12"></line>
+                    <line x1="3" y1="18" x2="21" y2="18"></line>
+                </svg>
+            </button>
+            <a href="{{ url_for('dashboard') }}" class="ss-logo">
+                <span class="ss-logo-icon">🏗️</span>
+                <span class="ss-logo-text">ISLA CRM</span>
+            </a>
         </div>
-        <!-- Mobile Menu Toggle -->
-        <button class="mobile-menu-toggle" onclick="toggleMobileNav()" aria-label="Open menu">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <line x1="3" y1="6" x2="21" y2="6"></line>
-                <line x1="3" y1="12" x2="21" y2="12"></line>
-                <line x1="3" y1="18" x2="21" y2="18"></line>
-            </svg>
-        </button>
-    </nav>
+        <div class="ss-header-center">
+            <span class="ss-workspace-name">ISLA Builders</span>
+        </div>
+        <div class="ss-header-right">
+            <div class="ss-user-menu">
+                <span class="ss-user-name">{{ session.user_name }}</span>
+                <div class="ss-user-avatar">{{ session.user_name[0] | upper }}</div>
+            </div>
+        </div>
+    </header>
 
-    <!-- Mobile Navigation Drawer -->
-    <div class="mobile-nav-overlay" id="mobileNavOverlay" onclick="closeMobileNav()"></div>
-    <div class="mobile-nav-drawer" id="mobileNavDrawer">
-        <div class="mobile-nav-header">
-            <span class="user-info">{{ session.user_name }}</span>
-            <button class="mobile-nav-close" onclick="closeMobileNav()" aria-label="Close menu">&times;</button>
-        </div>
-        <div class="mobile-nav-links">
-            <a href="{{ url_for('dashboard') }}" class="{% if request.endpoint == 'dashboard' %}active{% endif %}">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <rect x="3" y="3" width="7" height="7"></rect>
-                    <rect x="14" y="3" width="7" height="7"></rect>
-                    <rect x="14" y="14" width="7" height="7"></rect>
-                    <rect x="3" y="14" width="7" height="7"></rect>
-                </svg>
-                Dashboard
-            </a>
-            <a href="{{ url_for('leads') }}" class="{% if request.endpoint in ['leads', 'view_lead', 'add_lead', 'edit_lead', 'import_leads'] %}active{% endif %}">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-                    <circle cx="9" cy="7" r="4"></circle>
-                    <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
-                    <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
-                </svg>
-                Leads
-            </a>
-            <a href="{{ url_for('settings') }}" class="{% if request.endpoint in ['settings', 'trash'] %}active{% endif %}">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <circle cx="12" cy="12" r="3"></circle>
-                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
-                </svg>
-                Settings
-            </a>
-        </div>
-        <div class="mobile-nav-footer">
-            <a href="{{ url_for('logout') }}">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display: inline; vertical-align: middle; margin-right: 0.5rem;">
-                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
-                    <polyline points="16 17 21 12 16 7"></polyline>
-                    <line x1="21" y1="12" x2="9" y2="12"></line>
-                </svg>
-                Logout
-            </a>
-        </div>
+    <!-- ========== MAIN LAYOUT ========== -->
+    <div class="ss-layout" id="appLayout">
+        <!-- SIDEBAR - Light Theme -->
+        <aside class="ss-sidebar" id="sidebar">
+            <nav class="ss-nav">
+                <a href="{{ url_for('dashboard') }}" class="ss-nav-item {% if request.endpoint == 'dashboard' %}active{% endif %}">
+                    <svg class="ss-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="3" y="3" width="7" height="7"></rect>
+                        <rect x="14" y="3" width="7" height="7"></rect>
+                        <rect x="14" y="14" width="7" height="7"></rect>
+                        <rect x="3" y="14" width="7" height="7"></rect>
+                    </svg>
+                    <span class="ss-nav-label">Dashboard</span>
+                </a>
+                <a href="{{ url_for('leads') }}" class="ss-nav-item {% if request.endpoint in ['leads', 'view_lead', 'add_lead', 'edit_lead', 'import_leads'] %}active{% endif %}">
+                    <svg class="ss-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                        <circle cx="9" cy="7" r="4"></circle>
+                        <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                        <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                    </svg>
+                    <span class="ss-nav-label">Leads</span>
+                </a>
+                <a href="{{ url_for('settings') }}" class="ss-nav-item {% if request.endpoint in ['settings', 'trash'] %}active{% endif %}">
+                    <svg class="ss-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="3"></circle>
+                        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                    </svg>
+                    <span class="ss-nav-label">Settings</span>
+                </a>
+            </nav>
+            <div class="ss-sidebar-footer">
+                <a href="{{ url_for('logout') }}" class="ss-nav-item ss-logout">
+                    <svg class="ss-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                        <polyline points="16 17 21 12 16 7"></polyline>
+                        <line x1="21" y1="12" x2="9" y2="12"></line>
+                    </svg>
+                    <span class="ss-nav-label">Logout</span>
+                </a>
+            </div>
+        </aside>
+
+        <!-- MAIN CONTENT -->
+        <main class="ss-main">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+            {% for category, message in messages %}
+            <div class="ss-alert ss-alert-{{ category }}">
+                {{ message }}
+                <button class="ss-alert-close" onclick="this.parentElement.remove()">&times;</button>
+            </div>
+            {% endfor %}
+            {% endwith %}
+
+            <div class="ss-content">
+                {% block content %}{% endblock %}
+            </div>
+        </main>
     </div>
-    {% endif %}
 
-    <div class="container">
+    <!-- Mobile Overlay -->
+    <div class="ss-mobile-overlay" id="mobileOverlay" onclick="closeMobileSidebar()"></div>
+
+    {% else %}
+    <!-- ========== LOGIN PAGE (no sidebar/header) ========== -->
+    <div class="ss-login-wrapper">
         {% with messages = get_flashed_messages(with_categories=true) %}
         {% for category, message in messages %}
-        <div class="alert alert-{{ category }}">{{ message }}</div>
+        <div class="ss-alert ss-alert-{{ category }}">{{ message }}</div>
         {% endfor %}
         {% endwith %}
 
-        {% block content %}{% endblock %}
+        <div class="ss-login-box">
+            {% block login_content %}{% endblock %}
+        </div>
     </div>
+    {% endif %}
 
     {% block scripts %}{% endblock %}
 
@@ -127,8 +154,7 @@
                     </div>
                     <div class="shortcut-row">
                         <span class="shortcut-desc">Focus search</span>
-                        <span class="shortcut-keys"><span class="shortcut-key">/</span> or <span
-                                class="shortcut-key">S</span></span>
+                        <span class="shortcut-keys"><span class="shortcut-key">/</span> or <span class="shortcut-key">S</span></span>
                     </div>
                     <div class="shortcut-row">
                         <span class="shortcut-desc">Close modal/dropdown</span>
@@ -139,13 +165,11 @@
                     <div class="shortcuts-group-title">Lead List</div>
                     <div class="shortcut-row">
                         <span class="shortcut-desc">Move up</span>
-                        <span class="shortcut-keys"><span class="shortcut-key">K</span> or <span
-                                class="shortcut-key">↑</span></span>
+                        <span class="shortcut-keys"><span class="shortcut-key">K</span> or <span class="shortcut-key">↑</span></span>
                     </div>
                     <div class="shortcut-row">
                         <span class="shortcut-desc">Move down</span>
-                        <span class="shortcut-keys"><span class="shortcut-key">J</span> or <span
-                                class="shortcut-key">↓</span></span>
+                        <span class="shortcut-keys"><span class="shortcut-key">J</span> or <span class="shortcut-key">↓</span></span>
                     </div>
                     <div class="shortcut-row">
                         <span class="shortcut-desc">Open selected lead</span>
@@ -171,6 +195,53 @@
     </div>
 
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    {% if session.user_id %}
+    <script>
+        // ========== SIDEBAR FUNCTIONALITY ==========
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const layout = document.getElementById('appLayout');
+            
+            if (window.innerWidth <= 768) {
+                // Mobile: slide in/out
+                sidebar.classList.toggle('mobile-open');
+                document.getElementById('mobileOverlay').classList.toggle('active');
+            } else {
+                // Desktop: collapse
+                sidebar.classList.toggle('collapsed');
+                layout.classList.toggle('sidebar-collapsed');
+                localStorage.setItem('sidebarCollapsed', sidebar.classList.contains('collapsed'));
+            }
+        }
+
+        function closeMobileSidebar() {
+            document.getElementById('sidebar').classList.remove('mobile-open');
+            document.getElementById('mobileOverlay').classList.remove('active');
+        }
+
+        // Restore sidebar state on load
+        document.addEventListener('DOMContentLoaded', function() {
+            const sidebar = document.getElementById('sidebar');
+            const layout = document.getElementById('appLayout');
+            
+            if (sidebar && layout && window.innerWidth > 768) {
+                const isCollapsed = localStorage.getItem('sidebarCollapsed') === 'true';
+                if (isCollapsed) {
+                    sidebar.classList.add('collapsed');
+                    layout.classList.add('sidebar-collapsed');
+                }
+            }
+        });
+
+        // Handle window resize
+        window.addEventListener('resize', function() {
+            if (window.innerWidth > 768) {
+                document.getElementById('sidebar')?.classList.remove('mobile-open');
+                document.getElementById('mobileOverlay')?.classList.remove('active');
+            }
+        });
+    </script>
+    {% endif %}
 </body>
 
 </html>

@@ -828,12 +828,110 @@ select, textarea {
     font-size: 0.75rem;
 }
 
-/* ========== LOGIN PAGE ========== */
-.ss-login-container {
-    min-height: 100vh;
+/* ========== MOBILE OVERLAY ========== */
+.ss-mobile-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 850;
+    opacity: 0;
+    transition: opacity var(--transition-normal);
+}
+
+.ss-mobile-overlay.active {
+    display: block;
+    opacity: 1;
+}
+
+/* ========== ALERT CLOSE BUTTON ========== */
+.ss-alert {
     display: flex;
     align-items: center;
+    justify-content: space-between;
+}
+
+.ss-alert-close {
+    background: none;
+    border: none;
+    font-size: 1.25rem;
+    cursor: pointer;
+    color: inherit;
+    opacity: 0.7;
+    line-height: 1;
+    padding: 0;
+    margin-left: var(--space-3);
+}
+
+.ss-alert-close:hover {
+    opacity: 1;
+}
+
+/* ========== LOGIN PAGE ========== */
+body.ss-login-page {
+    background: linear-gradient(135deg, #4573D2 0%, #2952A3 100%);
+    min-height: 100vh;
+}
+
+.ss-login-wrapper {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
     justify-content: center;
-    background: var(--bg-secondary);
-    padding: var(--space-4);
+    padding: var(--space-6);
+}
+
+.ss-login-box {
+    background: white;
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow-lg);
+    padding: var(--space-8);
+    width: 100%;
+    max-width: 400px;
+}
+
+.ss-login-header {
+    text-align: center;
+    margin-bottom: var(--space-6);
+}
+
+.ss-login-logo {
+    font-size: 3rem;
+    margin-bottom: var(--space-3);
+}
+
+.ss-login-title {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: var(--gray-900);
+    margin-bottom: var(--space-2);
+}
+
+.ss-login-subtitle {
+    color: var(--gray-500);
+    font-size: 0.875rem;
+}
+
+.ss-login-form .form-group {
+    margin-bottom: var(--space-4);
+}
+
+.ss-login-form .btn-primary {
+    width: 100%;
+    padding: var(--space-3) var(--space-4);
+    font-size: 1rem;
+    margin-top: var(--space-2);
+}
+
+/* Login page alert styling */
+.ss-login-wrapper .ss-alert {
+    width: 100%;
+    max-width: 400px;
+    margin-bottom: var(--space-4);
+}
+
+/* ========== CONTENT AREA ========== */
+.ss-content {
+    max-width: 1400px;
 }
