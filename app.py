@@ -1326,6 +1326,72 @@ def api_update_custom_fields(lead_id):
     return jsonify({'success': True, 'updated': updated})
 
 
+# API endpoint for deleting leads (soft delete, supports API key)
+@app.route('/api/leads/<int:lead_id>/delete', methods=['POST', 'DELETE'])
+def api_delete_lead(lead_id):
+    """Soft delete a lead via API"""
+    # Check for API key authentication
+    api_key = request.headers.get('X-API-Key') or request.args.get('api_key')
+    if api_key:
+        settings = query_db('SELECT value FROM app_settings WHERE key = ?', ['api_key'], one=True)
+        if not settings or settings['value'] != api_key:
+            return jsonify({'error': 'Invalid API key'}), 401
+    elif 'user_id' not in session:
+        return jsonify({'error': 'Authentication required'}), 401
+
+    # Check lead exists
+    lead = query_db('SELECT * FROM leads WHERE id = ? AND deleted_at IS NULL', [lead_id], one=True)
+    if not lead:
+        return jsonify({'error': 'Lead not found'}), 404
+
+    # Soft delete
+    execute_db('UPDATE leads SET deleted_at = CURRENT_TIMESTAMP WHERE id = ?', [lead_id])
+    
+    return jsonify({'success': True, 'message': f'Lead {lead_id} deleted'})
+
+
+# API endpoint for updating lead core fields (supports API key)
+@app.route('/api/leads/<int:lead_id>', methods=['PUT', 'PATCH'])
+def api_update_lead(lead_id):
+    """Update core lead fields via API"""
+    # Check for API key authentication
+    api_key = request.headers.get('X-API-Key') or request.args.get('api_key')
+    if api_key:
+        settings = query_db('SELECT value FROM app_settings WHERE key = ?', ['api_key'], one=True)
+        if not settings or settings['value'] != api_key:
+            return jsonify({'error': 'Invalid API key'}), 401
+    elif 'user_id' not in session:
+        return jsonify({'error': 'Authentication required'}), 401
+
+    # Check lead exists
+    lead = query_db('SELECT * FROM leads WHERE id = ? AND deleted_at IS NULL', [lead_id], one=True)
+    if not lead:
+        return jsonify({'error': 'Lead not found'}), 404
+
+    data = request.get_json() or {}
+    
+    # Allowed fields to update
+    allowed_fields = ['name', 'email', 'phone', 'address', 'job_type', 'property_type', 'status', 'notes']
+    updates = []
+    values = []
+    
+    for field in allowed_fields:
+        if field in data:
+            updates.append(f'{field} = ?')
+            values.append(data[field])
+    
+    if not updates:
+        return jsonify({'error': 'No valid fields to update'}), 400
+    
+    values.append(lead_id)
+    query = f"UPDATE leads SET {', '.join(updates)}, updated_at = CURRENT_TIMESTAMP WHERE id = ?"
+    execute_db(query, values)
+    
+    # Return updated lead
+    updated_lead = query_db('SELECT * FROM leads WHERE id = ?', [lead_id], one=True)
+    return jsonify({'success': True, 'lead': dict(updated_lead)})
+
+
 # Settings page for Zapier webhook
 @app.route('/settings', methods=['GET', 'POST'])
 @login_required
