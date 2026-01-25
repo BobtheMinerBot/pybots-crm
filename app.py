@@ -1197,16 +1197,51 @@ def update_status(id):
 
     return redirect(url_for('leads'))
 
+# Fallback API key for when app_settings table doesn't exist (set via environment variable)
+FALLBACK_API_KEY = os.environ.get('CRM_API_KEY', '')
+
+def validate_api_key(api_key):
+    """Validate API key against database or fallback key."""
+    if not api_key:
+        return False
+    try:
+        settings = query_db('SELECT value FROM app_settings WHERE key = ?', ['api_key'], one=True)
+        if settings and settings['value'] == api_key:
+            return True
+    except Exception:
+        # Table doesn't exist, use fallback key
+        pass
+    # Check against fallback key
+    return api_key == FALLBACK_API_KEY
+
+# Database migration endpoint (no auth required - one-time use)
+@app.route('/api/migrate', methods=['GET', 'POST'])
+def api_migrate():
+    """Run database migrations. This endpoint should be called once after deployment."""
+    try:
+        init_db()
+        return jsonify({
+            'success': True,
+            'message': 'Database migrations completed successfully'
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
 # API endpoint for fetching leads (supports API key authentication)
 @app.route('/api/leads', methods=['GET'])
 def api_leads():
     # Check for API key authentication
     api_key = request.headers.get('X-API-Key') or request.args.get('api_key')
     if api_key:
-        # Validate API key
-        settings = query_db('SELECT value FROM app_settings WHERE key = ?', ['api_key'], one=True)
-        if settings and settings['value'] == api_key:
-            leads = query_db('SELECT * FROM leads WHERE deleted_at IS NULL ORDER BY created_at DESC')
+        if validate_api_key(api_key):
+            # Handle deleted_at column potentially not existing
+            try:
+                leads = query_db('SELECT * FROM leads WHERE deleted_at IS NULL ORDER BY created_at DESC')
+            except Exception:
+                leads = query_db('SELECT * FROM leads ORDER BY created_at DESC')
             return jsonify([lead_to_dict(lead) for lead in leads])
         return jsonify({'error': 'Invalid API key'}), 401
 
@@ -1214,7 +1249,10 @@ def api_leads():
     if 'user_id' not in session:
         return jsonify({'error': 'Authentication required'}), 401
 
-    leads = query_db('SELECT * FROM leads WHERE deleted_at IS NULL ORDER BY created_at DESC')
+    try:
+        leads = query_db('SELECT * FROM leads WHERE deleted_at IS NULL ORDER BY created_at DESC')
+    except Exception:
+        leads = query_db('SELECT * FROM leads ORDER BY created_at DESC')
     return jsonify([lead_to_dict(lead) for lead in leads])
 
 # API endpoint for creating leads via webhook (supports API key authentication)
@@ -1223,8 +1261,7 @@ def api_create_lead():
     # Check for API key authentication
     api_key = request.headers.get('X-API-Key') or request.args.get('api_key')
     if api_key:
-        settings = query_db('SELECT value FROM app_settings WHERE key = ?', ['api_key'], one=True)
-        if not settings or settings['value'] != api_key:
+        if not validate_api_key(api_key):
             return jsonify({'error': 'Invalid API key'}), 401
     elif 'user_id' not in session:
         return jsonify({'error': 'Authentication required'}), 401
@@ -1269,8 +1306,7 @@ def api_update_custom_fields(lead_id):
     # Check for API key authentication
     api_key = request.headers.get('X-API-Key') or request.args.get('api_key')
     if api_key:
-        settings = query_db('SELECT value FROM app_settings WHERE key = ?', ['api_key'], one=True)
-        if not settings or settings['value'] != api_key:
+        if not validate_api_key(api_key):
             return jsonify({'error': 'Invalid API key'}), 401
     elif 'user_id' not in session:
         return jsonify({'error': 'Authentication required'}), 401
@@ -1333,8 +1369,7 @@ def api_delete_lead(lead_id):
     # Check for API key authentication
     api_key = request.headers.get('X-API-Key') or request.args.get('api_key')
     if api_key:
-        settings = query_db('SELECT value FROM app_settings WHERE key = ?', ['api_key'], one=True)
-        if not settings or settings['value'] != api_key:
+        if not validate_api_key(api_key):
             return jsonify({'error': 'Invalid API key'}), 401
     elif 'user_id' not in session:
         return jsonify({'error': 'Authentication required'}), 401
@@ -1357,8 +1392,7 @@ def api_update_lead(lead_id):
     # Check for API key authentication
     api_key = request.headers.get('X-API-Key') or request.args.get('api_key')
     if api_key:
-        settings = query_db('SELECT value FROM app_settings WHERE key = ?', ['api_key'], one=True)
-        if not settings or settings['value'] != api_key:
+        if not validate_api_key(api_key):
             return jsonify({'error': 'Invalid API key'}), 401
     elif 'user_id' not in session:
         return jsonify({'error': 'Authentication required'}), 401
@@ -3345,8 +3379,7 @@ def api_sync_custom_fields():
     if not api_key:
         return jsonify({'error': 'API key required'}), 401
     
-    settings = query_db('SELECT value FROM app_settings WHERE key = ?', ['api_key'], one=True)
-    if not settings or settings['value'] != api_key:
+    if not validate_api_key(api_key):
         return jsonify({'error': 'Invalid API key'}), 401
 
     data = request.get_json() or {}
@@ -3383,8 +3416,7 @@ def api_sync_statuses():
     if not api_key:
         return jsonify({'error': 'API key required'}), 401
     
-    settings = query_db('SELECT value FROM app_settings WHERE key = ?', ['api_key'], one=True)
-    if not settings or settings['value'] != api_key:
+    if not validate_api_key(api_key):
         return jsonify({'error': 'Invalid API key'}), 401
 
     data = request.get_json() or {}
@@ -3422,8 +3454,7 @@ def api_sync_views():
     if not api_key:
         return jsonify({'error': 'API key required'}), 401
     
-    settings = query_db('SELECT value FROM app_settings WHERE key = ?', ['api_key'], one=True)
-    if not settings or settings['value'] != api_key:
+    if not validate_api_key(api_key):
         return jsonify({'error': 'Invalid API key'}), 401
 
     data = request.get_json() or {}
@@ -3483,8 +3514,7 @@ def api_get_custom_fields():
     """Get all custom fields (for mapping)"""
     api_key = request.headers.get('X-API-Key') or request.args.get('api_key')
     if api_key:
-        settings = query_db('SELECT value FROM app_settings WHERE key = ?', ['api_key'], one=True)
-        if not settings or settings['value'] != api_key:
+        if not validate_api_key(api_key):
             return jsonify({'error': 'Invalid API key'}), 401
     elif 'user_id' not in session:
         return jsonify({'error': 'Authentication required'}), 401
