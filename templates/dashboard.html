@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 
-{% block title %}Dashboard - CRM{% endblock %}
+{% block title %}Dashboard - ISLA CRM{% endblock %}
 
 {% block content %}
 <div class="dashboard">
@@ -8,7 +8,7 @@
     <div class="dashboard-header">
         <div>
             <h1 class="dashboard-title">Dashboard</h1>
-            <p class="dashboard-subtitle">Pipeline overview and activity metrics</p>
+            <p class="dashboard-subtitle">Pipeline overview, JobTread data, and activity metrics</p>
         </div>
         <div class="dashboard-actions">
             <a href="{{ url_for('add_lead') }}" class="btn btn-primary">
@@ -21,11 +21,11 @@
         </div>
     </div>
 
-    <!-- Quick Stats Cards -->
+    <!-- Quick Stats Cards - Row 1 -->
     <div class="stats-grid">
         <div class="stat-card">
-            <div class="stat-icon" style="background: var(--monday-blue-light);">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--monday-blue)" stroke-width="2">
+            <div class="stat-icon" style="background: var(--status-blue-bg);">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--status-blue)" stroke-width="2">
                     <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
                     <circle cx="9" cy="7" r="4"></circle>
                     <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
@@ -39,8 +39,8 @@
         </div>
 
         <div class="stat-card">
-            <div class="stat-icon" style="background: var(--monday-green-light);">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--monday-green)" stroke-width="2">
+            <div class="stat-icon" style="background: var(--status-green-bg);">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--status-green)" stroke-width="2">
                     <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline>
                     <polyline points="17 6 23 6 23 12"></polyline>
                 </svg>
@@ -52,8 +52,8 @@
         </div>
 
         <div class="stat-card">
-            <div class="stat-icon" style="background: var(--monday-pink-light);">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--monday-pink)" stroke-width="2">
+            <div class="stat-icon" style="background: var(--status-pink-bg);">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--status-pink)" stroke-width="2">
                     <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path>
                 </svg>
             </div>
@@ -64,8 +64,8 @@
         </div>
 
         <div class="stat-card">
-            <div class="stat-icon" style="background: var(--monday-orange-light);">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--monday-orange)" stroke-width="2">
+            <div class="stat-icon" style="background: var(--status-orange-bg);">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--status-orange)" stroke-width="2">
                     <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
                     <polyline points="14 2 14 8 20 8"></polyline>
                     <line x1="16" y1="13" x2="8" y2="13"></line>
@@ -78,6 +78,68 @@
             </div>
         </div>
     </div>
+
+    <!-- JobTread Stats Row -->
+    {% if jobtread %}
+    <div class="stats-grid stats-grid-jobtread">
+        <div class="stat-card stat-card-jobtread">
+            <div class="stat-icon" style="background: #e0f2fe;">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#0284c7" stroke-width="2">
+                    <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
+                    <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
+                </svg>
+            </div>
+            <div class="stat-content">
+                <span class="stat-value">{{ jobtread.job_stats.active_jobs }}</span>
+                <span class="stat-label">Active Jobs</span>
+            </div>
+            <span class="stat-badge jobtread-badge">JobTread</span>
+        </div>
+
+        <div class="stat-card stat-card-jobtread">
+            <div class="stat-icon" style="background: #dcfce7;">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2">
+                    <line x1="12" y1="1" x2="12" y2="23"></line>
+                    <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+                </svg>
+            </div>
+            <div class="stat-content">
+                <span class="stat-value">${{ '{:,.0f}'.format(jobtread.financial_summary.proposals_pending_value) }}</span>
+                <span class="stat-label">Proposals Pending</span>
+            </div>
+            <span class="stat-badge jobtread-badge">JobTread</span>
+        </div>
+
+        <div class="stat-card stat-card-jobtread">
+            <div class="stat-icon" style="background: #fef3c7;">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#d97706" stroke-width="2">
+                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                    <line x1="16" y1="2" x2="16" y2="6"></line>
+                    <line x1="8" y1="2" x2="8" y2="6"></line>
+                    <line x1="3" y1="10" x2="21" y2="10"></line>
+                </svg>
+            </div>
+            <div class="stat-content">
+                <span class="stat-value">{{ jobtread.job_stats.jobs_this_month }}</span>
+                <span class="stat-label">Jobs This Month</span>
+            </div>
+            <span class="stat-badge jobtread-badge">JobTread</span>
+        </div>
+
+        <div class="stat-card stat-card-jobtread">
+            <div class="stat-icon" style="background: #fee2e2;">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2">
+                    <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+                </svg>
+            </div>
+            <div class="stat-content">
+                <span class="stat-value">${{ '{:,.0f}'.format(jobtread.financial_summary.invoices_outstanding_value) }}</span>
+                <span class="stat-label">Outstanding Invoices</span>
+            </div>
+            <span class="stat-badge jobtread-badge">JobTread</span>
+        </div>
+    </div>
+    {% endif %}
 
     <!-- Pipeline Overview -->
     <div class="card dashboard-card">
@@ -120,7 +182,164 @@
         </div>
     </div>
 
-    <!-- Two Column Layout -->
+    <!-- Conversion + Time-in-Stage Row -->
+    <div class="dashboard-grid dashboard-grid-2">
+        <!-- Conversion Rate -->
+        <div class="card dashboard-card">
+            <div class="card-header">
+                <h2>
+                    <svg class="card-header-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                        <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                    </svg>
+                    Conversion Rate
+                </h2>
+            </div>
+            <div class="card-body conversion-widget">
+                <div class="conversion-donut">
+                    <svg viewBox="0 0 36 36" class="donut-chart">
+                        <path class="donut-ring" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#fee2e2" stroke-width="3"></path>
+                        <path class="donut-segment" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#22c55e" stroke-width="3" stroke-dasharray="{{ conversion_data.rate }}, 100" stroke-linecap="round"></path>
+                    </svg>
+                    <div class="donut-center">
+                        <span class="donut-value">{{ conversion_data.rate }}%</span>
+                        <span class="donut-label">Win Rate</span>
+                    </div>
+                </div>
+                <div class="conversion-stats">
+                    <div class="conversion-stat">
+                        <span class="conversion-stat-value conversion-won">{{ conversion_data.won }}</span>
+                        <span class="conversion-stat-label">Won</span>
+                    </div>
+                    <div class="conversion-stat">
+                        <span class="conversion-stat-value conversion-lost">{{ conversion_data.lost }}</span>
+                        <span class="conversion-stat-label">Lost</span>
+                    </div>
+                    <div class="conversion-stat">
+                        <span class="conversion-stat-value">{{ conversion_data.total_closed }}</span>
+                        <span class="conversion-stat-label">Total Closed</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Time in Stage -->
+        <div class="card dashboard-card">
+            <div class="card-header">
+                <h2>
+                    <svg class="card-header-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <polyline points="12 6 12 12 16 14"></polyline>
+                    </svg>
+                    Avg. Time in Stage
+                </h2>
+            </div>
+            <div class="card-body">
+                <div class="time-in-stage-chart">
+                    {% for stage in time_in_stage %}
+                    {% if stage.avg_days > 0 %}
+                    <div class="stage-time-row">
+                        <span class="stage-time-label">{{ stage.name }}</span>
+                        <div class="stage-time-bar-track">
+                            <div class="stage-time-bar" style="width: {{ stage.percentage }}%; background: {{ stage.color }};"></div>
+                        </div>
+                        <span class="stage-time-value">{{ stage.avg_days }}d</span>
+                    </div>
+                    {% endif %}
+                    {% endfor %}
+                    {% if not time_in_stage or not time_in_stage|selectattr('avg_days', 'gt', 0)|list %}
+                    <div class="empty-state-small">
+                        <p>No stage transition data yet</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- JobTread Active Jobs + Upcoming Tasks -->
+    {% if jobtread %}
+    <div class="dashboard-grid dashboard-grid-2">
+        <!-- Active Jobs -->
+        <div class="card dashboard-card">
+            <div class="card-header">
+                <h2>
+                    <svg class="card-header-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
+                        <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
+                    </svg>
+                    Active Jobs
+                </h2>
+                <span class="badge badge-jobtread">JobTread</span>
+            </div>
+            <div class="card-body">
+                {% if jobtread.active_jobs %}
+                <div class="jobs-list">
+                    {% for job in jobtread.active_jobs %}
+                    <div class="job-item">
+                        <div class="job-info">
+                            <span class="job-number">#{{ job.number }}</span>
+                            <span class="job-name">{{ job.name }}</span>
+                        </div>
+                        <div class="job-meta">
+                            {% if job.location and job.location.account %}
+                            <span class="job-customer">{{ job.location.account.name }}</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="empty-state-small">
+                    <p>No active jobs</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Upcoming Tasks -->
+        <div class="card dashboard-card">
+            <div class="card-header">
+                <h2>
+                    <svg class="card-header-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                        <line x1="16" y1="2" x2="16" y2="6"></line>
+                        <line x1="8" y1="2" x2="8" y2="6"></line>
+                        <line x1="3" y1="10" x2="21" y2="10"></line>
+                    </svg>
+                    Upcoming Tasks
+                </h2>
+                <span class="badge badge-jobtread">JobTread</span>
+            </div>
+            <div class="card-body">
+                {% if jobtread.upcoming_tasks %}
+                <div class="tasks-list">
+                    {% for task in jobtread.upcoming_tasks %}
+                    <div class="task-item">
+                        <div class="task-date">
+                            <span class="task-day">{{ task.startDate[8:10] if task.startDate else '--' }}</span>
+                            <span class="task-month">{{ task.startDate[5:7] if task.startDate else '' }}</span>
+                        </div>
+                        <div class="task-info">
+                            <span class="task-name">{{ task.name }}</span>
+                            {% if task.job %}
+                            <span class="task-job">{{ task.job.name }}</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="empty-state-small">
+                    <p>No upcoming tasks</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Two Column Layout - Activity + Right Column -->
     <div class="dashboard-grid">
         <!-- Recent Activity -->
         <div class="card dashboard-card">
@@ -143,7 +362,7 @@
                     <div class="activity-content">
                         <div class="activity-text">
                             <strong>{{ activity.lead_name }}</strong>
-                            <span class="activity-note">{{ activity.note | truncate(50) }}</span>
+                            <span class="activity-note">{{ activity.content | truncate(50) }}</span>
                         </div>
                         <div class="activity-meta">
                             <span class="activity-user">{{ activity.user_name or 'System' }}</span>
@@ -223,7 +442,7 @@
 </div>
 
 <style>
-/* Dashboard Styles */
+/* ============ DASHBOARD STYLES ============ */
 .dashboard {
     max-width: 1400px;
     margin: 0 auto;
@@ -255,11 +474,18 @@
     gap: 0.5rem;
 }
 
-/* Stats Grid */
+/* ============ STATS GRID ============ */
 .stats-grid {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
     gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.stats-grid-jobtread {
+    background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+    padding: 1rem;
+    border-radius: 0.75rem;
     margin-bottom: 1.5rem;
 }
 
@@ -273,11 +499,16 @@
     box-shadow: 0 1px 3px rgba(0,0,0,0.08);
     border: 1px solid var(--gray-100);
     transition: transform 0.15s, box-shadow 0.15s;
+    position: relative;
 }
 
 .stat-card:hover {
     transform: translateY(-2px);
     box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.stat-card-jobtread {
+    border: 1px solid #bae6fd;
 }
 
 .stat-icon {
@@ -308,22 +539,67 @@
     font-weight: 500;
 }
 
-/* Dashboard Card */
+.stat-badge {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    font-size: 0.625rem;
+    padding: 0.125rem 0.375rem;
+    border-radius: 0.25rem;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.jobtread-badge {
+    background: #0284c7;
+    color: white;
+}
+
+.badge-jobtread {
+    background: #0284c7;
+    color: white;
+    font-size: 0.6875rem;
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.25rem;
+}
+
+/* ============ DASHBOARD CARD ============ */
 .dashboard-card {
     margin-bottom: 1.5rem;
+    background: white;
+    border-radius: 0.75rem;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    border: 1px solid var(--gray-100);
+    overflow: hidden;
 }
 
 .dashboard-card .card-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid var(--gray-100);
+    background: var(--gray-50);
 }
 
 .dashboard-card .card-header h2 {
-    font-size: 1rem;
+    font-size: 0.9375rem;
+    font-weight: 600;
+    margin: 0;
     display: flex;
     align-items: center;
     gap: 0.5rem;
+    color: var(--gray-800);
+}
+
+.card-header-icon {
+    width: 18px;
+    height: 18px;
+    color: var(--gray-500);
+}
+
+.dashboard-card .card-body {
+    padding: 1.25rem;
 }
 
 .btn-sm {
@@ -331,7 +607,7 @@
     font-size: 0.8125rem;
 }
 
-/* Pipeline Bar */
+/* ============ PIPELINE BAR ============ */
 .pipeline-bar {
     display: flex;
     height: 12px;
@@ -358,7 +634,7 @@
     border-radius: 6px;
 }
 
-/* Pipeline Legend */
+/* ============ PIPELINE LEGEND ============ */
 .pipeline-legend {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
@@ -405,11 +681,15 @@
     font-weight: 700;
 }
 
-/* Dashboard Grid */
+/* ============ DASHBOARD GRID ============ */
 .dashboard-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 1.5rem;
+}
+
+.dashboard-grid-2 {
+    margin-bottom: 1.5rem;
 }
 
 .dashboard-right-col {
@@ -422,7 +702,215 @@
     margin-bottom: 0;
 }
 
-/* Activity Feed */
+/* ============ CONVERSION WIDGET ============ */
+.conversion-widget {
+    display: flex;
+    align-items: center;
+    gap: 2rem;
+}
+
+.conversion-donut {
+    position: relative;
+    width: 140px;
+    height: 140px;
+    flex-shrink: 0;
+}
+
+.donut-chart {
+    width: 100%;
+    height: 100%;
+    transform: rotate(-90deg);
+}
+
+.donut-center {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+}
+
+.donut-value {
+    display: block;
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: var(--gray-900);
+}
+
+.donut-label {
+    font-size: 0.75rem;
+    color: var(--gray-500);
+}
+
+.conversion-stats {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.conversion-stat {
+    display: flex;
+    flex-direction: column;
+}
+
+.conversion-stat-value {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--gray-900);
+}
+
+.conversion-stat-value.conversion-won {
+    color: #22c55e;
+}
+
+.conversion-stat-value.conversion-lost {
+    color: #ef4444;
+}
+
+.conversion-stat-label {
+    font-size: 0.75rem;
+    color: var(--gray-500);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+/* ============ TIME IN STAGE ============ */
+.time-in-stage-chart {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.stage-time-row {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.stage-time-label {
+    width: 110px;
+    font-size: 0.8125rem;
+    color: var(--gray-700);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex-shrink: 0;
+}
+
+.stage-time-bar-track {
+    flex: 1;
+    height: 8px;
+    background: var(--gray-100);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.stage-time-bar {
+    height: 100%;
+    border-radius: 4px;
+    transition: width 0.3s ease;
+}
+
+.stage-time-value {
+    width: 40px;
+    text-align: right;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--gray-700);
+    flex-shrink: 0;
+}
+
+/* ============ JOBTREAD JOBS LIST ============ */
+.jobs-list, .tasks-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.job-item, .task-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem;
+    background: var(--gray-50);
+    border-radius: 0.5rem;
+    transition: background 0.15s;
+}
+
+.job-item:hover, .task-item:hover {
+    background: var(--gray-100);
+}
+
+.job-info {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.job-number {
+    font-size: 0.75rem;
+    color: var(--gray-400);
+    font-weight: 500;
+}
+
+.job-name {
+    font-size: 0.875rem;
+    color: var(--gray-900);
+    font-weight: 500;
+}
+
+.job-meta {
+    font-size: 0.75rem;
+    color: var(--gray-500);
+}
+
+.task-item {
+    gap: 1rem;
+}
+
+.task-date {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-width: 40px;
+    padding: 0.375rem;
+    background: white;
+    border-radius: 0.375rem;
+    border: 1px solid var(--gray-200);
+}
+
+.task-day {
+    font-size: 1.125rem;
+    font-weight: 700;
+    color: var(--gray-900);
+    line-height: 1;
+}
+
+.task-month {
+    font-size: 0.625rem;
+    color: var(--gray-500);
+    text-transform: uppercase;
+}
+
+.task-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.125rem;
+}
+
+.task-name {
+    font-size: 0.875rem;
+    color: var(--gray-900);
+    font-weight: 500;
+}
+
+.task-job {
+    font-size: 0.75rem;
+    color: var(--gray-500);
+}
+
+/* ============ ACTIVITY FEED ============ */
 .activity-feed {
     max-height: 400px;
     overflow-y: auto;
@@ -451,7 +939,7 @@
     width: 36px;
     height: 36px;
     border-radius: 50%;
-    background: var(--monday-blue);
+    background: var(--primary);
     color: white;
     display: flex;
     align-items: center;
@@ -494,7 +982,7 @@
     font-weight: 500;
 }
 
-/* Chart Bars */
+/* ============ CHART BARS ============ */
 .chart-bars {
     display: flex;
     flex-direction: column;
@@ -540,22 +1028,22 @@
     flex-shrink: 0;
 }
 
-/* Stale Alert */
+/* ============ STALE ALERT ============ */
 .stale-alert .card-header {
-    background: var(--monday-orange-light);
-    border-bottom-color: rgba(253, 171, 61, 0.2);
+    background: #fef3c7;
+    border-bottom-color: #fcd34d;
 }
 
 .stale-alert .card-header h2 {
-    color: var(--monday-orange);
+    color: #b45309;
 }
 
 .stale-alert .card-header-icon {
-    color: var(--monday-orange);
+    color: #d97706;
 }
 
 .stale-count {
-    background: var(--monday-orange);
+    background: #f59e0b;
     color: white;
     padding: 0.25rem 0.625rem;
     border-radius: 1rem;
@@ -604,27 +1092,30 @@
 
 .stale-days {
     font-size: 0.75rem;
-    color: var(--monday-orange);
+    color: #d97706;
     font-weight: 600;
 }
 
-/* Empty State */
+/* ============ EMPTY STATE ============ */
 .empty-state-small {
     text-align: center;
     padding: 2rem;
     color: var(--gray-400);
 }
 
-/* Color light variants */
+/* ============ CSS VARIABLES ============ */
 :root {
-    --monday-blue-light: rgba(0, 115, 234, 0.1);
-    --monday-green-light: rgba(0, 200, 117, 0.1);
-    --monday-pink-light: rgba(255, 21, 138, 0.1);
-    --monday-orange-light: rgba(253, 171, 61, 0.1);
-    --monday-purple-light: rgba(162, 93, 220, 0.1);
+    --status-blue: #4573D2;
+    --status-blue-bg: #E8F0FE;
+    --status-green: #22C55E;
+    --status-green-bg: #DCFCE7;
+    --status-pink: #EC4899;
+    --status-pink-bg: #FCE7F3;
+    --status-orange: #F5A623;
+    --status-orange-bg: #FEF4E6;
 }
 
-/* Mobile Responsive */
+/* ============ MOBILE RESPONSIVE ============ */
 @media (max-width: 1024px) {
     .stats-grid {
         grid-template-columns: repeat(2, 1fr);
@@ -636,6 +1127,16 @@
 
     .pipeline-legend {
         grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    }
+    
+    .conversion-widget {
+        flex-direction: column;
+        text-align: center;
+    }
+    
+    .conversion-stats {
+        flex-direction: row;
+        gap: 2rem;
     }
 }
 
@@ -677,7 +1178,8 @@
         grid-template-columns: repeat(2, 1fr);
     }
 
-    .chart-bar-label {
+    .chart-bar-label,
+    .stage-time-label {
         width: 80px;
         font-size: 0.75rem;
     }
@@ -698,6 +1200,11 @@
 
     .dashboard-title {
         font-size: 1.5rem;
+    }
+    
+    .conversion-stats {
+        flex-direction: column;
+        gap: 0.75rem;
     }
 }
 </style>

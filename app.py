@@ -3,10 +3,19 @@ import json
 import sqlite3
 import csv
 import io
-from datetime import datetime
+from datetime import datetime, timedelta
 from functools import wraps
 from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify, g
 from werkzeug.security import generate_password_hash, check_password_hash
+
+# JobTread API integration
+try:
+    from jobtread_api import get_dashboard_data as get_jobtread_data
+    JOBTREAD_ENABLED = True
+except ImportError:
+    JOBTREAD_ENABLED = False
+    def get_jobtread_data():
+        return None
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'your-secret-key-change-in-production')
@@ -501,8 +510,7 @@ def index():
 @app.route('/dashboard')
 @login_required
 def dashboard():
-    """Dashboard with pipeline metrics and activity overview"""
-    from datetime import datetime, timedelta
+    """Dashboard with pipeline metrics, activity overview, and JobTread integration"""
 
     # Get all active leads
     all_leads = query_db('SELECT * FROM leads WHERE deleted_at IS NULL')
@@ -612,6 +620,112 @@ def dashboard():
     for jt in job_type_distribution:
         jt['percentage'] = (jt['count'] / max_job_count * 100) if max_job_count > 0 else 0
 
+    # ============ NEW: CONVERSION RATE ============
+    # Get won vs lost leads for conversion calculation
+    won_count = query_db(
+        "SELECT COUNT(*) as count FROM leads WHERE status IN ('Won', 'Completed')",
+        one=True
+    )['count']
+    lost_count = query_db(
+        "SELECT COUNT(*) as count FROM leads WHERE status = 'Lost'",
+        one=True
+    )['count']
+    
+    total_closed = won_count + lost_count
+    conversion_rate = round((won_count / total_closed * 100), 1) if total_closed > 0 else 0
+    
+    conversion_data = {
+        'won': won_count,
+        'lost': lost_count,
+        'total_closed': total_closed,
+        'rate': conversion_rate
+    }
+
+    # ============ NEW: TIME-IN-STAGE METRICS ============
+    # Calculate average time leads spend in each stage
+    time_in_stage = []
+    
+    # Get status change activities to calculate time in each stage
+    stage_transitions = query_db('''
+        SELECT 
+            a.lead_id,
+            a.content,
+            a.created_at,
+            a.metadata
+        FROM activities a
+        WHERE a.activity_type = 'status_change'
+        ORDER BY a.lead_id, a.created_at
+    ''')
+    
+    # Group by lead and calculate durations
+    stage_durations = {}
+    current_lead = None
+    prev_time = None
+    prev_status = None
+    
+    for trans in stage_transitions:
+        lead_id = trans['lead_id']
+        created_at = datetime.strptime(trans['created_at'], '%Y-%m-%d %H:%M:%S') if trans['created_at'] else None
+        
+        # Try to extract new status from metadata
+        try:
+            metadata = json.loads(trans['metadata']) if trans['metadata'] else {}
+            new_status = metadata.get('new_status', '')
+            old_status = metadata.get('old_status', '')
+        except:
+            new_status = ''
+            old_status = ''
+        
+        if lead_id != current_lead:
+            # New lead - reset tracking
+            current_lead = lead_id
+            prev_time = created_at
+            prev_status = new_status
+            continue
+        
+        # Calculate time in previous status
+        if prev_time and created_at and old_status:
+            duration_days = (created_at - prev_time).days
+            if old_status not in stage_durations:
+                stage_durations[old_status] = []
+            stage_durations[old_status].append(duration_days)
+        
+        prev_time = created_at
+        prev_status = new_status
+    
+    # Calculate averages for each stage
+    for stage in pipeline_stages:
+        stage_name = stage['name']
+        if stage_name in stage_durations and stage_durations[stage_name]:
+            avg_days = sum(stage_durations[stage_name]) / len(stage_durations[stage_name])
+            time_in_stage.append({
+                'name': stage_name,
+                'avg_days': round(avg_days, 1),
+                'color': stage['color'],
+                'count': len(stage_durations[stage_name])
+            })
+        else:
+            time_in_stage.append({
+                'name': stage_name,
+                'avg_days': 0,
+                'color': stage['color'],
+                'count': 0
+            })
+    
+    # Calculate max for chart scaling
+    max_stage_days = max([s['avg_days'] for s in time_in_stage]) if time_in_stage else 1
+    for stage in time_in_stage:
+        stage['percentage'] = (stage['avg_days'] / max_stage_days * 100) if max_stage_days > 0 else 0
+
+    # ============ NEW: JOBTREAD DATA ============
+    jobtread_data = None
+    if JOBTREAD_ENABLED:
+        try:
+            jobtread_data = get_jobtread_data()
+        except Exception as e:
+            print(f"JobTread API error: {e}")
+            jobtread_data = None
+
     return render_template('dashboard.html',
                          total_leads=total_leads,
                          new_this_week=new_this_week,
@@ -621,7 +735,10 @@ def dashboard():
                          stale_leads=stale_leads,
                          recent_activities=recent_activities,
                          job_type_distribution=job_type_distribution,
-                         status_colors=status_colors)
+                         status_colors=status_colors,
+                         conversion_data=conversion_data,
+                         time_in_stage=time_in_stage,
+                         jobtread=jobtread_data)
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
