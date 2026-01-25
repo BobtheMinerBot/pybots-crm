@@ -193,15 +193,24 @@ def get_job_stats():
 def get_recent_documents(doc_type='proposal', limit=10):
     """
     Get recent documents (proposals, invoices, etc.)
-    doc_type: proposal, invoice, bill, purchase_order
+    doc_type: proposal (customerOrder), invoice (customerInvoice), bill (vendorBill)
     """
+    # Map friendly names to JobTread document types
+    type_map = {
+        'proposal': 'customerOrder',
+        'invoice': 'customerInvoice',
+        'bill': 'vendorBill',
+        'purchase_order': 'vendorOrder'
+    }
+    jt_type = type_map.get(doc_type, doc_type)
+    
     query = {
         "query": {
             "organization": {
                 "$": {"id": JOBTREAD_ORG_ID},
                 "documents": {
                     "$": {
-                        "where": ["type", "=", doc_type],
+                        "where": ["type", "=", jt_type],
                         "size": limit,
                         "sortBy": [{"field": "createdAt", "order": "desc"}]
                     },
@@ -210,11 +219,15 @@ def get_recent_documents(doc_type='proposal', limit=10):
                         "number": {},
                         "type": {},
                         "status": {},
-                        "total": {},
                         "createdAt": {},
                         "job": {
                             "name": {},
                             "number": {}
+                        },
+                        "costItems": {
+                            "nodes": {
+                                "price": {}
+                            }
                         }
                     }
                 }
@@ -228,6 +241,10 @@ def get_recent_documents(doc_type='proposal', limit=10):
     
     try:
         docs = result.get('organization', {}).get('documents', {}).get('nodes', [])
+        # Calculate total for each document from costItems
+        for doc in docs:
+            cost_items = doc.get('costItems', {}).get('nodes', [])
+            doc['total'] = sum(float(item.get('price', 0) or 0) for item in cost_items)
         return docs
     except (KeyError, TypeError):
         return []
@@ -235,39 +252,48 @@ def get_recent_documents(doc_type='proposal', limit=10):
 
 def get_financial_summary():
     """Get financial summary - proposal totals, invoice totals, etc."""
-    # Get proposals
+    # Get proposals (customerOrder in JobTread)
     proposals_query = {
         "query": {
             "organization": {
                 "$": {"id": JOBTREAD_ORG_ID},
                 "documents": {
                     "$": {
-                        "where": ["type", "=", "proposal"],
+                        "where": ["type", "=", "customerOrder"],
                         "size": 100
                     },
                     "nodes": {
                         "id": {},
                         "status": {},
-                        "total": {}
+                        "costItems": {
+                            "nodes": {
+                                "price": {}
+                            }
+                        }
                     }
                 }
             }
         }
     }
     
+    # Get invoices (customerInvoice in JobTread)
     invoices_query = {
         "query": {
             "organization": {
                 "$": {"id": JOBTREAD_ORG_ID},
                 "documents": {
                     "$": {
-                        "where": ["type", "=", "invoice"],
+                        "where": ["type", "=", "customerInvoice"],
                         "size": 100
                     },
                     "nodes": {
                         "id": {},
                         "status": {},
-                        "total": {}
+                        "costItems": {
+                            "nodes": {
+                                "price": {}
+                            }
+                        }
                     }
                 }
             }
@@ -291,7 +317,9 @@ def get_financial_summary():
     try:
         proposals = proposals_result.get('organization', {}).get('documents', {}).get('nodes', [])
         for p in proposals:
-            total = float(p.get('total', 0) or 0)
+            # Calculate total from costItems
+            cost_items = p.get('costItems', {}).get('nodes', [])
+            total = sum(float(item.get('price', 0) or 0) for item in cost_items)
             status = (p.get('status') or '').lower()
             if status in ['pending', 'sent', 'draft']:
                 summary['proposals_pending'] += 1
@@ -305,12 +333,16 @@ def get_financial_summary():
     try:
         invoices = invoices_result.get('organization', {}).get('documents', {}).get('nodes', [])
         for i in invoices:
-            total = float(i.get('total', 0) or 0)
+            # Calculate total from costItems
+            cost_items = i.get('costItems', {}).get('nodes', [])
+            total = sum(float(item.get('price', 0) or 0) for item in cost_items)
             status = (i.get('status') or '').lower()
-            if status in ['sent', 'pending', 'overdue']:
+            # pending/approved = outstanding (not yet paid)
+            # denied might mean cancelled, paid means paid
+            if status in ['pending', 'approved', 'sent']:
                 summary['invoices_outstanding'] += 1
                 summary['invoices_outstanding_value'] += total
-            elif status in ['paid', 'complete']:
+            elif status in ['paid', 'complete', 'closed']:
                 summary['invoices_paid'] += 1
                 summary['invoices_paid_value'] += total
     except (KeyError, TypeError):
