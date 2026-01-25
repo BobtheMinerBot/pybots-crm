@@ -252,6 +252,9 @@ def get_recent_documents(doc_type='proposal', limit=10):
 
 def get_financial_summary():
     """Get financial summary - proposal totals, invoice totals, etc."""
+    # Use smaller batch size to avoid 413 errors (response too large with costItems)
+    BATCH_SIZE = 25
+    
     # Get proposals (customerOrder in JobTread)
     proposals_query = {
         "query": {
@@ -260,7 +263,8 @@ def get_financial_summary():
                 "documents": {
                     "$": {
                         "where": ["type", "=", "customerOrder"],
-                        "size": 100
+                        "size": BATCH_SIZE,
+                        "sortBy": [{"field": "createdAt", "order": "desc"}]
                     },
                     "nodes": {
                         "id": {},
@@ -284,7 +288,8 @@ def get_financial_summary():
                 "documents": {
                     "$": {
                         "where": ["type", "=", "customerInvoice"],
-                        "size": 100
+                        "size": BATCH_SIZE,
+                        "sortBy": [{"field": "createdAt", "order": "desc"}]
                     },
                     "nodes": {
                         "id": {},
