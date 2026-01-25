@@ -11,7 +11,7 @@
             <p class="dashboard-subtitle">Manage and track your sales pipeline</p>
         </div>
         <div class="dashboard-actions">
-            <a href="{{ url_for('import_leads') }}" class="btn btn-secondary" title="Import from CSV">
+            <a href="{{ url_for('import_leads') }}" class="btn btn-secondary hide-mobile" title="Import from CSV">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
                     <polyline points="17 8 12 3 7 8"></polyline>
@@ -1547,6 +1547,55 @@
             justify-content: center;
             padding: var(--space-2) var(--space-3);
             font-size: 0.875rem;
+
+        /* Hide import button on mobile */
+        .hide-mobile {
+            display: none !important;
+        }
+
+        /* Keep checkbox but make it bigger touch target */
+        .checkbox-col {
+            width: 48px !important;
+            padding: var(--space-2) !important;
+        }
+
+        .checkbox-col input {
+            width: 22px !important;
+            height: 22px !important;
+        }
+
+        /* Make quick action buttons bigger and more tappable */
+        .quick-actions {
+            display: flex !important;
+            gap: 8px !important;
+        }
+
+        .quick-action-btn {
+            width: 44px !important;
+            height: 44px !important;
+            min-width: 44px !important;
+            min-height: 44px !important;
+            padding: 10px !important;
+            border-radius: 8px !important;
+            background: var(--gray-100, #f3f4f6) !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+        }
+
+        .quick-action-btn svg {
+            width: 20px !important;
+            height: 20px !important;
+        }
+
+        .quick-action-btn:active {
+            background: var(--gray-200, #e5e7eb) !important;
+        }
+
+        /* Actions column needs more width */
+        .actions-col {
+            min-width: 180px !important;
+            padding: var(--space-2) !important;
         }
 
         /* Toolbar card - full width, no overflow */
