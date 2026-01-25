@@ -247,6 +247,13 @@ def init_db():
             db.execute("ALTER TABLE custom_fields ADD COLUMN option_colors TEXT")
             print("Added option_colors column to custom_fields table")
 
+        # Migration: Add bg_color column to statuses if it doesn't exist
+        try:
+            db.execute("SELECT bg_color FROM statuses LIMIT 1")
+        except:
+            db.execute("ALTER TABLE statuses ADD COLUMN bg_color TEXT DEFAULT '#f3f4f6'")
+            print("Added bg_color column to statuses table")
+
         # Migration: Populate default statuses with Monday.com colors
         existing_statuses = db.execute("SELECT id FROM statuses LIMIT 1").fetchone()
         if not existing_statuses:
@@ -1482,7 +1489,7 @@ def get_all_statuses():
 def get_status_colors():
     """Get status colors as dict for CSS injection"""
     statuses = get_all_statuses()
-    return {s['name']: {'color': s['color'], 'bg': s['bg_color']} for s in statuses}
+    return {s['name']: {'color': s.get('color', '#6b7280'), 'bg': s.get('bg_color', '#f3f4f6')} for s in statuses}
 
 def get_google_places_api_key():
     """Get Google Places API key from app_settings"""
