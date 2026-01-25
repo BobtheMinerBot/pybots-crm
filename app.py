@@ -273,7 +273,8 @@ def init_db():
                 ('Proposal Sent', '#00C875', '#E5FBF3', 4),
                 ('Follow Up', '#FF158A', '#FFE5F0', 5),
                 ('Nurturing', '#579BFC', '#E5F0FF', 6),
-                ('Lost', '#E2445C', '#FFE5E9', 7)
+                ('Won', '#00C875', '#DCFCE7', 7),
+                ('Lost', '#E2445C', '#FFE5E9', 8)
             ]
             for name, color, bg_color, seq in default_statuses:
                 db.execute(
@@ -391,6 +392,31 @@ def init_db():
                     pass
             print("Populated default handoff triggers")
 
+        # Migration: Add JobTread columns to leads table
+        try:
+            db.execute("SELECT jobtread_customer_id FROM leads LIMIT 1")
+        except:
+            db.execute("ALTER TABLE leads ADD COLUMN jobtread_customer_id TEXT")
+            db.execute("ALTER TABLE leads ADD COLUMN jobtread_job_id TEXT")
+            print("Added jobtread_customer_id and jobtread_job_id columns to leads table")
+
+        # Migration: Add "Won" status if missing
+        won_exists = db.execute("SELECT id FROM statuses WHERE name = 'Won'").fetchone()
+        if not won_exists:
+            max_seq = db.execute("SELECT MAX(sequence) as m FROM statuses").fetchone()
+            seq = (max_seq['m'] or 0) + 1
+            # Insert Won before Lost
+            lost_status = db.execute("SELECT sequence FROM statuses WHERE name = 'Lost'").fetchone()
+            if lost_status:
+                # Bump Lost's sequence
+                db.execute("UPDATE statuses SET sequence = ? WHERE name = 'Lost'", [lost_status['sequence'] + 1])
+                seq = lost_status['sequence']
+            db.execute(
+                "INSERT INTO statuses (name, color, bg_color, sequence) VALUES (?, ?, ?, ?)",
+                ('Won', '#00C875', '#DCFCE7', seq)
+            )
+            print("Added 'Won' status to pipeline")
+
         # Create default admin if no users exist
         existing = query_db('SELECT id FROM users LIMIT 1', one=True)
         if not existing:
@@ -409,6 +435,7 @@ STATUSES = [
     'Proposal Sent',
     'Follow Up',
     'Nurturing',
+    'Won',
     'Lost'
 ]
 
@@ -499,6 +526,132 @@ def lead_to_dict(lead):
         'created_at': lead['created_at'],
         'updated_at': lead['updated_at']
     }
+
+def trigger_jobtread_handoff(lead_id, lead):
+    """
+    Trigger JobTread handoff when a lead is marked as Won.
+    Creates Customer and Job in JobTread if not already linked.
+    """
+    import requests
+    
+    JOBTREAD_API_KEY = os.environ.get('JOBTREAD_API_KEY', '')
+    JOBTREAD_ORG_ID = os.environ.get('JOBTREAD_ORG_ID', '22NiF3LC97Ff')
+    
+    if not JOBTREAD_API_KEY:
+        print(f"[JobTread Handoff] No API key configured, skipping handoff for lead {lead_id}")
+        return False
+    
+    try:
+        # Check if lead already has a JobTread ID
+        jobtread_id = lead.get('jobtread_id') or lead.get('jobtread_customer_id')
+        
+        if jobtread_id:
+            print(f"[JobTread Handoff] Lead {lead_id} already linked to JobTread: {jobtread_id}")
+            return True
+        
+        # GraphQL endpoint
+        url = "https://api.jobtread.com/graphql"
+        headers = {
+            "Authorization": f"Bearer {JOBTREAD_API_KEY}",
+            "Content-Type": "application/json"
+        }
+        
+        # Step 1: Create Customer
+        customer_mutation = """
+        mutation CreateCustomer($input: CreateAccountInput!) {
+            createAccount(input: $input) { id name }
+        }
+        """
+        customer_input = {
+            "organizationId": JOBTREAD_ORG_ID,
+            "name": lead['name'],
+            "type": "CUSTOMER"
+        }
+        if lead.get('email'):
+            customer_input["emails"] = [{"address": lead['email']}]
+        if lead.get('phone'):
+            customer_input["phones"] = [{"number": lead['phone']}]
+        
+        resp = requests.post(url, headers=headers, json={
+            "query": customer_mutation,
+            "variables": {"input": customer_input}
+        }, timeout=30)
+        
+        result = resp.json()
+        if 'errors' in result:
+            print(f"[JobTread Handoff] Error creating customer: {result['errors']}")
+            return False
+        
+        customer_id = result['data']['createAccount']['id']
+        print(f"[JobTread Handoff] Created customer {customer_id} for lead {lead_id}")
+        
+        # Step 2: Create Location
+        location_mutation = """
+        mutation CreateLocation($input: CreateLocationInput!) {
+            createLocation(input: $input) { id name }
+        }
+        """
+        location_input = {
+            "accountId": customer_id,
+            "name": lead.get('address', lead['name']),
+            "address": lead.get('address', '')
+        }
+        
+        resp = requests.post(url, headers=headers, json={
+            "query": location_mutation,
+            "variables": {"input": location_input}
+        }, timeout=30)
+        
+        result = resp.json()
+        location_id = result.get('data', {}).get('createLocation', {}).get('id')
+        
+        # Step 3: Create Job
+        job_mutation = """
+        mutation CreateJob($input: CreateJobInput!) {
+            createJob(input: $input) { id name number }
+        }
+        """
+        job_input = {
+            "accountId": customer_id,
+            "name": f"{lead['name']} - {lead.get('job_type', 'Project')}",
+            "type": lead.get('job_type', 'Other')
+        }
+        if location_id:
+            job_input["locationId"] = location_id
+        
+        resp = requests.post(url, headers=headers, json={
+            "query": job_mutation,
+            "variables": {"input": job_input}
+        }, timeout=30)
+        
+        result = resp.json()
+        if 'errors' in result:
+            print(f"[JobTread Handoff] Error creating job: {result['errors']}")
+            # Still save the customer ID
+            execute_db('UPDATE leads SET jobtread_customer_id = ? WHERE id = ?', [customer_id, lead_id])
+            return False
+        
+        job_id = result['data']['createJob']['id']
+        job_number = result['data']['createJob'].get('number', '')
+        print(f"[JobTread Handoff] Created job {job_id} (#{job_number}) for lead {lead_id}")
+        
+        # Save JobTread IDs to lead
+        execute_db(
+            'UPDATE leads SET jobtread_customer_id = ?, jobtread_job_id = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+            [customer_id, job_id, lead_id]
+        )
+        
+        # Log activity
+        execute_db(
+            'INSERT INTO activities (lead_id, user_id, content, activity_type) VALUES (?, ?, ?, ?)',
+            (lead_id, 1, f'🎉 Won! Created in JobTread - Customer: {customer_id}, Job: #{job_number}', 'handoff')
+        )
+        
+        return True
+        
+    except Exception as e:
+        print(f"[JobTread Handoff] Error: {e}")
+        return False
 
 # Routes
 @app.route('/')
@@ -1190,6 +1343,10 @@ def update_status(id):
             'INSERT INTO activities (lead_id, user_id, content) VALUES (?, ?, ?)',
             (id, session.get('user_id'), f'Status changed from "{old_status}" to "{new_status}"')
         )
+        
+        # Trigger JobTread handoff when lead is Won
+        if new_status == 'Won' and old_status != 'Won':
+            trigger_jobtread_handoff(id, lead)
 
     # Return JSON for AJAX requests
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
