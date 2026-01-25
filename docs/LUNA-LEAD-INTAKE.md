@@ -145,7 +145,7 @@ After confirming with Jaasiel, I:
 ## Calendar Integration
 
 If scheduling site visit:
-1. Check calendar for available slots (GOG_KEYRING_PASSWORD="isla2026")
+1. Check calendar for available slots (GOG_KEYRING_PASSWORD="${GOG_KEYRING_PASSWORD}")
 2. Suggest 2-3 options
 3. Once confirmed, create event with:
    - Title: "Site Visit - [Client Name] - [Service]"

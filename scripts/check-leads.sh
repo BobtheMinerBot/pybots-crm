@@ -2,7 +2,7 @@
 # ISLA CRM Lead Monitor
 # Checks for new form submissions and outputs lead data
 
-export GOG_KEYRING_PASSWORD="isla2026"
+export GOG_KEYRING_PASSWORD="${GOG_KEYRING_PASSWORD}"
 ACCOUNT="jaasiel@islabuilders.com"
 LEADS_FILE="/Users/jb/clawd/projects/isla-crm/data/leads.json"
 SEEN_FILE="/Users/jb/clawd/projects/isla-crm/data/seen-emails.txt"
