@@ -3228,6 +3228,88 @@ def api_sync_statuses():
     
     return jsonify({'success': True, 'created': created, 'updated': updated})
 
+
+@app.route('/api/sync/views', methods=['POST'])
+def api_sync_views():
+    """Sync views with API key authentication"""
+    import json as json_module
+    
+    # Check for API key authentication
+    api_key = request.headers.get('X-API-Key') or request.args.get('api_key')
+    if not api_key:
+        return jsonify({'error': 'API key required'}), 401
+    
+    settings = query_db('SELECT value FROM app_settings WHERE key = ?', ['api_key'], one=True)
+    if not settings or settings['value'] != api_key:
+        return jsonify({'error': 'Invalid API key'}), 401
+
+    data = request.get_json() or {}
+    views = data.get('views', [])
+    
+    created = 0
+    updated = 0
+    
+    # Get custom field ID mapping
+    custom_fields = query_db('SELECT id, field_key FROM custom_fields')
+    field_key_to_id = {f['field_key']: f['id'] for f in custom_fields}
+    
+    for view in views:
+        name = view.get('name', '').strip()
+        if not name:
+            continue
+            
+        default_fields = view.get('default_fields', [])
+        custom_field_keys = view.get('custom_fields', [])  # List of field_keys
+        
+        # Convert field_keys to IDs
+        custom_field_ids = []
+        for key in custom_field_keys:
+            if key in field_key_to_id:
+                custom_field_ids.append(field_key_to_id[key])
+        
+        existing = query_db('SELECT id FROM views WHERE name = ?', [name], one=True)
+        
+        if existing:
+            view_id = existing['id']
+            # Update view
+            execute_db('UPDATE views SET default_fields = ? WHERE id = ?',
+                      [json_module.dumps(default_fields), view_id])
+            # Clear and re-add field associations
+            execute_db('DELETE FROM view_fields WHERE view_id = ?', [view_id])
+            updated += 1
+        else:
+            # Create new view
+            view_id = execute_db('''
+                INSERT INTO views (name, default_fields, created_by)
+                VALUES (?, ?, ?)
+            ''', [name, json_module.dumps(default_fields), None])
+            created += 1
+        
+        # Add custom field associations
+        for idx, field_id in enumerate(custom_field_ids):
+            execute_db('''
+                INSERT INTO view_fields (view_id, field_id, sequence)
+                VALUES (?, ?, ?)
+            ''', [view_id, field_id, idx])
+    
+    return jsonify({'success': True, 'created': created, 'updated': updated})
+
+
+@app.route('/api/custom-fields', methods=['GET'])
+def api_get_custom_fields():
+    """Get all custom fields (for mapping)"""
+    api_key = request.headers.get('X-API-Key') or request.args.get('api_key')
+    if api_key:
+        settings = query_db('SELECT value FROM app_settings WHERE key = ?', ['api_key'], one=True)
+        if not settings or settings['value'] != api_key:
+            return jsonify({'error': 'Invalid API key'}), 401
+    elif 'user_id' not in session:
+        return jsonify({'error': 'Authentication required'}), 401
+
+    fields = get_custom_fields()
+    return jsonify(fields)
+
+
 # Auto-run database migrations on startup (works on both local and WSGI)
 # This ensures tables are always in sync with the code
 init_db()
