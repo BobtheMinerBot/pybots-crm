@@ -1,12 +1,12 @@
 {% extends 'base.html' %}
 
-{% block title %}Import Customers - CRM{% endblock %}
+{% block title %}Import Leads - CRM{% endblock %}
 
 {% block content %}
 <div class="container">
     <div class="card">
         <div class="card-header">
-            <h2>📤 Import Customers from CSV</h2>
+            <h2>📤 Import Leads from CSV</h2>
             <a href="{{ url_for('leads') }}" class="btn btn-secondary">← Back to Leads</a>
         </div>
         <div class="card-body">
@@ -15,10 +15,10 @@
                 style="background: var(--gray-50); padding: 1rem; border-radius: 0.5rem; margin-bottom: 1.5rem;">
                 <h3 style="font-size: 1rem; margin-bottom: 0.5rem;">📋 How to Import</h3>
                 <ol style="margin-left: 1.5rem; color: var(--gray-600); font-size: 0.875rem;">
-                    <li>Upload your CSV file (e.g., Customer Database export from SmartSuite)</li>
-                    <li>Map CSV columns to database fields</li>
+                    <li>Upload your CSV file (exports from SmartSuite, JobTread, Excel, etc.)</li>
+                    <li>Map CSV columns to CRM fields (we'll auto-detect what we can)</li>
                     <li>Choose how to handle duplicates</li>
-                    <li>Preview your data before importing</li>
+                    <li>Preview and import!</li>
                 </ol>
             </div>
 
@@ -31,8 +31,7 @@
                         style="border: 2px dashed var(--gray-300); border-radius: 0.5rem; padding: 2rem; text-align: center; cursor: pointer; transition: all 0.2s;">
                         <input type="file" name="csv_file" id="csvFile" accept=".csv" style="display: none;" required>
                         <div class="upload-icon" style="font-size: 2rem; margin-bottom: 0.5rem;">📁</div>
-                        <p style="color: var(--gray-600); margin-bottom: 0.5rem;">Drag and drop your CSV file here, or
-                            click to browse</p>
+                        <p style="color: var(--gray-600); margin-bottom: 0.5rem;">Drag and drop your CSV file here, or click to browse</p>
                         <p id="fileName" style="color: var(--primary); font-weight: 500;"></p>
                     </div>
                 </div>
@@ -42,11 +41,21 @@
                     <div class="form-group">
                         <label class="form-label">Step 2: Map Columns</label>
                         <p style="color: var(--gray-600); font-size: 0.875rem; margin-bottom: 1rem;">
-                            Match your CSV columns to the corresponding database fields. Select "Skip" for columns you
-                            don't want to import.
+                            Match your CSV columns to CRM fields. We've auto-detected some mappings — review and adjust as needed.
                         </p>
+                        
+                        <!-- Mapping Stats -->
+                        <div id="mappingStats" style="display: flex; gap: 1rem; margin-bottom: 1rem; flex-wrap: wrap;">
+                            <span class="badge" style="background: var(--green-100, #dcfce7); color: var(--green-700, #15803d); padding: 0.25rem 0.75rem; border-radius: 1rem;">
+                                <span id="mappedCount">0</span> mapped
+                            </span>
+                            <span class="badge" style="background: var(--gray-100); color: var(--gray-600); padding: 0.25rem 0.75rem; border-radius: 1rem;">
+                                <span id="skippedCount">0</span> skipped
+                            </span>
+                        </div>
+                        
                         <div id="columnMappings" class="mapping-grid"
-                            style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem;">
+                            style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1rem;">
                             <!-- Mappings will be inserted here -->
                         </div>
                     </div>
@@ -54,18 +63,21 @@
                     <!-- Step 3: Import Options -->
                     <div class="form-group" style="margin-top: 1.5rem;">
                         <label class="form-label">Step 3: Duplicate Handling</label>
+                        <p style="color: var(--gray-500); font-size: 0.8125rem; margin-bottom: 0.75rem;">
+                            Duplicates are matched by email first, then by name.
+                        </p>
                         <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
-                            <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                            <label class="radio-option" style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; padding: 0.5rem 1rem; border: 1px solid var(--gray-200); border-radius: 0.375rem;">
                                 <input type="radio" name="duplicate_action" value="skip" checked>
                                 <span>Skip duplicates</span>
                             </label>
-                            <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                            <label class="radio-option" style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; padding: 0.5rem 1rem; border: 1px solid var(--gray-200); border-radius: 0.375rem;">
                                 <input type="radio" name="duplicate_action" value="update">
-                                <span>Update existing records</span>
+                                <span>Update existing</span>
                             </label>
-                            <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                            <label class="radio-option" style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; padding: 0.5rem 1rem; border: 1px solid var(--gray-200); border-radius: 0.375rem;">
                                 <input type="radio" name="duplicate_action" value="create">
-                                <span>Create new (allow duplicates)</span>
+                                <span>Create anyway</span>
                             </label>
                         </div>
                     </div>
@@ -74,7 +86,7 @@
                     <div class="form-group" style="margin-top: 1.5rem;">
                         <label class="form-label">Preview (first 5 rows)</label>
                         <div style="overflow-x: auto; border: 1px solid var(--gray-200); border-radius: 0.5rem;">
-                            <table id="previewTable" class="grid-table">
+                            <table id="previewTable" class="grid-table" style="min-width: 100%;">
                                 <thead id="previewHead"></thead>
                                 <tbody id="previewBody"></tbody>
                             </table>
@@ -83,12 +95,12 @@
                     </div>
 
                     <!-- Submit -->
-                    <div style="margin-top: 1.5rem; display: flex; gap: 1rem;">
-                        <button type="submit" class="btn btn-primary">
-                            📥 Import Customers
+                    <div style="margin-top: 1.5rem; display: flex; gap: 1rem; flex-wrap: wrap;">
+                        <button type="submit" class="btn btn-primary" id="importBtn">
+                            📥 Import Leads
                         </button>
                         <button type="button" class="btn btn-secondary" onclick="resetForm()">
-                            Reset
+                            🔄 Reset
                         </button>
                     </div>
                 </div>
@@ -101,24 +113,81 @@
     .file-upload-area:hover,
     .file-upload-area.dragover {
         border-color: var(--primary);
-        background: var(--primary-light);
+        background: var(--primary-light, #e6f4ff);
     }
 
     .mapping-item {
         background: white;
         border: 1px solid var(--gray-200);
-        border-radius: 0.375rem;
-        padding: 0.75rem;
+        border-radius: 0.5rem;
+        padding: 1rem;
+        transition: all 0.2s;
+    }
+    
+    .mapping-item:hover {
+        border-color: var(--primary);
+    }
+    
+    .mapping-item.mapped {
+        border-left: 3px solid var(--green-500, #00C875);
+    }
+    
+    .mapping-item.skipped {
+        opacity: 0.6;
     }
 
-    .mapping-item label {
-        font-size: 0.8125rem;
-        color: var(--gray-600);
-        margin-bottom: 0.25rem;
+    .mapping-item .csv-column {
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: var(--gray-700);
+        margin-bottom: 0.5rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    
+    .mapping-item .csv-column .sample {
+        font-weight: normal;
+        color: var(--gray-500);
+        font-size: 0.75rem;
+        max-width: 150px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
     }
 
     .mapping-item select {
         width: 100%;
+        padding: 0.5rem;
+        border: 1px solid var(--gray-300);
+        border-radius: 0.375rem;
+        font-size: 0.875rem;
+    }
+    
+    .mapping-item select:focus {
+        outline: none;
+        border-color: var(--primary);
+        box-shadow: 0 0 0 2px var(--primary-light, #e6f4ff);
+    }
+
+    .radio-option:has(input:checked) {
+        border-color: var(--primary);
+        background: var(--primary-light, #e6f4ff);
+    }
+
+    #previewTable th {
+        background: var(--gray-50);
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    #previewTable td {
+        font-size: 0.8125rem;
+        max-width: 200px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
     }
 
     /* Mobile responsive styles */
@@ -146,19 +215,16 @@
             grid-template-columns: 1fr !important;
         }
 
-        /* Duplicate options stack */
         div[style*="display: flex; gap: 1rem; flex-wrap: wrap"] {
             flex-direction: column;
         }
 
-        /* Submit buttons stack */
-        div[style*="margin-top: 1.5rem; display: flex; gap: 1rem"] {
-            flex-direction: column;
+        .radio-option {
+            width: 100%;
         }
 
-        div[style*="margin-top: 1.5rem; display: flex; gap: 1rem"] .btn {
+        #importBtn {
             width: 100%;
-            justify-content: center;
         }
     }
 </style>
@@ -172,9 +238,17 @@
     const previewHead = document.getElementById('previewHead');
     const previewBody = document.getElementById('previewBody');
     const totalRows = document.getElementById('totalRows');
+    const mappedCount = document.getElementById('mappedCount');
+    const skippedCount = document.getElementById('skippedCount');
 
+    // Field definitions from server
     const leadFields = {{ lead_fields | tojson }};
     const defaultMappings = {{ default_mappings | tojson }};
+    
+    // Store parsed data
+    let csvHeaders = [];
+    let csvRows = [];
+    let autoMappings = {};
 
     // Drag and drop handling
     dropZone.addEventListener('click', () => csvFile.click());
@@ -214,25 +288,31 @@
             if (headerLine.charCodeAt(0) === 0xFEFF) {
                 headerLine = headerLine.slice(1);
             }
-            const headers = parseCSVLine(headerLine);
+            csvHeaders = parseCSVLine(headerLine);
 
-            // Parse preview rows
-            const rows = [];
-            for (let i = 1; i < Math.min(6, lines.length); i++) {
+            // Parse all rows
+            csvRows = [];
+            for (let i = 1; i < lines.length; i++) {
                 const values = parseCSVLine(lines[i]);
                 const row = {};
-                headers.forEach((h, idx) => row[h] = values[idx] || '');
-                rows.push(row);
+                csvHeaders.forEach((h, idx) => row[h] = values[idx] || '');
+                csvRows.push(row);
             }
 
+            // Auto-detect mappings
+            autoMappings = detectMappings(csvHeaders);
+
             // Build mapping UI
-            buildMappingUI(headers);
+            buildMappingUI(csvHeaders, csvRows);
 
             // Build preview table
-            buildPreviewTable(headers, rows);
+            buildPreviewTable(csvHeaders, csvRows.slice(0, 5));
 
-            totalRows.textContent = `Total rows in file: ${lines.length - 1}`;
+            totalRows.textContent = `Total rows in file: ${csvRows.length}`;
             mappingSection.style.display = 'block';
+            
+            // Scroll to mapping section
+            mappingSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
         };
         reader.readAsText(file);
     }
@@ -245,7 +325,12 @@
         for (let i = 0; i < line.length; i++) {
             const char = line[i];
             if (char === '"') {
-                inQuotes = !inQuotes;
+                if (inQuotes && line[i + 1] === '"') {
+                    current += '"';
+                    i++;
+                } else {
+                    inQuotes = !inQuotes;
+                }
             } else if (char === ',' && !inQuotes) {
                 result.push(current.trim());
                 current = '';
@@ -257,27 +342,172 @@
         return result;
     }
 
-    function buildMappingUI(headers) {
-        columnMappings.innerHTML = '';
+    function detectMappings(headers) {
+        const mappings = {};
+        const usedFields = new Set();
+        
+        // First pass: exact matches
         headers.forEach(header => {
-            const autoMapping = defaultMappings[header] || 'skip';
+            const headerLower = header.toLowerCase().trim();
+            
+            // Check default mappings first
+            if (defaultMappings[header]) {
+                mappings[header] = defaultMappings[header];
+                usedFields.add(defaultMappings[header]);
+                return;
+            }
+            
+            // Check lead fields for exact match
+            for (const field of leadFields) {
+                if (usedFields.has(field.key)) continue;
+                
+                const fieldLabel = field.label.toLowerCase();
+                const fieldKey = field.key.toLowerCase().replace('custom_', '');
+                
+                if (headerLower === fieldLabel || headerLower === fieldKey) {
+                    mappings[header] = field.key;
+                    usedFields.add(field.key);
+                    return;
+                }
+            }
+        });
+        
+        // Second pass: fuzzy matches
+        const fuzzyMatches = {
+            'name': ['name', 'customer', 'client', 'contact', 'full name', 'customer name'],
+            'email': ['email', 'e-mail', 'mail'],
+            'phone': ['phone', 'telephone', 'tel', 'mobile', 'cell'],
+            'address': ['address', 'location', 'site', 'street'],
+            'job_type': ['job type', 'type', 'service', 'work type'],
+            'property_type': ['property type', 'property'],
+            'status': ['status', 'stage', 'state'],
+            'notes': ['notes', 'note', 'comments', 'description', 'scope']
+        };
+        
+        headers.forEach(header => {
+            if (mappings[header]) return; // Already mapped
+            
+            const headerNorm = header.toLowerCase().replace(/[_-]/g, ' ').trim();
+            
+            for (const [fieldKey, keywords] of Object.entries(fuzzyMatches)) {
+                if (usedFields.has(fieldKey)) continue;
+                
+                for (const kw of keywords) {
+                    if (headerNorm.includes(kw) || kw.includes(headerNorm)) {
+                        mappings[header] = fieldKey;
+                        usedFields.add(fieldKey);
+                        return;
+                    }
+                }
+            }
+            
+            // Check custom fields
+            for (const field of leadFields) {
+                if (!field.is_custom || usedFields.has(field.key)) continue;
+                
+                const fieldLabel = field.label.toLowerCase().replace(/[_-]/g, ' ');
+                if (headerNorm.includes(fieldLabel) || fieldLabel.includes(headerNorm)) {
+                    mappings[header] = field.key;
+                    usedFields.add(field.key);
+                    return;
+                }
+            }
+        });
+        
+        return mappings;
+    }
+
+    function buildMappingUI(headers, rows) {
+        columnMappings.innerHTML = '';
+        
+        // Get sample values for each column
+        const samples = {};
+        headers.forEach(h => {
+            for (const row of rows.slice(0, 3)) {
+                if (row[h] && row[h].trim()) {
+                    samples[h] = row[h].trim().substring(0, 50);
+                    break;
+                }
+            }
+        });
+        
+        headers.forEach(header => {
+            const autoMapping = autoMappings[header] || 'skip';
+            const isMapped = autoMapping !== 'skip';
+            
             const div = document.createElement('div');
-            div.className = 'mapping-item';
+            div.className = `mapping-item ${isMapped ? 'mapped' : 'skipped'}`;
             div.innerHTML = `
-                <label>${header}</label>
-                <select name="mapping_${header}" class="form-control">
-                    <option value="skip">-- Skip --</option>
-                    ${leadFields.map(f => `<option value="${f}" ${autoMapping === f ? 'selected' : ''}>${f}</option>`).join('')}
+                <div class="csv-column">
+                    <span>${escapeHtml(header)}</span>
+                    ${samples[header] ? `<span class="sample">"${escapeHtml(samples[header])}"</span>` : ''}
+                </div>
+                <select name="mapping_${escapeHtml(header)}" class="form-control mapping-select" data-header="${escapeHtml(header)}">
+                    <option value="skip">-- Skip this column --</option>
+                    <optgroup label="Default Fields">
+                        ${leadFields.filter(f => !f.is_custom).map(f => 
+                            `<option value="${f.key}" ${autoMapping === f.key ? 'selected' : ''}>${f.label}${f.required ? ' *' : ''}</option>`
+                        ).join('')}
+                    </optgroup>
+                    ${leadFields.some(f => f.is_custom) ? `
+                    <optgroup label="Custom Fields">
+                        ${leadFields.filter(f => f.is_custom).map(f => 
+                            `<option value="${f.key}" ${autoMapping === f.key ? 'selected' : ''}>${f.label}</option>`
+                        ).join('')}
+                    </optgroup>
+                    ` : ''}
                 </select>
             `;
             columnMappings.appendChild(div);
+            
+            // Add change listener
+            const select = div.querySelector('select');
+            select.addEventListener('change', () => {
+                updateMappingState(div, select.value);
+                updateMappingCounts();
+            });
         });
+        
+        updateMappingCounts();
+    }
+    
+    function updateMappingState(div, value) {
+        div.classList.remove('mapped', 'skipped');
+        div.classList.add(value === 'skip' ? 'skipped' : 'mapped');
+    }
+    
+    function updateMappingCounts() {
+        const selects = document.querySelectorAll('.mapping-select');
+        let mapped = 0, skipped = 0;
+        selects.forEach(s => {
+            if (s.value === 'skip') skipped++;
+            else mapped++;
+        });
+        mappedCount.textContent = mapped;
+        skippedCount.textContent = skipped;
+    }
+    
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
     }
 
     function buildPreviewTable(headers, rows) {
-        previewHead.innerHTML = '<tr>' + headers.map(h => `<th>${h}</th>`).join('') + '</tr>';
+        // Show mapped field names in header
+        const getMappedName = (header) => {
+            const mapping = autoMappings[header];
+            if (!mapping || mapping === 'skip') return header;
+            const field = leadFields.find(f => f.key === mapping);
+            return field ? `${header} → ${field.label}` : header;
+        };
+        
+        previewHead.innerHTML = '<tr>' + headers.map(h => 
+            `<th title="${escapeHtml(h)}">${escapeHtml(getMappedName(h))}</th>`
+        ).join('') + '</tr>';
+        
         previewBody.innerHTML = rows.map(row =>
-            '<tr>' + headers.map(h => `<td>${row[h] || ''}</td>`).join('') + '</tr>'
+            '<tr>' + headers.map(h => `<td title="${escapeHtml(row[h] || '')}">${escapeHtml(row[h] || '')}</td>`).join('') + '</tr>'
         ).join('');
     }
 
@@ -288,6 +518,25 @@
         columnMappings.innerHTML = '';
         previewHead.innerHTML = '';
         previewBody.innerHTML = '';
+        csvHeaders = [];
+        csvRows = [];
+        autoMappings = {};
     }
+    
+    // Form submission validation
+    document.getElementById('importForm').addEventListener('submit', function(e) {
+        // Check if at least 'name' is mapped
+        const selects = document.querySelectorAll('.mapping-select');
+        let hasName = false;
+        selects.forEach(s => {
+            if (s.value === 'name') hasName = true;
+        });
+        
+        if (!hasName) {
+            e.preventDefault();
+            alert('Please map at least the "Name" field to import leads.');
+            return false;
+        }
+    });
 </script>
 {% endblock %}

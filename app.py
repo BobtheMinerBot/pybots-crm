@@ -2722,7 +2722,7 @@ def github_deploy():
 
 # ==================== CSV IMPORT ====================
 
-# Default column mappings for Customer CSV
+# Default column mappings for Customer CSV (SmartSuite format)
 CUSTOMER_CSV_MAPPINGS = {
     'Customer Name': 'name',
     'Customer Email': 'email',
@@ -2730,13 +2730,87 @@ CUSTOMER_CSV_MAPPINGS = {
     'Customer Address': 'address',
     'Property Type': 'property_type',
     'Customer Stage': 'status',
-    'Job Scope': 'notes'
+    'Job Scope': 'notes',
+    # Common variations
+    'Name': 'name',
+    'Email': 'email',
+    'Phone': 'phone',
+    'Address': 'address',
+    'Job Type': 'job_type',
+    'Status': 'status',
+    'Stage': 'status',
+    'Notes': 'notes',
+    'Full Name': 'name',
+    'Contact Name': 'name',
+    'Contact Email': 'email',
+    'Contact Phone': 'phone',
+    'Project Address': 'address',
+    'Site Address': 'address',
 }
+
+# Default fields available for mapping
+DEFAULT_LEAD_FIELDS = [
+    {'key': 'name', 'label': 'Name', 'required': True},
+    {'key': 'email', 'label': 'Email'},
+    {'key': 'phone', 'label': 'Phone'},
+    {'key': 'address', 'label': 'Address'},
+    {'key': 'job_type', 'label': 'Job Type'},
+    {'key': 'property_type', 'label': 'Property Type'},
+    {'key': 'status', 'label': 'Status'},
+    {'key': 'notes', 'label': 'Notes'},
+]
+
+def auto_detect_mapping(csv_column, custom_fields):
+    """Smart auto-detection of column mappings"""
+    col_lower = csv_column.lower().strip()
+    col_normalized = col_lower.replace('_', ' ').replace('-', ' ')
+    
+    # Check exact matches in default mappings first
+    if csv_column in CUSTOMER_CSV_MAPPINGS:
+        return CUSTOMER_CSV_MAPPINGS[csv_column]
+    
+    # Check case-insensitive matches
+    for csv_col, field in CUSTOMER_CSV_MAPPINGS.items():
+        if csv_col.lower() == col_lower:
+            return field
+    
+    # Fuzzy matching for default fields
+    default_matches = {
+        'name': ['name', 'customer', 'client', 'contact', 'full name', 'customer name', 'client name'],
+        'email': ['email', 'e-mail', 'mail', 'email address'],
+        'phone': ['phone', 'telephone', 'tel', 'mobile', 'cell', 'phone number'],
+        'address': ['address', 'location', 'site', 'project address', 'street'],
+        'job_type': ['job type', 'type', 'service', 'work type', 'project type'],
+        'property_type': ['property type', 'property', 'building type'],
+        'status': ['status', 'stage', 'state', 'lead status', 'customer stage'],
+        'notes': ['notes', 'note', 'comments', 'description', 'details', 'job scope', 'scope'],
+    }
+    
+    for field, keywords in default_matches.items():
+        for keyword in keywords:
+            if keyword in col_normalized or col_normalized in keyword:
+                return field
+    
+    # Check custom fields
+    for cf in custom_fields:
+        cf_name_lower = cf['name'].lower()
+        cf_key_lower = cf['field_key'].lower()
+        # Exact or close match
+        if col_lower == cf_name_lower or col_lower == cf_key_lower:
+            return f"custom_{cf['id']}"
+        # Partial match
+        if cf_name_lower in col_normalized or col_normalized in cf_name_lower:
+            return f"custom_{cf['id']}"
+    
+    return 'skip'
 
 
 @app.route('/leads/import', methods=['GET', 'POST'])
 @login_required
 def import_leads():
+    # Get custom fields for mapping
+    custom_fields = get_custom_fields()
+    
     if request.method == 'POST':
         if 'csv_file' not in request.files:
             flash('No file uploaded', 'error')
@@ -2763,14 +2837,25 @@ def import_leads():
             
             # Get column mappings from form
             mappings = {}
+            custom_mappings = {}  # Separate dict for custom fields
+            
             for csv_col in reader.fieldnames:
                 mapped_field = request.form.get(f'mapping_{csv_col}')
                 if mapped_field and mapped_field != 'skip':
-                    mappings[csv_col] = mapped_field
+                    if mapped_field.startswith('custom_'):
+                        custom_mappings[csv_col] = mapped_field
+                    else:
+                        mappings[csv_col] = mapped_field
             
-            # If no mappings provided, use defaults
-            if not mappings:
-                mappings = {k: v for k, v in CUSTOMER_CSV_MAPPINGS.items() if k in reader.fieldnames}
+            # If no mappings provided, use auto-detection
+            if not mappings and not custom_mappings:
+                for csv_col in reader.fieldnames:
+                    detected = auto_detect_mapping(csv_col, custom_fields)
+                    if detected != 'skip':
+                        if detected.startswith('custom_'):
+                            custom_mappings[csv_col] = detected
+                        else:
+                            mappings[csv_col] = detected
             
             # Import settings
             duplicate_action = request.form.get('duplicate_action', 'skip')
@@ -2778,72 +2863,125 @@ def import_leads():
             imported = 0
             skipped = 0
             updated = 0
+            errors = []
             
-            for row in rows:
-                # Build lead data from mappings
-                lead_data = {}
-                for csv_col, db_field in mappings.items():
-                    if csv_col in row:
-                        lead_data[db_field] = row[csv_col].strip() if row[csv_col] else ''
-                
-                # Require at least a name
-                if not lead_data.get('name'):
-                    skipped += 1
-                    continue
-                
-                # Check for duplicates by email or name
-                existing = None
-                if lead_data.get('email'):
-                    existing = query_db(
-                        'SELECT id FROM leads WHERE email = ? AND deleted_at IS NULL',
-                        [lead_data['email']], one=True
-                    )
-                if not existing and lead_data.get('name'):
-                    existing = query_db(
-                        'SELECT id FROM leads WHERE name = ? AND deleted_at IS NULL',
-                        [lead_data['name']], one=True
-                    )
-                
-                if existing:
-                    if duplicate_action == 'skip':
+            for row_num, row in enumerate(rows, start=2):
+                try:
+                    # Build lead data from default mappings
+                    lead_data = {}
+                    for csv_col, db_field in mappings.items():
+                        if csv_col in row:
+                            lead_data[db_field] = row[csv_col].strip() if row[csv_col] else ''
+                    
+                    # Build custom field data
+                    custom_data = {}
+                    for csv_col, custom_field_ref in custom_mappings.items():
+                        if csv_col in row:
+                            field_id = int(custom_field_ref.replace('custom_', ''))
+                            custom_data[field_id] = row[csv_col].strip() if row[csv_col] else ''
+                    
+                    # Require at least a name
+                    if not lead_data.get('name'):
                         skipped += 1
                         continue
-                    elif duplicate_action == 'update':
-                        # Update existing record
-                        update_fields = []
-                        update_values = []
-                        for field, value in lead_data.items():
-                            if value:  # Only update non-empty values
-                                update_fields.append(f'{field} = ?')
-                                update_values.append(value)
-                        if update_fields:
-                            update_values.append(existing['id'])
-                            execute_db(
-                                f'UPDATE leads SET {", ".join(update_fields)}, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
-                                update_values
-                            )
+                    
+                    # Check for duplicates by email or name
+                    existing = None
+                    if lead_data.get('email'):
+                        existing = query_db(
+                            'SELECT id FROM leads WHERE email = ? AND deleted_at IS NULL',
+                            [lead_data['email']], one=True
+                        )
+                    if not existing and lead_data.get('name'):
+                        existing = query_db(
+                            'SELECT id FROM leads WHERE name = ? AND deleted_at IS NULL',
+                            [lead_data['name']], one=True
+                        )
+                    
+                    if existing:
+                        if duplicate_action == 'skip':
+                            skipped += 1
+                            continue
+                        elif duplicate_action == 'update':
+                            # Update existing record - default fields
+                            update_fields = []
+                            update_values = []
+                            valid_fields = ['name', 'email', 'phone', 'address', 'job_type', 'property_type', 'status', 'notes']
+                            for field, value in lead_data.items():
+                                if value and field in valid_fields:
+                                    update_fields.append(f'{field} = ?')
+                                    update_values.append(value)
+                            if update_fields:
+                                update_values.append(existing['id'])
+                                execute_db(
+                                    f'UPDATE leads SET {", ".join(update_fields)}, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+                                    update_values
+                                )
+                            
+                            # Update custom fields
+                            for field_id, value in custom_data.items():
+                                if value:
+                                    existing_val = query_db(
+                                        'SELECT id FROM field_values WHERE lead_id = ? AND field_id = ?',
+                                        [existing['id'], field_id], one=True
+                                    )
+                                    if existing_val:
+                                        execute_db(
+                                            'UPDATE field_values SET value = ? WHERE lead_id = ? AND field_id = ?',
+                                            [value, existing['id'], field_id]
+                                        )
+                                    else:
+                                        execute_db(
+                                            'INSERT INTO field_values (lead_id, field_id, value) VALUES (?, ?, ?)',
+                                            [existing['id'], field_id, value]
+                                        )
+                            
                             updated += 1
-                        continue
-                
-                # Insert new lead
-                execute_db(
-                    '''INSERT INTO leads (name, email, phone, address, job_type, property_type, status, notes, created_by)
-                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)''',
-                    (
-                        lead_data.get('name', ''),
-                        lead_data.get('email', ''),
-                        lead_data.get('phone', ''),
-                        lead_data.get('address', ''),
-                        lead_data.get('job_type', ''),
-                        lead_data.get('property_type', ''),
-                        lead_data.get('status', 'New Lead'),
-                        lead_data.get('notes', ''),
-                        session.get('user_id')
+                            continue
+                    
+                    # Insert new lead
+                    lead_id = execute_db(
+                        '''INSERT INTO leads (name, email, phone, address, job_type, property_type, status, notes, created_by)
+                           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)''',
+                        (
+                            lead_data.get('name', ''),
+                            lead_data.get('email', ''),
+                            lead_data.get('phone', ''),
+                            lead_data.get('address', ''),
+                            lead_data.get('job_type', ''),
+                            lead_data.get('property_type', ''),
+                            lead_data.get('status', 'New Lead'),
+                            lead_data.get('notes', ''),
+                            session.get('user_id')
+                        )
                     )
-                )
-                imported += 1
+                    
+                    # Insert custom field values
+                    for field_id, value in custom_data.items():
+                        if value:
+                            execute_db(
+                                'INSERT INTO field_values (lead_id, field_id, value) VALUES (?, ?, ?)',
+                                [lead_id, field_id, value]
+                            )
+                    
+                    # Log activity
+                    execute_db(
+                        'INSERT INTO activities (lead_id, user_id, content, activity_type) VALUES (?, ?, ?, ?)',
+                        (lead_id, session.get('user_id'), 'Lead imported from CSV', 'created')
+                    )
+                    
+                    imported += 1
+                    
+                except Exception as e:
+                    errors.append(f"Row {row_num}: {str(e)}")
+                    continue
             
-            flash(f'Import complete: {imported} added, {updated} updated, {skipped} skipped', 'success')
+            # Build result message
+            msg = f'Import complete: {imported} added, {updated} updated, {skipped} skipped'
+            if errors:
+                msg += f', {len(errors)} errors'
+            flash(msg, 'success' if not errors else 'warning')
+            
             return redirect(url_for('leads'))
             
         except Exception as e:
@@ -2851,9 +2989,20 @@ def import_leads():
             return redirect(request.url)
     
     # GET request - show import form
+    # Build field list with custom fields
+    all_fields = list(DEFAULT_LEAD_FIELDS)
+    for cf in custom_fields:
+        all_fields.append({
+            'key': f"custom_{cf['id']}",
+            'label': cf['name'],
+            'type': cf['field_type'],
+            'is_custom': True
+        })
+    
     return render_template('import_leads.html',
                          default_mappings=CUSTOMER_CSV_MAPPINGS,
-                         lead_fields=['name', 'email', 'phone', 'address', 'job_type', 'property_type', 'status', 'notes'])
+                         lead_fields=all_fields,
+                         custom_fields=custom_fields)
 
 @app.route('/leads/import/preview', methods=['POST'])
 @login_required
@@ -2861,6 +3010,9 @@ def preview_import():
     """AJAX endpoint to preview CSV data before import"""
     if 'csv_file' not in request.files:
         return jsonify({'error': 'No file uploaded'}), 400
+    
+    # Get custom fields for auto-detection
+    custom_fields = get_custom_fields()
     
     file = request.files['csv_file']
     if file.filename == '' or not file.filename.endswith('.csv'):
@@ -2874,11 +3026,12 @@ def preview_import():
         # Return headers and first 5 rows for preview
         preview_rows = rows[:5]
         
-        # Auto-detect mappings
+        # Auto-detect mappings using smart detection
         auto_mappings = {}
         for csv_col in reader.fieldnames:
-            if csv_col in CUSTOMER_CSV_MAPPINGS:
-                auto_mappings[csv_col] = CUSTOMER_CSV_MAPPINGS[csv_col]
+            detected = auto_detect_mapping(csv_col, custom_fields)
+            if detected != 'skip':
+                auto_mappings[csv_col] = detected
         
         return jsonify({
             'headers': reader.fieldnames,
