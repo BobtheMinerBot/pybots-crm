@@ -160,25 +160,66 @@ Since most projects are 1:1 with customers, merge customer data into project rec
 - Customer Stage → can inform Status
 
 **Consolidate Statuses:**
-Current SmartSuite has 5 separate stage fields:
-- Project Stage
-- Current Stage  
-- Sales Stage
-- Permit Stage
-- Management Stage
+Current SmartSuite has 5 separate stage fields that track different phases:
 
-Recommend: Single Status field with consolidated values:
+### Sales Stage Options (9):
+1. Approved - Ready to Forward *(transitions to permits/construction)*
+2. New Lead *(default)*
+3. Inspection Scheduled
+4. Estimating
+5. Proposal Sent
+6. Follow Up
+7. Nurturing
+8. Lost
+9. Null
+
+### Permit Stage Options (8):
+1. New Permit *(default)*
+2. Document Prep
+3. Out for Signature
+4. Waiting on Plans
+5. Submitted to Jurisdiction
+6. City Corrections
+7. Permit Issued
+8. Null
+
+### Management Stage Options (4+):
+1. Pre-Construction / Procurement
+2. Active Construction
+3. Punch-out
+4. Closeout
+
+### Current Stage:
+Appears to be a computed field that displays the relevant stage based on where the project is in the lifecycle.
+
+### Recommended Unified Status Field:
+
+**Sales Pipeline (pre-sold):**
 - New Lead
-- First Contact
-- Site Visit Scheduled
-- Bid Sent
+- First Contact / Inspection Scheduled
+- Estimating
+- Proposal Sent
 - Follow Up
-- Bid Accepted
-- Permitting
+- Nurturing
+
+**Sold → Permit Phase:**
+- Approved - Ready to Forward
+- Permitting: Document Prep
+- Permitting: Out for Signature
+- Permitting: Waiting on Plans
+- Permitting: Submitted
+- Permitting: City Corrections
+- Permit Issued
+
+**Construction Phase:**
+- Pre-Construction / Procurement
 - Active Construction
+- Punch-out
 - Closeout
+
+**Terminal States:**
 - Completed
-- Lost/Dead
+- Lost / Dead
 
 ---
 

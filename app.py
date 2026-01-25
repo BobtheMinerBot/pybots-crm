@@ -385,23 +385,41 @@ def init_db():
             print("Default admin created: admin@example.com / changeme123")
         db.commit()
 
-# Constants
+# Constants - Pipeline stages aligned with SmartSuite migration
 STATUSES = [
+    # Sales Pipeline
     'New Lead',
     'Inspection Scheduled',
     'Estimating',
     'Proposal Sent',
     'Follow Up',
     'Nurturing',
+    # Sold → Permit Phase
+    'Approved - Ready to Forward',
+    'Permitting: Document Prep',
+    'Permitting: Out for Signature',
+    'Permitting: Waiting on Plans',
+    'Permitting: Submitted',
+    'Permitting: City Corrections',
+    'Permit Issued',
+    # Construction Phase
+    'Pre-Construction / Procurement',
+    'Active Construction',
+    'Punch-out',
+    'Closeout',
+    # Terminal States
+    'Completed',
     'Lost'
 ]
 
 JOB_TYPES = [
-    'Spalling Repair',
+    'Concrete Repair',  # Includes spalling, balcony repair
     'Remodel',
+    'Bathroom',
+    'Windows and Doors',
+    'Permit',  # Permit-only jobs
     'Seawall Repair',
     'Pool Deck',
-    'Balcony Repair',
     'Other'
 ]
 
@@ -2899,6 +2917,12 @@ def deploy_webhook():
         import subprocess
         # Get the directory where app.py lives
         app_dir = os.path.dirname(os.path.abspath(__file__))
+        
+        # Stash any local changes (like crm.db modifications)
+        subprocess.run(['git', 'stash', '--include-untracked'], cwd=app_dir, capture_output=True, timeout=10)
+        
+        # Reset to avoid conflicts
+        subprocess.run(['git', 'checkout', '.'], cwd=app_dir, capture_output=True, timeout=10)
         
         # Run git pull
         result = subprocess.run(
