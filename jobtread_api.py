@@ -116,16 +116,34 @@ def get_active_jobs(limit=20):
 
 def get_job_stats():
     """Get job statistics - active count, total revenue, etc."""
-    # Get all jobs for stats
-    query = {
+    # Get active jobs count (where closedOn is null)
+    active_query = {
         "query": {
             "organization": {
                 "$": {"id": JOBTREAD_ORG_ID},
                 "jobs": {
-                    "$": {"size": 200},
+                    "$": {
+                        "where": ["closedOn", "=", None],
+                        "size": 100
+                    },
                     "nodes": {
                         "id": {},
-                        "name": {},
+                        "createdAt": {}
+                    }
+                }
+            }
+        }
+    }
+    
+    # Get all jobs for total count
+    all_query = {
+        "query": {
+            "organization": {
+                "$": {"id": JOBTREAD_ORG_ID},
+                "jobs": {
+                    "$": {"size": 100},
+                    "nodes": {
+                        "id": {},
                         "closedOn": {},
                         "createdAt": {}
                     }
@@ -134,8 +152,11 @@ def get_job_stats():
         }
     }
     
-    result = _cached_request('job_stats', query)
-    if 'error' in result:
+    # Get active jobs
+    active_result = _cached_request('job_stats_active', active_query)
+    all_result = _cached_request('job_stats_all', all_query)
+    
+    if 'error' in active_result or 'error' in all_result:
         return {
             'active_jobs': 0,
             'closed_jobs': 0,
@@ -144,19 +165,20 @@ def get_job_stats():
         }
     
     try:
-        jobs = result.get('organization', {}).get('jobs', {}).get('nodes', [])
+        active_jobs = active_result.get('organization', {}).get('jobs', {}).get('nodes', [])
+        all_jobs = all_result.get('organization', {}).get('jobs', {}).get('nodes', [])
         
-        active = sum(1 for j in jobs if not j.get('closedOn'))
-        closed = sum(1 for j in jobs if j.get('closedOn'))
+        active = len(active_jobs)
+        closed = sum(1 for j in all_jobs if j.get('closedOn'))
         
         # Jobs created this month
         month_start = datetime.now().replace(day=1, hour=0, minute=0, second=0).isoformat()
-        this_month = sum(1 for j in jobs if j.get('createdAt', '') >= month_start)
+        this_month = sum(1 for j in all_jobs if j.get('createdAt', '') >= month_start)
         
         return {
             'active_jobs': active,
             'closed_jobs': closed,
-            'total_jobs': len(jobs),
+            'total_jobs': len(all_jobs),
             'jobs_this_month': this_month
         }
     except (KeyError, TypeError):
