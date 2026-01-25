@@ -1144,6 +1144,71 @@ def api_create_lead():
 
     return jsonify({'success': True, 'lead': lead_to_dict(lead)}), 201
 
+
+# API endpoint for updating lead custom fields (supports API key)
+@app.route('/api/leads/<int:lead_id>/custom-fields', methods=['POST'])
+def api_update_custom_fields(lead_id):
+    """Update custom field values for a lead via API"""
+    # Check for API key authentication
+    api_key = request.headers.get('X-API-Key') or request.args.get('api_key')
+    if api_key:
+        settings = query_db('SELECT value FROM app_settings WHERE key = ?', ['api_key'], one=True)
+        if not settings or settings['value'] != api_key:
+            return jsonify({'error': 'Invalid API key'}), 401
+    elif 'user_id' not in session:
+        return jsonify({'error': 'Authentication required'}), 401
+
+    # Check lead exists
+    lead = query_db('SELECT * FROM leads WHERE id = ? AND deleted_at IS NULL', [lead_id], one=True)
+    if not lead:
+        return jsonify({'error': 'Lead not found'}), 404
+
+    data = request.get_json() or {}
+    fields = data.get('fields', {})
+    
+    if not fields:
+        return jsonify({'error': 'No fields provided'}), 400
+
+    updated = 0
+    # Get all custom fields to map field_key to id
+    custom_fields = query_db('SELECT id, field_key, field_type FROM custom_fields')
+    field_map = {f['field_key']: {'id': f['id'], 'type': f['field_type']} for f in custom_fields}
+
+    for field_key, value in fields.items():
+        if field_key not in field_map:
+            continue
+        
+        field_info = field_map[field_key]
+        field_id = field_info['id']
+        
+        # Handle special types
+        if field_info['type'] == 'checkbox':
+            value = '1' if value in [True, 'true', '1', 1, 'Yes', 'yes'] else '0'
+        elif field_info['type'] == 'multi_select' and isinstance(value, list):
+            import json
+            value = json.dumps(value)
+        
+        # Upsert
+        existing = query_db(
+            'SELECT id FROM field_values WHERE lead_id = ? AND field_id = ?',
+            [lead_id, field_id], one=True
+        )
+        
+        if existing:
+            execute_db(
+                'UPDATE field_values SET value = ? WHERE lead_id = ? AND field_id = ?',
+                [str(value), lead_id, field_id]
+            )
+        else:
+            execute_db(
+                'INSERT INTO field_values (lead_id, field_id, value) VALUES (?, ?, ?)',
+                [lead_id, field_id, str(value)]
+            )
+        updated += 1
+
+    return jsonify({'success': True, 'updated': updated})
+
+
 # Settings page for Zapier webhook
 @app.route('/settings', methods=['GET', 'POST'])
 @login_required
