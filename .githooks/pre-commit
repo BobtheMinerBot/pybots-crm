@@ -1,0 +1,46 @@
+#!/bin/bash
+# Pre-commit hook: Block commits containing secrets
+
+echo "🔍 Scanning for secrets..."
+
+# Check staged files for hardcoded secrets
+STAGED_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.(py|sh|md|json|js|html)$' | grep -v venv | grep -v node_modules)
+
+if [ -z "$STAGED_FILES" ]; then
+    echo "✅ No relevant files to scan"
+    exit 0
+fi
+
+BLOCKED=0
+
+# Look for hardcoded passwords/keys (not environment variable references)
+for file in $STAGED_FILES; do
+    # Skip if file doesn't exist
+    [ -f "$file" ] || continue
+    
+    # Check for hardcoded secrets (exclude ${VAR} and $VAR patterns)
+    if grep -E 'PASSWORD\s*=\s*["\x27][^$][^"\x27]+["\x27]' "$file" 2>/dev/null | grep -v '^\s*#'; then
+        echo "❌ BLOCKED: Hardcoded PASSWORD in $file"
+        BLOCKED=1
+    fi
+    
+    if grep -E 'API_KEY\s*=\s*["\x27][A-Za-z0-9]' "$file" 2>/dev/null | grep -v '^\s*#'; then
+        echo "❌ BLOCKED: Hardcoded API_KEY in $file"
+        BLOCKED=1
+    fi
+    
+    if grep -E 'SECRET\s*=\s*["\x27][^$][^"\x27]+["\x27]' "$file" 2>/dev/null | grep -v '^\s*#'; then
+        echo "❌ BLOCKED: Hardcoded SECRET in $file"
+        BLOCKED=1
+    fi
+done
+
+if [ $BLOCKED -eq 1 ]; then
+    echo ""
+    echo "⛔ Commit blocked! Remove hardcoded secrets."
+    echo "   Use environment variables: \${VAR_NAME}"
+    exit 1
+fi
+
+echo "✅ No secrets detected"
+exit 0
