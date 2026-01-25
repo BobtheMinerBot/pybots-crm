@@ -1,0 +1,133 @@
+{% extends 'base.html' %}
+
+{% block title %}Field Visibility - CRM{% endblock %}
+
+{% block content %}
+<div class="card" style="max-width: 600px;">
+    <div class="card-header">
+        <h2>Field Visibility</h2>
+    </div>
+    <div class="card-body">
+        {% if fields %}
+        <p class="text-muted" style="margin-bottom: 1rem;">
+            Toggle which fields appear in your leads table. Drag to reorder.
+        </p>
+
+        <form method="POST">
+            <div id="fieldsList">
+                {% for field in fields %}
+                <div class="visibility-item" data-field-id="{{ field['id'] }}">
+                    <div class="drag-handle">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <line x1="8" y1="6" x2="16" y2="6"></line>
+                            <line x1="8" y1="12" x2="16" y2="12"></line>
+                            <line x1="8" y1="18" x2="16" y2="18"></line>
+                        </svg>
+                    </div>
+                    <label class="visibility-label">
+                        <input type="checkbox" name="visible_{{ field['id'] }}" {% if field['is_visible'] %}checked{%
+                            endif %}>
+                        <span>{{ field['name'] }}</span>
+                    </label>
+                    <input type="hidden" name="sequence_{{ field['id'] }}" value="{{ loop.index0 }}"
+                        class="sequence-input">
+                </div>
+                {% endfor %}
+            </div>
+
+            <div style="display: flex; gap: 0.75rem; margin-top: 1.5rem;">
+                <button type="submit" class="btn btn-primary">Save Changes</button>
+                <a href="{{ url_for('leads') }}" class="btn btn-secondary">Cancel</a>
+            </div>
+        </form>
+        {% else %}
+        <div class="empty-state">
+            <p>No custom fields yet.</p>
+            <a href="{{ url_for('add_field') }}" class="btn btn-primary">Add Your First Field</a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<style>
+    .visibility-item {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 0.75rem;
+        background: var(--gray-50);
+        border: 1px solid var(--gray-200);
+        border-radius: 0.375rem;
+        margin-bottom: 0.5rem;
+        cursor: move;
+    }
+
+    .visibility-item:hover {
+        background: var(--gray-100);
+    }
+
+    .drag-handle {
+        color: var(--gray-400);
+    }
+
+    .visibility-label {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        flex: 1;
+        cursor: pointer;
+    }
+
+    .visibility-label input[type="checkbox"] {
+        width: 18px;
+        height: 18px;
+    }
+</style>
+
+<script>
+    // Simple drag-and-drop reordering
+    let draggedItem = null;
+
+    document.querySelectorAll('.visibility-item').forEach(item => {
+        item.addEventListener('dragstart', function (e) {
+            draggedItem = this;
+            this.style.opacity = '0.5';
+        });
+
+        item.addEventListener('dragend', function (e) {
+            this.style.opacity = '1';
+            draggedItem = null;
+            updateSequences();
+        });
+
+        item.addEventListener('dragover', function (e) {
+            e.preventDefault();
+        });
+
+        item.addEventListener('drop', function (e) {
+            e.preventDefault();
+            if (draggedItem !== this) {
+                const list = document.getElementById('fieldsList');
+                const items = [...list.querySelectorAll('.visibility-item')];
+                const draggedIdx = items.indexOf(draggedItem);
+                const targetIdx = items.indexOf(this);
+
+                if (draggedIdx < targetIdx) {
+                    this.parentNode.insertBefore(draggedItem, this.nextSibling);
+                } else {
+                    this.parentNode.insertBefore(draggedItem, this);
+                }
+            }
+        });
+
+        item.setAttribute('draggable', 'true');
+    });
+
+    function updateSequences() {
+        document.querySelectorAll('.visibility-item').forEach((item, idx) => {
+            item.querySelector('.sequence-input').value = idx;
+        });
+    }
+</script>
+{% endblock %}

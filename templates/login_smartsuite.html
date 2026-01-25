@@ -1,0 +1,27 @@
+{% extends 'base_smartsuite.html' %}
+
+{% block title %}Login - ISLA CRM{% endblock %}
+
+{% block login_content %}
+<div class="ss-login-header">
+    <div class="ss-login-logo">🏗️</div>
+    <h1 class="ss-login-title">ISLA CRM</h1>
+    <p class="ss-login-subtitle">Sign in to your account</p>
+</div>
+
+<form method="POST" class="ss-login-form">
+    <div class="form-group">
+        <label class="form-label">Email</label>
+        <input type="email" name="email" class="form-control" required autofocus placeholder="you@example.com">
+    </div>
+    
+    <div class="form-group">
+        <label class="form-label">Password</label>
+        <input type="password" name="password" class="form-control" required placeholder="••••••••">
+    </div>
+    
+    <button type="submit" class="btn btn-primary">
+        Sign In
+    </button>
+</form>
+{% endblock %}

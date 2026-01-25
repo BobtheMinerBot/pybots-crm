@@ -17,6 +17,10 @@ venv/
 .DS_Store
 Thumbs.db
 
+# Database
+crm.db
+*.db
+
 # Project specific
 dashboard-deploy.zip
 config/*.env

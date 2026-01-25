@@ -1,0 +1,88 @@
+{% extends 'base.html' %}
+
+{% block title %}Custom Fields - CRM{% endblock %}
+
+{% block content %}
+<div class="toolbar">
+    <h2 style="margin: 0;">Custom Fields</h2>
+    <div style="margin-left: auto; display: flex; gap: 0.5rem;">
+        <a href="{{ url_for('field_visibility') }}" class="btn btn-secondary">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                <circle cx="12" cy="12" r="3"></circle>
+            </svg>
+            Visibility
+        </a>
+        <a href="{{ url_for('add_field') }}" class="btn btn-primary">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 5v14M5 12h14"></path>
+            </svg>
+            Add Field
+        </a>
+    </div>
+</div>
+
+<div class="card">
+    {% if fields %}
+    <table class="grid-table">
+        <thead>
+            <tr>
+                <th style="width: 40px;">#</th>
+                <th>Field Name</th>
+                <th>Type</th>
+                <th>Required</th>
+                <th>Options</th>
+                <th style="width: 150px;">Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for field in fields %}
+            <tr>
+                <td class="text-muted">{{ loop.index }}</td>
+                <td>
+                    <strong>{{ field['name'] }}</strong>
+                    <div class="text-muted text-sm">{{ field['field_key'] }}</div>
+                </td>
+                <td>
+                    <span class="badge" style="background: var(--gray-100); color: var(--gray-700);">
+                        {{ field_types[field['field_type']]['icon'] }} {{ field_types[field['field_type']]['label'] }}
+                    </span>
+                </td>
+                <td>
+                    {% if field['is_required'] %}
+                    <span style="color: var(--success);">✓</span>
+                    {% else %}
+                    <span class="text-muted">-</span>
+                    {% endif %}
+                </td>
+                <td class="text-sm text-muted">
+                    {% if field['options'] %}
+                    {{ field['options'][:50] }}{% if field['options']|length > 50 %}...{% endif %}
+                    {% else %}
+                    -
+                    {% endif %}
+                </td>
+                <td>
+                    <div style="display: flex; gap: 0.5rem;">
+                        <a href="{{ url_for('edit_field', id=field['id']) }}" class="btn btn-secondary btn-sm">Edit</a>
+                        <form method="POST" action="{{ url_for('delete_field', id=field['id']) }}"
+                            onsubmit="return confirm('Delete this field? All data for this field will be lost.');">
+                            <button type="submit" class="btn btn-danger btn-sm">Delete</button>
+                        </form>
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state">
+        <p>No custom fields yet.</p>
+        <p class="text-muted">Create custom fields to capture additional information about your leads.</p>
+        <a href="{{ url_for('add_field') }}" class="btn btn-primary" style="margin-top: 1rem;">
+            Add Your First Field
+        </a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,583 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ 'Edit' if lead else 'Add' }} Lead - CRM{% endblock %}
+
+{% block content %}
+<div class="card" style="max-width: 800px;">
+    <div class="card-header">
+        <h2>{{ 'Edit' if lead else 'New' }} Lead</h2>
+    </div>
+    <div class="card-body">
+        <form method="POST">
+            <div class="form-grid">
+                <div class="form-group">
+                    <label class="form-label">Name *</label>
+                    <input type="text" name="name" id="nameInput" class="form-control" required
+                        value="{{ lead['name'] if lead else '' }}" onblur="validateName(this)" oninput="clearValidation(this)">
+                    <div class="invalid-feedback" id="nameError"></div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Email</label>
+                    <input type="email" name="email" id="emailInput" class="form-control" value="{{ lead['email'] if lead else '' }}"
+                        onblur="validateEmail(this)" oninput="clearValidation(this)">
+                    <div class="invalid-feedback" id="emailError"></div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Phone</label>
+                    <input type="tel" name="phone" id="phoneInput" class="form-control" value="{{ lead['phone'] if lead else '' }}"
+                        onblur="validatePhone(this)" oninput="formatPhoneNumber(this); clearValidation(this)"
+                        placeholder="(305) 555-1234">
+                    <div class="invalid-feedback" id="phoneError"></div>
+                    <small class="text-muted">Minimum 10 digits required</small>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Status</label>
+                    <select name="status" class="form-control">
+                        {% for status in statuses %}
+                        <option value="{{ status }}" {% if (lead and lead['status']==status) or (not lead and
+                            status=='New Lead' ) %}selected{% endif %}>
+                            {{ status }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="form-group full-width">
+                    <label class="form-label">Address</label>
+                    <div class="address-autocomplete-wrapper" style="position: relative;">
+                        <input type="text" name="address" id="addressInput" class="form-control"
+                            value="{{ lead['address'] if lead else '' }}"
+                            placeholder="Start typing an address..."
+                            autocomplete="off"
+                            onblur="validateAddress(this)" oninput="clearValidation(this)">
+                        <div class="invalid-feedback" id="addressError"></div>
+                        <div id="addressSuggestions" class="address-suggestions"></div>
+                    </div>
+                    <small class="text-muted">Select an address from the dropdown for accurate entry</small>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Job Type</label>
+                    <select name="job_type" class="form-control">
+                        <option value="">Select...</option>
+                        {% for jt in job_types %}
+                        <option value="{{ jt }}" {% if lead and lead['job_type']==jt %}selected{% endif %}>
+                            {{ jt }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Property Type</label>
+                    <select name="property_type" class="form-control">
+                        <option value="">Select...</option>
+                        {% for pt in property_types %}
+                        <option value="{{ pt }}" {% if lead and lead['property_type']==pt %}selected{% endif %}>
+                            {{ pt }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                {% for cf in custom_fields %}
+                <div
+                    class="form-group {% if cf['field_type'] in ['text', 'contact'] and loop.index % 2 == 1 %}{% endif %}">
+                    <label class="form-label">{{ cf['name'] }}{% if cf['is_required'] %} *{% endif %}</label>
+
+                    {% set field_val = field_values.get(cf['field_key'], {}).get('value', cf['default_value'] or '') %}
+
+                    {% if cf['field_type'] == 'text' %}
+                    <input type="text" name="custom_{{ cf['field_key'] }}" class="form-control" value="{{ field_val }}"
+                        {% if cf['is_required'] %}required{% endif %}>
+
+                    {% elif cf['field_type'] == 'number' %}
+                    <input type="number" name="custom_{{ cf['field_key'] }}" class="form-control"
+                        value="{{ field_val }}" step="any" {% if cf['is_required'] %}required{% endif %}>
+
+                    {% elif cf['field_type'] == 'date' %}
+                    <input type="date" name="custom_{{ cf['field_key'] }}" class="form-control" value="{{ field_val }}"
+                        {% if cf['is_required'] %}required{% endif %}>
+
+                    {% elif cf['field_type'] == 'dropdown' %}
+                    <select name="custom_{{ cf['field_key'] }}" class="form-control" {% if cf['is_required']
+                        %}required{% endif %}>
+                        <option value="">Select...</option>
+                        {% for opt in cf['options'].split('\n') if cf['options'] %}
+                        <option value="{{ opt.strip() }}" {% if field_val==opt.strip() %}selected{% endif %}>
+                            {{ opt.strip() }}
+                        </option>
+                        {% endfor %}
+                    </select>
+
+                    {% elif cf['field_type'] == 'multi_select' %}
+                    <select name="custom_{{ cf['field_key'] }}" class="form-control" multiple style="min-height: 80px;">
+                        {% set selected_vals = field_val | default('[]', true) %}
+                        {% for opt in cf['options'].split('\n') if cf['options'] %}
+                        <option value="{{ opt.strip() }}" {% if opt.strip() in selected_vals %}selected{% endif %}>
+                            {{ opt.strip() }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                    <p class="text-muted text-sm">Hold Ctrl/Cmd to select multiple</p>
+
+                    {% elif cf['field_type'] == 'checkbox' %}
+                    <label style="display: flex; align-items: center; gap: 0.5rem;">
+                        <input type="checkbox" name="custom_{{ cf['field_key'] }}" value="1" {% if field_val=='1'
+                            %}checked{% endif %}>
+                        <span>Yes</span>
+                    </label>
+
+                    {% elif cf['field_type'] == 'contact' %}
+                    <input type="text" name="custom_{{ cf['field_key'] }}" class="form-control" value="{{ field_val }}"
+                        placeholder="Name or contact info" {% if cf['is_required'] %}required{% endif %}>
+
+                    {% elif cf['field_type'] == 'duration' %}
+                    <input type="text" name="custom_{{ cf['field_key'] }}" class="form-control" value="{{ field_val }}"
+                        placeholder="e.g., 2h 30m" {% if cf['is_required'] %}required{% endif %}>
+
+                    {% elif cf['field_type'] == 'auto_number' %}
+                    <input type="text" name="custom_{{ cf['field_key'] }}" class="form-control" value="{{ field_val }}"
+                        readonly style="background: var(--gray-100);">
+
+                    {% elif cf['field_type'] == 'symbol' %}
+                    <select name="custom_{{ cf['field_key'] }}" class="form-control">
+                        <option value="">Select...</option>
+                        {% for opt in cf['options'].split('\n') if cf['options'] %}
+                        <option value="{{ opt.strip() }}" {% if field_val==opt.strip() %}selected{% endif %}>
+                            {{ opt.strip() }}
+                        </option>
+                        {% endfor %}
+                    </select>
+
+                    {% elif cf['field_type'] == 'currency' %}
+                    <div style="position: relative;">
+                        <span style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--gray-500);">$</span>
+                        <input type="number" step="0.01" name="custom_{{ cf['field_key'] }}" class="form-control" 
+                            value="{{ field_val }}" placeholder="0.00" style="padding-left: 24px;"
+                            {% if cf['is_required'] %}required{% endif %}>
+                    </div>
+
+                    {% elif cf['field_type'] == 'email' %}
+                    <input type="email" name="custom_{{ cf['field_key'] }}" class="form-control" value="{{ field_val }}"
+                        placeholder="email@example.com" {% if cf['is_required'] %}required{% endif %}>
+
+                    {% elif cf['field_type'] == 'phone' %}
+                    <input type="tel" name="custom_{{ cf['field_key'] }}" class="form-control" value="{{ field_val }}"
+                        placeholder="(555) 555-5555" {% if cf['is_required'] %}required{% endif %}>
+
+                    {% elif cf['field_type'] == 'url' %}
+                    <input type="url" name="custom_{{ cf['field_key'] }}" class="form-control" value="{{ field_val }}"
+                        placeholder="https://..." {% if cf['is_required'] %}required{% endif %}>
+
+                    {% else %}
+                    <input type="text" name="custom_{{ cf['field_key'] }}" class="form-control" value="{{ field_val }}"
+                        {% if cf['is_required'] %}required{% endif %}>
+                    {% endif %}
+                </div>
+                {% endfor %}
+
+                <div class="form-group full-width">
+                    <label class="form-label">Notes</label>
+                    <textarea name="notes" class="form-control" rows="4"
+                        placeholder="Any additional notes about this lead...">{{ lead['notes'] if lead else '' }}</textarea>
+                </div>
+            </div>
+
+            <div style="display: flex; gap: 0.75rem; margin-top: 1rem;">
+                <button type="submit" class="btn btn-primary" id="submitBtn">
+                    {{ 'Update' if lead else 'Add' }} Lead
+                </button>
+                <a href="{{ url_for('leads') }}" class="btn btn-secondary">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<!-- Google Places API for address autocomplete -->
+{% if google_places_api_key %}
+<script src="https://maps.googleapis.com/maps/api/js?key={{ google_places_api_key }}&libraries=places&callback=initAddressAutocomplete" async defer></script>
+{% endif %}
+
+<style>
+    .address-suggestions {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        background: white;
+        border: 1px solid var(--gray-200);
+        border-top: none;
+        border-radius: 0 0 0.5rem 0.5rem;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        max-height: 250px;
+        overflow-y: auto;
+        z-index: 1000;
+        display: none;
+    }
+    .address-suggestions.visible {
+        display: block;
+    }
+    .address-suggestion-item {
+        padding: 0.75rem 1rem;
+        cursor: pointer;
+        border-bottom: 1px solid var(--gray-100);
+        transition: background 0.15s;
+        display: flex;
+        align-items: flex-start;
+        gap: 0.75rem;
+    }
+    .address-suggestion-item:last-child {
+        border-bottom: none;
+    }
+    .address-suggestion-item:hover,
+    .address-suggestion-item.highlighted {
+        background: var(--gray-50);
+    }
+    .address-suggestion-icon {
+        color: var(--gray-400);
+        flex-shrink: 0;
+        margin-top: 2px;
+    }
+    .address-suggestion-text {
+        flex: 1;
+    }
+    .address-suggestion-main {
+        font-weight: 500;
+        color: var(--gray-800);
+    }
+    .address-suggestion-secondary {
+        font-size: 0.8125rem;
+        color: var(--gray-500);
+    }
+    .address-loading {
+        padding: 1rem;
+        text-align: center;
+        color: var(--gray-500);
+    }
+    .address-no-results {
+        padding: 1rem;
+        text-align: center;
+        color: var(--gray-500);
+        font-size: 0.875rem;
+    }
+    .address-verified {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+        color: var(--success);
+        font-size: 0.75rem;
+        margin-left: 0.5rem;
+    }
+</style>
+
+<script>
+    // Track if address was selected from autocomplete
+    let addressVerified = false;
+    let autocomplete = null;
+
+    // Form validation functions
+    function validateName(input) {
+        const error = document.getElementById('nameError');
+        if (!input.value.trim()) {
+            showError(input, error, 'Name is required');
+            return false;
+        }
+        showSuccess(input);
+        return true;
+    }
+
+    function validateEmail(input) {
+        const error = document.getElementById('emailError');
+        const value = input.value.trim();
+        if (value && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+            showError(input, error, 'Please enter a valid email address');
+            return false;
+        }
+        if (value) showSuccess(input);
+        return true;
+    }
+
+    function validatePhone(input) {
+        const error = document.getElementById('phoneError');
+        const value = input.value.trim();
+
+        // Extract only digits from the phone number
+        const digitsOnly = value.replace(/\D/g, '');
+
+        if (value) {
+            // Check for valid characters first
+            if (!/^[\d\s\-\(\)\+\.]+$/.test(value)) {
+                showError(input, error, 'Please enter a valid phone number');
+                return false;
+            }
+
+            // Must have at least 10 digits
+            if (digitsOnly.length < 10) {
+                showError(input, error, 'Phone number must have at least 10 digits');
+                return false;
+            }
+
+            // Max 15 digits (international standard)
+            if (digitsOnly.length > 15) {
+                showError(input, error, 'Phone number cannot exceed 15 digits');
+                return false;
+            }
+
+            showSuccess(input);
+        }
+        return true;
+    }
+
+    function validateAddress(input) {
+        const error = document.getElementById('addressError');
+        const value = input.value.trim();
+
+        if (value && !addressVerified) {
+            // Show a warning but don't block - just encourage using autocomplete
+            input.classList.add('is-warning');
+            error.textContent = 'Tip: Select an address from the dropdown for better accuracy';
+            error.style.display = 'block';
+            error.style.color = 'var(--warning)';
+        }
+        return true;
+    }
+
+    // Format phone number as user types
+    function formatPhoneNumber(input) {
+        let value = input.value.replace(/\D/g, '');
+
+        if (value.length > 0) {
+            if (value.length <= 3) {
+                value = '(' + value;
+            } else if (value.length <= 6) {
+                value = '(' + value.substring(0, 3) + ') ' + value.substring(3);
+            } else {
+                value = '(' + value.substring(0, 3) + ') ' + value.substring(3, 6) + '-' + value.substring(6, 10);
+            }
+        }
+
+        input.value = value;
+    }
+
+    function showError(input, errorDiv, message) {
+        input.classList.remove('is-valid', 'is-warning');
+        input.classList.add('is-invalid');
+        errorDiv.textContent = message;
+        errorDiv.style.display = 'block';
+        errorDiv.style.color = 'var(--danger)';
+        // Shake animation
+        input.classList.add('shake');
+        setTimeout(() => input.classList.remove('shake'), 300);
+    }
+
+    function showSuccess(input) {
+        input.classList.remove('is-invalid', 'is-warning');
+        input.classList.add('is-valid');
+        const errorDiv = input.nextElementSibling;
+        if (errorDiv && errorDiv.classList.contains('invalid-feedback')) {
+            errorDiv.style.display = 'none';
+        }
+    }
+
+    function clearValidation(input) {
+        input.classList.remove('is-invalid', 'is-valid', 'is-warning');
+        const errorDiv = input.nextElementSibling;
+        if (errorDiv && errorDiv.classList.contains('invalid-feedback')) {
+            errorDiv.style.display = 'none';
+        }
+        // Reset address verification when user modifies the address
+        if (input.id === 'addressInput') {
+            addressVerified = false;
+        }
+    }
+
+    // Google Places Autocomplete initialization
+    function initAddressAutocomplete() {
+        const input = document.getElementById('addressInput');
+        if (!input) return;
+
+        // Create Google Places Autocomplete
+        autocomplete = new google.maps.places.Autocomplete(input, {
+            types: ['address'],
+            componentRestrictions: { country: 'us' }, // Restrict to US addresses
+            fields: ['formatted_address', 'address_components', 'geometry']
+        });
+
+        // Handle place selection
+        autocomplete.addListener('place_changed', function() {
+            const place = autocomplete.getPlace();
+
+            if (place.formatted_address) {
+                input.value = place.formatted_address;
+                addressVerified = true;
+                showSuccess(input);
+
+                // Show verified badge
+                const wrapper = input.closest('.address-autocomplete-wrapper');
+                let badge = wrapper.querySelector('.address-verified');
+                if (!badge) {
+                    badge = document.createElement('span');
+                    badge.className = 'address-verified';
+                    badge.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg> Verified';
+                    input.parentNode.insertBefore(badge, input.nextSibling.nextSibling);
+                }
+
+                toastSuccess('Address verified successfully');
+            }
+        });
+
+        // Add custom styling to the Google autocomplete dropdown
+        const pacContainer = document.querySelector('.pac-container');
+        if (pacContainer) {
+            pacContainer.style.borderRadius = '0 0 0.5rem 0.5rem';
+            pacContainer.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.1)';
+        }
+    }
+
+    // Fallback for when Google Places is not available
+    {% if not google_places_api_key %}
+    document.addEventListener('DOMContentLoaded', function() {
+        const input = document.getElementById('addressInput');
+        const suggestionsDiv = document.getElementById('addressSuggestions');
+        let debounceTimer;
+        let currentHighlight = -1;
+
+        input.addEventListener('input', function() {
+            const query = this.value.trim();
+            clearTimeout(debounceTimer);
+
+            if (query.length < 3) {
+                suggestionsDiv.classList.remove('visible');
+                return;
+            }
+
+            debounceTimer = setTimeout(() => {
+                fetchAddressSuggestions(query);
+            }, 300);
+        });
+
+        input.addEventListener('keydown', function(e) {
+            const items = suggestionsDiv.querySelectorAll('.address-suggestion-item');
+
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                currentHighlight = Math.min(currentHighlight + 1, items.length - 1);
+                highlightItem(items);
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                currentHighlight = Math.max(currentHighlight - 1, 0);
+                highlightItem(items);
+            } else if (e.key === 'Enter' && currentHighlight >= 0) {
+                e.preventDefault();
+                items[currentHighlight].click();
+            } else if (e.key === 'Escape') {
+                suggestionsDiv.classList.remove('visible');
+            }
+        });
+
+        function highlightItem(items) {
+            items.forEach((item, i) => {
+                item.classList.toggle('highlighted', i === currentHighlight);
+            });
+        }
+
+        async function fetchAddressSuggestions(query) {
+            suggestionsDiv.innerHTML = '<div class="address-loading">Searching addresses...</div>';
+            suggestionsDiv.classList.add('visible');
+
+            try {
+                // Using OpenStreetMap Nominatim (free, no API key)
+                const response = await fetch(
+                    `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&countrycodes=us&addressdetails=1&limit=5`,
+                    { headers: { 'Accept': 'application/json' } }
+                );
+                const results = await response.json();
+
+                if (results.length === 0) {
+                    suggestionsDiv.innerHTML = '<div class="address-no-results">No addresses found. Try a different search.</div>';
+                    return;
+                }
+
+                suggestionsDiv.innerHTML = results.map((result, index) => `
+                    <div class="address-suggestion-item" data-address="${result.display_name}" data-index="${index}">
+                        <span class="address-suggestion-icon">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+                                <circle cx="12" cy="10" r="3"></circle>
+                            </svg>
+                        </span>
+                        <div class="address-suggestion-text">
+                            <div class="address-suggestion-main">${result.display_name.split(',')[0]}</div>
+                            <div class="address-suggestion-secondary">${result.display_name.split(',').slice(1).join(',').trim()}</div>
+                        </div>
+                    </div>
+                `).join('');
+
+                currentHighlight = -1;
+
+                // Add click handlers
+                suggestionsDiv.querySelectorAll('.address-suggestion-item').forEach(item => {
+                    item.addEventListener('click', function() {
+                        input.value = this.dataset.address;
+                        addressVerified = true;
+                        suggestionsDiv.classList.remove('visible');
+                        showSuccess(input);
+
+                        // Show verified badge
+                        const wrapper = input.closest('.address-autocomplete-wrapper');
+                        let badge = wrapper.querySelector('.address-verified');
+                        if (!badge) {
+                            badge = document.createElement('span');
+                            badge.className = 'address-verified';
+                            badge.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg> Verified';
+                            const errorDiv = document.getElementById('addressError');
+                            errorDiv.parentNode.insertBefore(badge, errorDiv.nextSibling);
+                        }
+
+                        toastSuccess('Address selected');
+                    });
+                });
+
+            } catch (error) {
+                console.error('Address lookup error:', error);
+                suggestionsDiv.innerHTML = '<div class="address-no-results">Unable to search addresses. Please enter manually.</div>';
+            }
+        }
+
+        // Close suggestions when clicking outside
+        document.addEventListener('click', function(e) {
+            if (!input.contains(e.target) && !suggestionsDiv.contains(e.target)) {
+                suggestionsDiv.classList.remove('visible');
+            }
+        });
+    });
+    {% endif %}
+
+    // Form submission validation
+    document.querySelector('form').addEventListener('submit', function(e) {
+        let isValid = true;
+
+        // Validate required fields
+        isValid = validateName(document.getElementById('nameInput')) && isValid;
+        isValid = validateEmail(document.getElementById('emailInput')) && isValid;
+        isValid = validatePhone(document.getElementById('phoneInput')) && isValid;
+        validateAddress(document.getElementById('addressInput')); // Warning only, doesn't block
+
+        if (!isValid) {
+            e.preventDefault();
+            // Focus the first invalid field
+            const firstInvalid = document.querySelector('.is-invalid');
+            if (firstInvalid) {
+                firstInvalid.focus();
+            }
+            showToast('Please fix the errors before submitting', 'error');
+        }
+    });
+</script>
+{% endblock %}
