@@ -415,10 +415,14 @@ PROPERTY_TYPES = [
 FIELD_TYPES = {
     'text': {'label': 'Text', 'icon': '📝'},
     'number': {'label': 'Number', 'icon': '🔢'},
+    'currency': {'label': 'Currency', 'icon': '💰'},
     'date': {'label': 'Date', 'icon': '📅'},
     'dropdown': {'label': 'Dropdown', 'icon': '📋'},
     'multi_select': {'label': 'Multi-Select', 'icon': '☑️'},
     'checkbox': {'label': 'Checkbox', 'icon': '✓'},
+    'email': {'label': 'Email', 'icon': '✉️'},
+    'phone': {'label': 'Phone', 'icon': '📞'},
+    'url': {'label': 'URL', 'icon': '🔗'},
     'contact': {'label': 'Contact', 'icon': '👤'},
     'duration': {'label': 'Duration', 'icon': '⏱️'},
     'auto_number': {'label': 'Auto-Number', 'icon': '#'},
@@ -2924,6 +2928,80 @@ def deploy_webhook():
         return jsonify({'error': 'Git pull timed out'}), 500
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+# Bulk sync endpoint for custom fields and statuses (API key protected)
+@app.route('/api/sync/custom-fields', methods=['POST'])
+def api_sync_custom_fields():
+    # Check for API key authentication
+    api_key = request.headers.get('X-API-Key') or request.args.get('api_key')
+    if not api_key:
+        return jsonify({'error': 'API key required'}), 401
+    
+    settings = query_db('SELECT value FROM app_settings WHERE key = ?', ['api_key'], one=True)
+    if not settings or settings['value'] != api_key:
+        return jsonify({'error': 'Invalid API key'}), 401
+
+    data = request.get_json() or {}
+    fields = data.get('fields', [])
+    
+    created = 0
+    updated = 0
+    
+    for field in fields:
+        existing = query_db('SELECT id FROM custom_fields WHERE field_key = ?', [field['field_key']], one=True)
+        if existing:
+            execute_db('''
+                UPDATE custom_fields SET name=?, field_type=?, options=?, option_colors=?, 
+                is_required=?, default_value=?, sequence=? WHERE field_key=?
+            ''', [field['name'], field['field_type'], field.get('options', ''), 
+                  field.get('option_colors', ''), field.get('is_required', 0),
+                  field.get('default_value', ''), field.get('sequence', 0), field['field_key']])
+            updated += 1
+        else:
+            execute_db('''
+                INSERT INTO custom_fields (name, field_key, field_type, options, option_colors, is_required, default_value, sequence)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            ''', [field['name'], field['field_key'], field['field_type'], field.get('options', ''),
+                  field.get('option_colors', ''), field.get('is_required', 0),
+                  field.get('default_value', ''), field.get('sequence', 0)])
+            created += 1
+    
+    return jsonify({'success': True, 'created': created, 'updated': updated})
+
+@app.route('/api/sync/statuses', methods=['POST'])
+def api_sync_statuses():
+    # Check for API key authentication
+    api_key = request.headers.get('X-API-Key') or request.args.get('api_key')
+    if not api_key:
+        return jsonify({'error': 'API key required'}), 401
+    
+    settings = query_db('SELECT value FROM app_settings WHERE key = ?', ['api_key'], one=True)
+    if not settings or settings['value'] != api_key:
+        return jsonify({'error': 'Invalid API key'}), 401
+
+    data = request.get_json() or {}
+    statuses = data.get('statuses', [])
+    
+    created = 0
+    updated = 0
+    
+    for status in statuses:
+        existing = query_db('SELECT id FROM statuses WHERE name = ?', [status['name']], one=True)
+        if existing:
+            execute_db('''
+                UPDATE statuses SET color=?, bg_color=?, sequence=?, is_active=? WHERE name=?
+            ''', [status.get('color', '#6b7280'), status.get('bg_color', '#f3f4f6'),
+                  status.get('sequence', 0), status.get('is_active', 1), status['name']])
+            updated += 1
+        else:
+            execute_db('''
+                INSERT INTO statuses (name, color, bg_color, sequence, is_active)
+                VALUES (?, ?, ?, ?, ?)
+            ''', [status['name'], status.get('color', '#6b7280'), status.get('bg_color', '#f3f4f6'),
+                  status.get('sequence', 0), status.get('is_active', 1)])
+            created += 1
+    
+    return jsonify({'success': True, 'created': created, 'updated': updated})
 
 # Auto-run database migrations on startup (works on both local and WSGI)
 # This ensures tables are always in sync with the code

@@ -138,6 +138,14 @@
                     {{ val | replace('[', '') | replace(']', '') | replace('"', '') }}
                     {% elif cf['field_type'] == 'date' and val %}
                     {{ val }}
+                    {% elif cf['field_type'] == 'currency' and val %}
+                    ${{ "%.2f"|format(val|float) }}
+                    {% elif cf['field_type'] == 'email' and val %}
+                    <a href="mailto:{{ val }}">{{ val }}</a>
+                    {% elif cf['field_type'] == 'phone' and val %}
+                    <a href="tel:{{ val }}">{{ val }}</a>
+                    {% elif cf['field_type'] == 'url' and val %}
+                    <a href="{{ val }}" target="_blank">{{ val }}</a>
                     {% elif val %}
                     {{ val }}
                     {% else %}

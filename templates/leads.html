@@ -319,6 +319,14 @@
                     {% if val == '1' %}✓{% else %}-{% endif %}
                     {% elif cf['field_type'] == 'multi_select' and val %}
                     {{ val | replace('[', '') | replace(']', '') | replace('"', '') }}
+                    {% elif cf['field_type'] == 'currency' and val %}
+                    ${{ "%.2f"|format(val|float) }}
+                    {% elif cf['field_type'] == 'email' and val %}
+                    <a href="mailto:{{ val }}" onclick="event.stopPropagation()">{{ val }}</a>
+                    {% elif cf['field_type'] == 'phone' and val %}
+                    <a href="tel:{{ val }}" onclick="event.stopPropagation()">{{ val }}</a>
+                    {% elif cf['field_type'] == 'url' and val %}
+                    <a href="{{ val }}" target="_blank" onclick="event.stopPropagation()">{{ val | truncate(30) }}</a>
                     {% else %}
                     {{ val or '-' }}
                     {% endif %}
@@ -1243,6 +1251,16 @@
 
     .editable-cell select.cell-editor {
         cursor: pointer;
+    }
+
+    /* Links in cells (email, phone, url) */
+    .cell-display a {
+        color: var(--primary, #3b82f6);
+        text-decoration: none;
+    }
+
+    .cell-display a:hover {
+        text-decoration: underline;
     }
 
     /* Stage cell - full width colored badge */
@@ -3248,6 +3266,71 @@
                 editor.addEventListener('blur', () => saveFieldValue(cell, leadId, fieldId, editor.value));
                 break;
 
+            case 'currency':
+                editor = document.createElement('input');
+                editor.type = 'number';
+                editor.step = '0.01';
+                editor.className = 'cell-editor';
+                editor.value = currentValue || '';
+                editor.placeholder = '0.00';
+                editor.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') {
+                        saveFieldValue(cell, leadId, fieldId, editor.value);
+                    } else if (e.key === 'Escape') {
+                        cancelEdit(cell);
+                    }
+                });
+                editor.addEventListener('blur', () => saveFieldValue(cell, leadId, fieldId, editor.value));
+                break;
+
+            case 'email':
+                editor = document.createElement('input');
+                editor.type = 'email';
+                editor.className = 'cell-editor';
+                editor.value = currentValue || '';
+                editor.placeholder = 'email@example.com';
+                editor.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') {
+                        saveFieldValue(cell, leadId, fieldId, editor.value);
+                    } else if (e.key === 'Escape') {
+                        cancelEdit(cell);
+                    }
+                });
+                editor.addEventListener('blur', () => saveFieldValue(cell, leadId, fieldId, editor.value));
+                break;
+
+            case 'phone':
+                editor = document.createElement('input');
+                editor.type = 'tel';
+                editor.className = 'cell-editor';
+                editor.value = currentValue || '';
+                editor.placeholder = '(555) 555-5555';
+                editor.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') {
+                        saveFieldValue(cell, leadId, fieldId, editor.value);
+                    } else if (e.key === 'Escape') {
+                        cancelEdit(cell);
+                    }
+                });
+                editor.addEventListener('blur', () => saveFieldValue(cell, leadId, fieldId, editor.value));
+                break;
+
+            case 'url':
+                editor = document.createElement('input');
+                editor.type = 'url';
+                editor.className = 'cell-editor';
+                editor.value = currentValue || '';
+                editor.placeholder = 'https://...';
+                editor.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') {
+                        saveFieldValue(cell, leadId, fieldId, editor.value);
+                    } else if (e.key === 'Escape') {
+                        cancelEdit(cell);
+                    }
+                });
+                editor.addEventListener('blur', () => saveFieldValue(cell, leadId, fieldId, editor.value));
+                break;
+
             default:
                 editor = document.createElement('input');
                 editor.type = 'text';
@@ -3666,20 +3749,8 @@
             });
         };
 
-        // Only show confirmation for multiple leads (2+), single lead changes happen immediately
-        if (count > 1) {
-            showConfirmDialog({
-                title: 'Change Status',
-                message: `Change status of ${count} leads to "${status}"?`,
-                confirmText: 'Change Status',
-                cancelText: 'Cancel',
-                type: 'warning',
-                onConfirm: doStatusChange
-            });
-        } else {
-            // Single lead - just do it, no confirmation needed
-            doStatusChange();
-        }
+        // No confirmation needed - just do it
+        doStatusChange();
 
         // Reset the select dropdown
         document.getElementById('bulkStatusSelect').value = '';

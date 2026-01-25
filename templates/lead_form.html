@@ -153,6 +153,26 @@
                         {% endfor %}
                     </select>
 
+                    {% elif cf['field_type'] == 'currency' %}
+                    <div style="position: relative;">
+                        <span style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--gray-500);">$</span>
+                        <input type="number" step="0.01" name="custom_{{ cf['field_key'] }}" class="form-control" 
+                            value="{{ field_val }}" placeholder="0.00" style="padding-left: 24px;"
+                            {% if cf['is_required'] %}required{% endif %}>
+                    </div>
+
+                    {% elif cf['field_type'] == 'email' %}
+                    <input type="email" name="custom_{{ cf['field_key'] }}" class="form-control" value="{{ field_val }}"
+                        placeholder="email@example.com" {% if cf['is_required'] %}required{% endif %}>
+
+                    {% elif cf['field_type'] == 'phone' %}
+                    <input type="tel" name="custom_{{ cf['field_key'] }}" class="form-control" value="{{ field_val }}"
+                        placeholder="(555) 555-5555" {% if cf['is_required'] %}required{% endif %}>
+
+                    {% elif cf['field_type'] == 'url' %}
+                    <input type="url" name="custom_{{ cf['field_key'] }}" class="form-control" value="{{ field_val }}"
+                        placeholder="https://..." {% if cf['is_required'] %}required{% endif %}>
+
                     {% else %}
                     <input type="text" name="custom_{{ cf['field_key'] }}" class="form-control" value="{{ field_val }}"
                         {% if cf['is_required'] %}required{% endif %}>

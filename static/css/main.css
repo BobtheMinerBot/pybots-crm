@@ -1245,6 +1245,12 @@
             animation: toastIconPop 0.5s var(--ease-spring) 0.2s backwards;
         }
 
+        .toast-icon svg {
+            width: 22px;
+            height: 22px;
+            display: block;
+        }
+
         .toast-success .toast-icon {
             color: var(--success);
         }
