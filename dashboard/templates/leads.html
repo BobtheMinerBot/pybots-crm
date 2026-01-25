@@ -1,0 +1,402 @@
+{% extends "base.html" %}
+
+{% block title %}Leads — ISLA Builders{% endblock %}
+
+{% block content %}
+<header class="main-header">
+  <h2>Leads</h2>
+  <div class="header-meta">
+    <button class="btn btn-primary" onclick="showAddLeadModal()">
+      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+      </svg>
+      Add Lead
+    </button>
+  </div>
+</header>
+
+<!-- Pipeline Overview -->
+<div class="card project-flow" style="margin-bottom: var(--space-6);">
+  <div class="card-header">
+    <span class="card-title">Lead Pipeline</span>
+  </div>
+  <div class="flow-stages" id="pipelineFlow">
+    <div class="flow-stage" data-status="new">
+      <div class="flow-stage-count" id="count-new">-</div>
+      <div class="flow-stage-label">New</div>
+    </div>
+    <div class="flow-stage" data-status="contacted">
+      <div class="flow-stage-count" id="count-contacted">-</div>
+      <div class="flow-stage-label">Contacted</div>
+    </div>
+    <div class="flow-stage highlight" data-status="site_scheduled">
+      <div class="flow-stage-count" id="count-scheduled">-</div>
+      <div class="flow-stage-label">Site Visit</div>
+    </div>
+    <div class="flow-stage" data-status="estimate_sent">
+      <div class="flow-stage-count" id="count-estimate">-</div>
+      <div class="flow-stage-label">Estimate Sent</div>
+    </div>
+    <div class="flow-stage" data-status="won">
+      <div class="flow-stage-count" id="count-won">-</div>
+      <div class="flow-stage-label">Won</div>
+    </div>
+  </div>
+</div>
+
+<!-- Filters -->
+<div class="card" style="margin-bottom: var(--space-4); padding: var(--space-3) var(--space-4);">
+  <div style="display: flex; gap: var(--space-4); align-items: center; flex-wrap: wrap;">
+    <div style="display: flex; align-items: center; gap: var(--space-2);">
+      <label style="font-size: 12px; color: var(--text-muted); font-weight: 500;">Status:</label>
+      <select id="filterStatus" class="select-control" onchange="filterLeads()">
+        <option value="all">All</option>
+        <option value="new">New</option>
+        <option value="contacted">Contacted</option>
+        <option value="site_scheduled">Site Scheduled</option>
+        <option value="estimate_sent">Estimate Sent</option>
+        <option value="won">Won</option>
+        <option value="lost">Lost</option>
+      </select>
+    </div>
+    <div style="display: flex; align-items: center; gap: var(--space-2);">
+      <label style="font-size: 12px; color: var(--text-muted); font-weight: 500;">Service:</label>
+      <select id="filterService" class="select-control" onchange="filterLeads()">
+        <option value="all">All Services</option>
+        <option value="spalling">Spalling</option>
+        <option value="windows">Windows & Doors</option>
+        <option value="deck">Deck</option>
+        <option value="balcony">Balcony</option>
+        <option value="remodel">Remodel</option>
+      </select>
+    </div>
+    <div style="flex: 1;"></div>
+    <div style="display: flex; align-items: center; gap: var(--space-2);">
+      <input type="search" id="searchLeads" placeholder="Search leads..." class="input-control" style="width: 200px;" oninput="filterLeads()">
+    </div>
+  </div>
+</div>
+
+<!-- Leads Table -->
+<div class="card">
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Contact</th>
+          <th>Service</th>
+          <th>Source</th>
+          <th>Status</th>
+          <th>Priority</th>
+          <th>Added</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="leadsTable">
+        <tr>
+          <td colspan="8" class="loading">Loading leads</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Add Lead Modal (hidden by default) -->
+<div id="addLeadModal" class="modal" style="display: none;">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3>Add New Lead</h3>
+      <button class="modal-close" onclick="hideAddLeadModal()">&times;</button>
+    </div>
+    <form id="addLeadForm" onsubmit="submitNewLead(event)">
+      <div class="form-group">
+        <label>Name *</label>
+        <input type="text" name="name" required class="input-control">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Phone *</label>
+          <input type="tel" name="phone" required class="input-control">
+        </div>
+        <div class="form-group">
+          <label>Email</label>
+          <input type="email" name="email" class="input-control">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Address</label>
+        <input type="text" name="address" class="input-control">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Service Type *</label>
+          <select name="service" required class="select-control">
+            <option value="">Select service...</option>
+            <option value="spalling">Spalling Repair</option>
+            <option value="windows">Impact Windows & Doors</option>
+            <option value="deck">Deck</option>
+            <option value="balcony">Balcony Repair</option>
+            <option value="remodel">Remodeling</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Source</label>
+          <select name="source" class="select-control">
+            <option value="phone">Phone Call</option>
+            <option value="website">Website</option>
+            <option value="referral">Referral</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Project Details</label>
+        <textarea name="details" rows="3" class="input-control"></textarea>
+      </div>
+      <div class="form-actions">
+        <button type="button" class="btn btn-secondary" onclick="hideAddLeadModal()">Cancel</button>
+        <button type="submit" class="btn btn-primary">Add Lead</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<style>
+/* Additional styles for leads page */
+.select-control, .input-control {
+  padding: 6px 10px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  background: var(--bg-surface);
+  color: var(--text-primary);
+}
+
+.select-control:focus, .input-control:focus {
+  outline: none;
+  border-color: var(--accent-ocean);
+  box-shadow: 0 0 0 2px var(--accent-ocean-soft);
+}
+
+.modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background: var(--bg-surface);
+  border-radius: var(--radius-lg);
+  width: 100%;
+  max-width: 500px;
+  box-shadow: var(--shadow-lg);
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--space-4) var(--space-5);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.modal-header h3 {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.modal-close {
+  background: none;
+  border: none;
+  font-size: 20px;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.modal-close:hover {
+  color: var(--text-primary);
+}
+
+#addLeadForm {
+  padding: var(--space-5);
+}
+
+.form-group {
+  margin-bottom: var(--space-4);
+}
+
+.form-group label {
+  display: block;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  margin-bottom: var(--space-1);
+}
+
+.form-group input, .form-group select, .form-group textarea {
+  width: 100%;
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-4);
+}
+
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-3);
+  margin-top: var(--space-5);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--border-subtle);
+}
+
+.table-actions {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.table-actions button {
+  padding: 4px 8px;
+  font-size: 11px;
+}
+</style>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+let allLeads = [];
+
+async function loadLeads() {
+  try {
+    const response = await fetch('/api/leads');
+    const data = await response.json();
+    allLeads = data.leads || [];
+    updatePipelineCounts();
+    renderLeadsTable(allLeads);
+  } catch (error) {
+    console.error('Error loading leads:', error);
+  }
+}
+
+function updatePipelineCounts() {
+  const counts = {};
+  allLeads.forEach(lead => {
+    const status = lead.status || 'new';
+    counts[status] = (counts[status] || 0) + 1;
+  });
+  
+  document.getElementById('count-new').textContent = counts.new || 0;
+  document.getElementById('count-contacted').textContent = counts.contacted || 0;
+  document.getElementById('count-scheduled').textContent = counts.site_scheduled || 0;
+  document.getElementById('count-estimate').textContent = counts.estimate_sent || 0;
+  document.getElementById('count-won').textContent = counts.won || 0;
+}
+
+function filterLeads() {
+  const status = document.getElementById('filterStatus').value;
+  const service = document.getElementById('filterService').value;
+  const search = document.getElementById('searchLeads').value.toLowerCase();
+  
+  let filtered = allLeads;
+  
+  if (status !== 'all') {
+    filtered = filtered.filter(l => l.status === status);
+  }
+  
+  if (service !== 'all') {
+    filtered = filtered.filter(l => l.project?.service === service);
+  }
+  
+  if (search) {
+    filtered = filtered.filter(l => 
+      (l.contact?.name || '').toLowerCase().includes(search) ||
+      (l.contact?.phone || '').includes(search) ||
+      (l.contact?.email || '').toLowerCase().includes(search)
+    );
+  }
+  
+  renderLeadsTable(filtered);
+}
+
+function renderLeadsTable(leads) {
+  const tbody = document.getElementById('leadsTable');
+  
+  if (!leads.length) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="8" class="empty-state">
+          <div class="empty-state-icon">👥</div>
+          <div class="empty-state-text">No leads found</div>
+        </td>
+      </tr>
+    `;
+    return;
+  }
+  
+  tbody.innerHTML = leads.map(l => {
+    const name = l.contact?.name || 'Unknown';
+    const phone = l.contact?.phone || '-';
+    const email = l.contact?.email || '';
+    const service = l.project?.service || 'other';
+    const source = l.source?.type || 'unknown';
+    const status = l.status || 'new';
+    const priority = l.priority || 'warm';
+    const created = l.source?.capturedAt;
+    
+    return `
+      <tr>
+        <td class="table-client">${escapeHtml(name)}</td>
+        <td>
+          <div>${escapeHtml(phone)}</div>
+          ${email ? `<div class="table-address">${escapeHtml(email)}</div>` : ''}
+        </td>
+        <td>${escapeHtml(service)}</td>
+        <td>${escapeHtml(source)}</td>
+        <td><span class="badge ${status}">${status.replace(/_/g, ' ')}</span></td>
+        <td><span class="badge ${priority}">${priority}</span></td>
+        <td class="table-date">${formatDate(created)}</td>
+        <td class="table-actions">
+          <button class="btn btn-secondary" onclick="editLead('${l.id}')">Edit</button>
+        </td>
+      </tr>
+    `;
+  }).join('');
+}
+
+function showAddLeadModal() {
+  document.getElementById('addLeadModal').style.display = 'flex';
+}
+
+function hideAddLeadModal() {
+  document.getElementById('addLeadModal').style.display = 'none';
+  document.getElementById('addLeadForm').reset();
+}
+
+async function submitNewLead(event) {
+  event.preventDefault();
+  // TODO: Implement API call to add lead
+  alert('Lead adding will be implemented with API endpoint');
+  hideAddLeadModal();
+}
+
+function editLead(id) {
+  // TODO: Implement edit functionality
+  alert('Edit lead: ' + id);
+}
+
+// Initialize
+document.addEventListener('DOMContentLoaded', loadLeads);
+</script>
+{% endblock %}

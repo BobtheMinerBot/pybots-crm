@@ -1,0 +1,39 @@
+{
+  "services": [
+    {"id": "spalling", "name": "Spalling Repair", "defaultDuration": 120},
+    {"id": "windows_doors", "name": "Impact Windows & Doors", "defaultDuration": 90},
+    {"id": "deck", "name": "Deck Construction", "defaultDuration": 120},
+    {"id": "balcony", "name": "Balcony Repair", "defaultDuration": 90},
+    {"id": "remodel", "name": "Remodeling", "defaultDuration": 120},
+    {"id": "other", "name": "Other", "defaultDuration": 60}
+  ],
+  "statuses": [
+    {"id": "new", "name": "New Lead", "order": 1},
+    {"id": "contacted", "name": "Contacted", "order": 2},
+    {"id": "site_visit_scheduled", "name": "Site Visit Scheduled", "order": 3},
+    {"id": "measured", "name": "Measured", "order": 4},
+    {"id": "estimate_sent", "name": "Estimate Sent", "order": 5},
+    {"id": "follow_up", "name": "Follow Up", "order": 6},
+    {"id": "won", "name": "Won", "order": 7},
+    {"id": "lost", "name": "Lost", "order": 8}
+  ],
+  "urgency": [
+    {"id": "asap", "name": "ASAP", "followUpDays": 1},
+    {"id": "planning", "name": "Planning", "followUpDays": 3},
+    {"id": "just_looking", "name": "Just Looking", "followUpDays": 7}
+  ],
+  "sources": [
+    {"id": "phone", "name": "Phone Call"},
+    {"id": "website", "name": "Website Form"},
+    {"id": "referral", "name": "Referral"},
+    {"id": "other", "name": "Other"}
+  ],
+  "slaTargets": {
+    "initialResponseHours": 4,
+    "siteVisitDays": 3,
+    "estimateDays": 2
+  },
+  "followUpSequence": {
+    "afterEstimate": [2, 5, 10]
+  }
+}

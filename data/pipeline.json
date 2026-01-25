@@ -1,0 +1,15 @@
+{
+  "estimates": [],
+  "metrics": {
+    "avgDaysToEstimate": null,
+    "totalEstimatesSent": 0,
+    "onTimeRate": null
+  },
+  "slaTarget": {
+    "daysToEstimate": 2
+  },
+  "metadata": {
+    "created": "2026-01-24",
+    "version": "1.0"
+  }
+}

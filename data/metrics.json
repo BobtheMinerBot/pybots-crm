@@ -1,0 +1,31 @@
+{
+  "tracking": {
+    "startDate": "2026-01-24",
+    "leadsTotal": 0,
+    "leadsWon": 0,
+    "leadsLost": 0,
+    "avgDaysToEstimate": null,
+    "avgDaysToClose": null,
+    "winRate": null
+  },
+  "benchmarks": {
+    "daysToEstimate": {
+      "target": 5,
+      "good": 5,
+      "warning": 7
+    },
+    "daysToClose": {
+      "target": 14,
+      "good": 14,
+      "warning": 21
+    },
+    "winRate": {
+      "target": 40,
+      "good": 35,
+      "warning": 30
+    }
+  },
+  "weekly": [],
+  "monthly": [],
+  "lastCalculated": null
+}

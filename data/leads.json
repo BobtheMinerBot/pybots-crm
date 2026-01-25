@@ -1,0 +1,157 @@
+{
+  "leads": [
+    {
+      "id": "lead_20260117_001",
+      "status": "new",
+      "priority": "warm",
+      "contact": {
+        "name": "Kent Lee",
+        "phone": "(360) 430-0010",
+        "email": "kentslee@hotmail.com",
+        "address": null,
+        "preferredContact": "phone"
+      },
+      "project": {
+        "service": "spalling",
+        "details": "Pillar repair - follow-up submission (also submitted Jan 13 about 3ft spalling)",
+        "urgency": "soon",
+        "estimatedValue": null
+      },
+      "source": {
+        "type": "website",
+        "referredBy": null,
+        "emailId": "19bcd7727b3ab5ed",
+        "capturedAt": "2026-01-17T19:38:01Z"
+      },
+      "timeline": {
+        "firstContact": "2026-01-13T16:58:32-05:00",
+        "siteVisit": null,
+        "estimateSent": null,
+        "decision": null
+      },
+      "followUps": [
+        {
+          "date": "2026-01-25",
+          "type": "call",
+          "status": "pending",
+          "notes": "Follow up on site visit scheduling - Jaasiel replied Jan 13, Kent resubmitted Jan 17"
+        }
+      ],
+      "notes": [
+        {
+          "date": "2026-01-25T06:15:00Z",
+          "text": "Imported from website form. Previous submission on Jan 13 was replied to by Jaasiel asking for address/availability. Kent resubmitted on Jan 17 - may need follow-up."
+        },
+        {
+          "date": "2026-01-25T06:17:00Z",
+          "text": "Jaasiel called twice - no response. Worth reaching out via text to check if still interested."
+        }
+      ],
+      "outcome": {
+        "result": null,
+        "reason": null,
+        "jobTreadId": null,
+        "finalValue": null
+      }
+    },
+    {
+      "id": "lead_20260108_001",
+      "status": "new",
+      "priority": "cold",
+      "contact": {
+        "name": "Unknown (chefcelena1)",
+        "phone": "(670) 287-2433",
+        "email": "chefcelena1@gmail.com",
+        "address": null,
+        "preferredContact": "phone"
+      },
+      "project": {
+        "service": "other",
+        "details": "New Construction - interested in building new structure/home/warehouse on property",
+        "urgency": "planning",
+        "estimatedValue": null
+      },
+      "source": {
+        "type": "website",
+        "referredBy": null,
+        "emailId": "19b9b760e086389d",
+        "capturedAt": "2026-01-08T02:35:47Z"
+      },
+      "timeline": {
+        "firstContact": null,
+        "siteVisit": null,
+        "estimateSent": null,
+        "decision": null
+      },
+      "followUps": [],
+      "notes": [
+        {
+          "date": "2026-01-25T06:15:00Z",
+          "text": "Imported from website form. New construction inquiry - may be outside ISLA's core services. Worth following up to understand scope. Phone area code 670 is Northern Mariana Islands - unusual."
+        }
+      ],
+      "outcome": {
+        "result": null,
+        "reason": null,
+        "jobTreadId": null,
+        "finalValue": null
+      }
+    }
+  ],
+  "schema": {
+    "id": "lead_YYYYMMDD_NNN format",
+    "status": "new|contacted|site_scheduled|estimate_sent|won|lost|cold",
+    "priority": "hot|warm|cold",
+    "contact": {
+      "name": "string (required)",
+      "phone": "string (required)",
+      "email": "string (optional)",
+      "address": "string (optional)",
+      "preferredContact": "phone|text|email"
+    },
+    "project": {
+      "service": "spalling|windows|deck|balcony|remodel|other",
+      "details": "string - what they need",
+      "urgency": "urgent|soon|planning",
+      "estimatedValue": "number or null"
+    },
+    "source": {
+      "type": "website|phone|referral|google|angi|other",
+      "referredBy": "string or null",
+      "emailId": "string or null - gmail message id",
+      "capturedAt": "ISO datetime"
+    },
+    "timeline": {
+      "firstContact": "ISO datetime or null",
+      "siteVisit": "ISO datetime or null",
+      "estimateSent": "ISO datetime or null",
+      "decision": "ISO datetime or null"
+    },
+    "followUps": [
+      {
+        "date": "YYYY-MM-DD",
+        "type": "call|text|email",
+        "status": "pending|done|skipped",
+        "notes": "string"
+      }
+    ],
+    "notes": [
+      {
+        "date": "ISO datetime",
+        "text": "string"
+      }
+    ],
+    "outcome": {
+      "result": "won|lost|null",
+      "reason": "string or null",
+      "jobTreadId": "string or null",
+      "finalValue": "number or null"
+    }
+  },
+  "metadata": {
+    "created": "2026-01-24",
+    "version": "2.0",
+    "lastId": 2,
+    "lastUpdated": "2026-01-25T06:15:00Z"
+  }
+}

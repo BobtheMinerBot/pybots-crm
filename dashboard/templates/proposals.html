@@ -1,0 +1,193 @@
+{% extends "base.html" %}
+
+{% block title %}Proposals — ISLA Builders{% endblock %}
+
+{% block content %}
+<header class="main-header">
+  <h2>Proposals</h2>
+  <div class="header-meta">
+    <span class="last-updated" id="lastUpdated">Loading...</span>
+    <button class="btn btn-secondary" onclick="refreshData()">
+      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+      </svg>
+      Refresh
+    </button>
+  </div>
+</header>
+
+<!-- Summary Cards -->
+<div class="metrics-grid" style="grid-template-columns: repeat(3, 1fr); margin-bottom: var(--space-6);">
+  <div class="metric-card">
+    <div class="metric-label">Pending Proposals</div>
+    <div class="metric-value currency" id="metric-pending-value">-</div>
+    <div class="metric-trend" id="metric-pending-count">- proposals awaiting response</div>
+  </div>
+  <div class="metric-card">
+    <div class="metric-label">Won This Month</div>
+    <div class="metric-value currency" id="metric-won-value">-</div>
+    <div class="metric-trend up" id="metric-won-count">- accepted</div>
+  </div>
+  <div class="metric-card">
+    <div class="metric-label">Win Rate</div>
+    <div class="metric-value" id="metric-win-rate">-<span style="font-size: 16px; color: var(--text-secondary);">%</span></div>
+    <div class="metric-trend" id="metric-win-trend">Last 30 days</div>
+  </div>
+</div>
+
+<!-- Filters -->
+<div class="card" style="margin-bottom: var(--space-4); padding: var(--space-3) var(--space-4);">
+  <div style="display: flex; gap: var(--space-4); align-items: center; flex-wrap: wrap;">
+    <div style="display: flex; align-items: center; gap: var(--space-2);">
+      <label style="font-size: 12px; color: var(--text-muted); font-weight: 500;">Status:</label>
+      <select id="filterStatus" class="select-control" onchange="filterProposals()">
+        <option value="all">All</option>
+        <option value="pending">Pending</option>
+        <option value="accepted">Accepted</option>
+        <option value="declined">Declined</option>
+      </select>
+    </div>
+    <div style="flex: 1;"></div>
+    <div style="display: flex; align-items: center; gap: var(--space-2);">
+      <input type="search" id="searchProposals" placeholder="Search proposals..." class="input-control" style="width: 200px;" oninput="filterProposals()">
+    </div>
+  </div>
+</div>
+
+<!-- Proposals Table -->
+<div class="card">
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Proposal #</th>
+          <th>Client</th>
+          <th>Project</th>
+          <th>Amount</th>
+          <th>Status</th>
+          <th>Sent</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="proposalsTable">
+        <tr>
+          <td colspan="7" class="loading">Loading proposals from JobTread</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<style>
+.select-control, .input-control {
+  padding: 6px 10px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  background: var(--bg-surface);
+  color: var(--text-primary);
+}
+.select-control:focus, .input-control:focus {
+  outline: none;
+  border-color: var(--accent-ocean);
+  box-shadow: 0 0 0 2px var(--accent-ocean-soft);
+}
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let allProposals = [];
+let summary = {};
+
+async function loadProposals() {
+  try {
+    const response = await fetch('/api/proposals');
+    const data = await response.json();
+    allProposals = data.proposals || [];
+    summary = data.summary || {};
+    updateMetrics();
+    renderProposalsTable(allProposals);
+    updateLastUpdated();
+  } catch (error) {
+    console.error('Error loading proposals:', error);
+  }
+}
+
+function updateMetrics() {
+  document.getElementById('metric-pending-value').textContent = formatCurrency(summary.pending_value || 0);
+  document.getElementById('metric-pending-count').textContent = `${summary.pending_count || 0} proposals awaiting response`;
+  document.getElementById('metric-won-value').textContent = formatCurrency(summary.won_value || 0);
+  document.getElementById('metric-won-count').textContent = `${summary.won_count || 0} accepted`;
+  
+  const total = (summary.won_count || 0) + (summary.pending_count || 0);
+  const winRate = total > 0 ? Math.round((summary.won_count / total) * 100) : 0;
+  document.getElementById('metric-win-rate').innerHTML = `${winRate}<span style="font-size: 16px; color: var(--text-secondary);">%</span>`;
+}
+
+function filterProposals() {
+  const status = document.getElementById('filterStatus').value;
+  const search = document.getElementById('searchProposals').value.toLowerCase();
+  
+  let filtered = allProposals;
+  
+  if (status !== 'all') {
+    filtered = filtered.filter(p => p.status === status);
+  }
+  
+  if (search) {
+    filtered = filtered.filter(p => 
+      (p.client || '').toLowerCase().includes(search) ||
+      (p.name || '').toLowerCase().includes(search) ||
+      (p.number || '').toString().includes(search)
+    );
+  }
+  
+  renderProposalsTable(filtered);
+}
+
+function renderProposalsTable(proposals) {
+  const tbody = document.getElementById('proposalsTable');
+  
+  if (!proposals.length) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="7" class="empty-state">
+          <div class="empty-state-icon">📄</div>
+          <div class="empty-state-text">No proposals found</div>
+        </td>
+      </tr>
+    `;
+    return;
+  }
+  
+  tbody.innerHTML = proposals.map(p => `
+    <tr>
+      <td class="table-value">#${p.number || '-'}</td>
+      <td class="table-client">${escapeHtml(p.client)}</td>
+      <td>${escapeHtml(p.name)}</td>
+      <td class="table-value">$${formatCurrency(p.total)}</td>
+      <td><span class="badge ${p.status}">${p.status}</span></td>
+      <td class="table-date">${formatDate(p.created)}</td>
+      <td>
+        <a href="https://app.jobtread.com" target="_blank" class="btn btn-secondary" style="padding: 4px 8px; font-size: 11px;">
+          View in JobTread
+        </a>
+      </td>
+    </tr>
+  `).join('');
+}
+
+function updateLastUpdated() {
+  const now = new Date();
+  document.getElementById('lastUpdated').textContent = 
+    `Updated ${now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`;
+}
+
+async function refreshData() {
+  await loadProposals();
+}
+
+document.addEventListener('DOMContentLoaded', loadProposals);
+</script>
+{% endblock %}

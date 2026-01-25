@@ -1,0 +1,312 @@
+{% extends "base.html" %}
+
+{% block title %}Reports — ISLA Builders{% endblock %}
+
+{% block content %}
+<header class="main-header">
+  <h2>Reports</h2>
+  <div class="header-meta">
+    <select id="reportPeriod" class="select-control" onchange="changePeriod()">
+      <option value="week">This Week</option>
+      <option value="month" selected>This Month</option>
+      <option value="quarter">This Quarter</option>
+      <option value="year">This Year</option>
+    </select>
+  </div>
+</header>
+
+<!-- KPI Summary -->
+<div class="metrics-grid" style="margin-bottom: var(--space-6);">
+  <div class="metric-card">
+    <div class="metric-label">Revenue</div>
+    <div class="metric-value currency" id="metric-revenue">-</div>
+    <div class="metric-trend up">Accepted proposals</div>
+  </div>
+  <div class="metric-card">
+    <div class="metric-label">New Leads</div>
+    <div class="metric-value" id="metric-leads">-</div>
+    <div class="metric-trend">This period</div>
+  </div>
+  <div class="metric-card">
+    <div class="metric-label">Conversion Rate</div>
+    <div class="metric-value" id="metric-conversion">-<span style="font-size: 16px;">%</span></div>
+    <div class="metric-trend">Lead to won</div>
+  </div>
+  <div class="metric-card">
+    <div class="metric-label">Avg Days to Close</div>
+    <div class="metric-value" id="metric-days">-</div>
+    <div class="metric-trend">Lead to won</div>
+  </div>
+</div>
+
+<!-- Charts Row -->
+<div class="content-grid" style="margin-bottom: var(--space-6);">
+  <!-- Pipeline Breakdown -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">Pipeline by Status</span>
+    </div>
+    <div class="chart-placeholder" id="pipelineChart">
+      <div class="pipeline-bars">
+        <div class="pipeline-bar-row">
+          <span class="pipeline-label">New</span>
+          <div class="pipeline-bar-track">
+            <div class="pipeline-bar-fill" style="width: 30%; background: var(--accent-ocean);"></div>
+          </div>
+          <span class="pipeline-value" id="chart-new">0</span>
+        </div>
+        <div class="pipeline-bar-row">
+          <span class="pipeline-label">Contacted</span>
+          <div class="pipeline-bar-track">
+            <div class="pipeline-bar-fill" style="width: 20%; background: var(--warning);"></div>
+          </div>
+          <span class="pipeline-value" id="chart-contacted">0</span>
+        </div>
+        <div class="pipeline-bar-row">
+          <span class="pipeline-label">Site Visit</span>
+          <div class="pipeline-bar-track">
+            <div class="pipeline-bar-fill" style="width: 25%; background: var(--accent-lime);"></div>
+          </div>
+          <span class="pipeline-value" id="chart-site">0</span>
+        </div>
+        <div class="pipeline-bar-row">
+          <span class="pipeline-label">Estimate Sent</span>
+          <div class="pipeline-bar-track">
+            <div class="pipeline-bar-fill" style="width: 15%; background: var(--accent-coral);"></div>
+          </div>
+          <span class="pipeline-value" id="chart-estimate">0</span>
+        </div>
+        <div class="pipeline-bar-row">
+          <span class="pipeline-label">Won</span>
+          <div class="pipeline-bar-track">
+            <div class="pipeline-bar-fill" style="width: 10%; background: var(--success);"></div>
+          </div>
+          <span class="pipeline-value" id="chart-won">0</span>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Revenue by Service -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">Revenue by Service</span>
+    </div>
+    <div class="service-breakdown">
+      <div class="service-row">
+        <div class="service-info">
+          <span class="service-dot" style="background: var(--accent-ocean);"></span>
+          <span class="service-name">Spalling Repair</span>
+        </div>
+        <span class="service-value">$0</span>
+      </div>
+      <div class="service-row">
+        <div class="service-info">
+          <span class="service-dot" style="background: var(--accent-coral);"></span>
+          <span class="service-name">Impact Windows</span>
+        </div>
+        <span class="service-value">$0</span>
+      </div>
+      <div class="service-row">
+        <div class="service-info">
+          <span class="service-dot" style="background: var(--accent-lime);"></span>
+          <span class="service-name">Deck</span>
+        </div>
+        <span class="service-value">$0</span>
+      </div>
+      <div class="service-row">
+        <div class="service-info">
+          <span class="service-dot" style="background: var(--accent-concrete);"></span>
+          <span class="service-name">Balcony</span>
+        </div>
+        <span class="service-value">$0</span>
+      </div>
+      <div class="service-row">
+        <div class="service-info">
+          <span class="service-dot" style="background: var(--text-muted);"></span>
+          <span class="service-name">Remodeling</span>
+        </div>
+        <span class="service-value">$0</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Lead Sources -->
+<div class="card">
+  <div class="card-header">
+    <span class="card-title">Lead Sources Performance</span>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Source</th>
+          <th>Leads</th>
+          <th>Won</th>
+          <th>Conversion</th>
+          <th>Revenue</th>
+          <th>Avg Value</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="table-client">Website</td>
+          <td>2</td>
+          <td>0</td>
+          <td>0%</td>
+          <td class="table-value">$0</td>
+          <td class="table-value">$0</td>
+        </tr>
+        <tr>
+          <td class="table-client">Phone</td>
+          <td>0</td>
+          <td>0</td>
+          <td>0%</td>
+          <td class="table-value">$0</td>
+          <td class="table-value">$0</td>
+        </tr>
+        <tr>
+          <td class="table-client">Referral</td>
+          <td>0</td>
+          <td>0</td>
+          <td>0%</td>
+          <td class="table-value">$0</td>
+          <td class="table-value">$0</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<style>
+.select-control {
+  padding: 6px 10px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  background: var(--bg-surface);
+  color: var(--text-primary);
+}
+
+.pipeline-bars {
+  padding: var(--space-4) 0;
+}
+
+.pipeline-bar-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
+}
+
+.pipeline-label {
+  width: 100px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.pipeline-bar-track {
+  flex: 1;
+  height: 24px;
+  background: var(--bg-inset);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.pipeline-bar-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+.pipeline-value {
+  width: 40px;
+  font-size: 13px;
+  font-weight: 500;
+  text-align: right;
+  color: var(--text-primary);
+}
+
+.service-breakdown {
+  padding: var(--space-4) 0;
+}
+
+.service-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--space-3) 0;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.service-row:last-child {
+  border-bottom: none;
+}
+
+.service-info {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.service-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.service-name {
+  font-size: 13px;
+  color: var(--text-primary);
+}
+
+.service-value {
+  font-size: 13px;
+  font-weight: 500;
+  font-family: var(--font-mono);
+  color: var(--text-primary);
+}
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function loadReportData() {
+  try {
+    const [overview, proposals] = await Promise.all([
+      fetch('/api/overview').then(r => r.json()),
+      fetch('/api/proposals').then(r => r.json())
+    ]);
+    
+    // Update metrics
+    if (proposals?.summary) {
+      document.getElementById('metric-revenue').textContent = formatCurrency(proposals.summary.won_value || 0);
+    }
+    
+    if (overview?.leads) {
+      document.getElementById('metric-leads').textContent = overview.leads.total || 0;
+      
+      // Update pipeline chart
+      const statuses = overview.leads.by_status || {};
+      document.getElementById('chart-new').textContent = statuses.new || 0;
+      document.getElementById('chart-contacted').textContent = statuses.contacted || 0;
+      document.getElementById('chart-site').textContent = statuses.site_scheduled || 0;
+      document.getElementById('chart-estimate').textContent = statuses.estimate_sent || 0;
+      document.getElementById('chart-won').textContent = statuses.won || 0;
+    }
+    
+  } catch (error) {
+    console.error('Error loading report data:', error);
+  }
+}
+
+function changePeriod() {
+  const period = document.getElementById('reportPeriod').value;
+  console.log('Change period to:', period);
+  loadReportData();
+}
+
+document.addEventListener('DOMContentLoaded', loadReportData);
+</script>
+{% endblock %}
