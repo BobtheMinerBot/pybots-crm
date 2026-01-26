@@ -8,6 +8,21 @@
 
 ---
 
+## Custom Fields (Customer)
+
+| Field | ID | Type | Default | Options |
+|-------|-----|------|---------|---------|
+| **Stage** | 22NpNd43PEk8 | option | **New Lead** | New Lead, PreConstruction, Active Construction, Bid Sent, Lost Lead, Completed |
+| Status | 22NiFNhYhLEq | option | - | New Lead, Appointment Set, Customer, Lead Lost |
+| Type | 22NiFNX7qG27 | option | - | Commercial, Residential, Other |
+| Lead Score | 22NiFP6y7whh | option | - | 1-5 |
+| Needs | 22NrNTTghg7G | option | - | Spalling, Impact Windows, etc. |
+| Notes | 22NiFNjwEVSs | text | - | - |
+
+**Note:** Stage field is REQUIRED and defaults to "New Lead" (configured 2026-01-25).
+
+---
+
 ## Data Mapping
 
 ### CRM Lead → JobTread

@@ -1,402 +1,3876 @@
-{% extends "base.html" %}
+{% extends 'base.html' %}
 
-{% block title %}Leads — ISLA Builders{% endblock %}
+{% block title %}Leads - CRM{% endblock %}
 
 {% block content %}
-<header class="main-header">
-  <h2>Leads</h2>
-  <div class="header-meta">
-    <button class="btn btn-primary" onclick="showAddLeadModal()">
-      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-        <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
-      </svg>
-      Add Lead
+<div class="leads-page">
+    <!-- Page Header -->
+    <div class="dashboard-header">
+        <div>
+            <h1 class="dashboard-title">Leads</h1>
+            <p class="dashboard-subtitle">Manage and track your sales pipeline</p>
+        </div>
+        <div class="dashboard-actions">
+            <a href="{{ url_for('import_leads') }}" class="btn btn-secondary hide-mobile" title="Import from CSV">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                    <polyline points="17 8 12 3 7 8"></polyline>
+                    <line x1="12" y1="3" x2="12" y2="15"></line>
+                </svg>
+                Import
+            </a>
+            <a href="{{ url_for('add_lead') }}" class="btn btn-primary">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 5v14M5 12h14"></path>
+                </svg>
+                Add Lead
+            </a>
+        </div>
+    </div>
+
+    <!-- Toolbar Card -->
+    <div class="leads-toolbar-card">
+        <div class="leads-toolbar">
+            <div class="search-box">
+                <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                    stroke-width="2">
+                    <circle cx="11" cy="11" r="8"></circle>
+                    <path d="m21 21-4.35-4.35"></path>
+                </svg>
+                <input type="text" class="form-control" placeholder="Search leads... (press /)" id="searchInput"
+                    value="{{ search }}" autocomplete="off">
+                <div id="searchResults" class="search-results"></div>
+            </div>
+
+            <div class="toolbar-divider"></div>
+
+            <div class="filter-group">
+                <select class="form-control toolbar-select" id="statusFilter">
+                    <option value="">All Stages</option>
+                    {% for status in statuses %}
+                    <option value="{{ status }}" {% if status_filter==status %}selected{% endif %}>{{ status }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Group By Dropdown -->
+            <div class="filter-group dropdown-container">
+        <button class="btn btn-secondary dropdown-toggle" onclick="toggleGroupPanel(event)" id="groupByBtn">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="3" width="18" height="6" rx="1"></rect>
+                <rect x="3" y="12" width="18" height="6" rx="1"></rect>
+            </svg>
+            Group
+            <span class="badge-count group-badge" id="groupCount" {% if group_prefs|length==0 or (group_prefs|length==1
+                and group_prefs[0].field_name=='status' ) %}style="display:none" {% endif %}>{{ group_prefs|length
+                }}</span>
+        </button>
+        <div id="groupPanel" class="dropdown-menu group-panel">
+            <div class="group-panel-header">
+                <h4>Group By</h4>
+            </div>
+            <div class="group-panel-body" id="groupLevelsList">
+                <!-- Group levels rendered by JS -->
+            </div>
+            <div class="group-panel-footer">
+                <button class="btn btn-secondary btn-sm" onclick="addGroupLevel()" id="addGroupBtn">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 5v14M5 12h14"></path>
+                    </svg>
+                    Add Group By
+                </button>
+                <div class="group-panel-actions">
+                    <button class="btn btn-link btn-sm" onclick="collapseAllGroups()">Collapse All</button>
+                    <button class="btn btn-link btn-sm" onclick="clearAllGroups()">Clear All</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Fields Dropdown -->
+    <div class="filter-group dropdown-container">
+        <button class="btn btn-secondary dropdown-toggle" onclick="toggleFieldsDropdown(event)">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                <circle cx="12" cy="12" r="3"></circle>
+            </svg>
+            Fields
+        </button>
+        <div id="fieldsDropdown" class="dropdown-menu fields-dropdown">
+            <div class="fields-dropdown-header">
+                <h4>Manage Columns</h4>
+                <span id="fieldsUnsavedBadge" class="fields-unsaved-badge">Unsaved changes</span>
+            </div>
+            <div class="fields-columns">
+                <div class="fields-column">
+                    <div class="fields-column-header">Fields Not Displayed</div>
+                    <div id="hiddenFieldsList" class="fields-list">
+                        <!-- Hidden fields populated by JS -->
+                    </div>
+                </div>
+                <div class="fields-column">
+                    <div class="fields-column-header">Fields Displayed</div>
+                    <div id="visibleFieldsList" class="fields-list">
+                        <!-- Visible fields populated by JS -->
+                    </div>
+                </div>
+            </div>
+            <div class="fields-dropdown-footer">
+                <button type="button" class="btn btn-secondary btn-sm" onclick="cancelFieldChanges()">Cancel</button>
+                <button type="button" class="btn btn-primary btn-sm" id="saveFieldsBtn" onclick="saveFieldChanges()">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Views Dropdown -->
+    <div class="filter-group dropdown-container">
+        <button class="btn btn-secondary dropdown-toggle" onclick="toggleViewsDropdown(event)">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="3" width="7" height="7"></rect>
+                <rect x="14" y="3" width="7" height="7"></rect>
+                <rect x="14" y="14" width="7" height="7"></rect>
+                <rect x="3" y="14" width="7" height="7"></rect>
+            </svg>
+            Views{% if current_view %}: {{ current_view['name'] }}{% endif %}
+        </button>
+        <div id="viewsDropdown" class="dropdown-menu views-dropdown">
+            <div class="dropdown-item view-option {% if not current_view %}active{% endif %}" onclick="loadView(null)">
+                <span>All Fields</span>
+                {% if not current_view %}<span class="checkmark">✓</span>{% endif %}
+            </div>
+            {% if all_views %}
+            <div class="dropdown-divider"></div>
+            {% for view in all_views %}
+            <div class="dropdown-item view-option {% if current_view and current_view['id'] == view['id'] %}active{% endif %}"
+                data-view-id="{{ view['id'] }}" data-view-name="{{ view['name'] | e }}">
+                <span onclick="loadView({{ view['id'] }})">{{ view['name'] }}</span>
+                {% if current_view and current_view['id'] == view['id'] %}<span class="checkmark">✓</span>{% endif %}
+                <button class="view-delete-btn" onclick="deleteViewFromBtn(event, this)" title="Delete view">×</button>
+            </div>
+            {% endfor %}
+            {% endif %}
+            <div class="dropdown-divider"></div>
+            <div class="dropdown-item save-view-btn" onclick="openSaveViewModal()">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 5v14M5 12h14"></path>
+                </svg>
+                Save current as view...
+            </div>
+        </div>
+    </div>
+
+        </div>
+    </div>
+
+    <!-- Leads Table Card -->
+    <div class="leads-table-card">
+
+<!-- Recently Viewed Leads -->
+<div id="recentlyViewedSection" class="recently-viewed" style="display: none;">
+    <div class="recently-viewed-title">Recently Viewed</div>
+    <div id="recentlyViewedList" class="recently-viewed-list"></div>
+</div>
+
+{# Macro for rendering the leads table #}
+{% macro render_leads_table(leads) %}
+<table class="grid-table">
+    <thead>
+        <tr>
+            <th class="checkbox-col">
+                <input type="checkbox" class="row-checkbox select-all-checkbox" onchange="toggleSelectAll(this)"
+                    title="Select all">
+            </th>
+            <th class="actions-col-header"></th>
+            <th data-column="name" oncontextmenu="showColumnContextMenu(event, this)">Name</th>
+            <th data-column="email" oncontextmenu="showColumnContextMenu(event, this)" {% if 'email' not in
+                visible_default_fields %}style="display:none" {% endif %}>Contact</th>
+            <th data-column="address" oncontextmenu="showColumnContextMenu(event, this)" {% if 'address' not in
+                visible_default_fields %}style="display:none" {% endif %}>Address</th>
+            <th data-column="job_type" oncontextmenu="showColumnContextMenu(event, this)" {% if 'job_type' not in
+                visible_default_fields %}style="display:none" {% endif %}>Job Type</th>
+            <th data-column="property_type" oncontextmenu="showColumnContextMenu(event, this)" {% if 'property_type' not
+                in visible_default_fields %}style="display:none" {% endif %}>Property</th>
+            {% for cf in all_custom_fields %}
+            <th class="custom-field-header" data-column="custom_{{ cf['id'] }}" data-field-id="{{ cf['id'] }}"
+                data-field-name="{{ cf['name'] }}" oncontextmenu="showFieldContextMenu(event, this)" {% if cf['id'] not
+                in visible_custom_field_ids %}style="display:none" {% endif %}>
+                {{ cf['name'] }}
+            </th>
+            {% endfor %}
+            <th data-column="created" oncontextmenu="showColumnContextMenu(event, this)">Created</th>
+            <th data-column="stage" oncontextmenu="showColumnContextMenu(event, this)">Stage</th>
+            <th class="add-field-header" onclick="openAddFieldModal()" title="Add new field">
+                <span class="add-field-btn">+</span>
+            </th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for lead in leads %}
+        <tr data-lead-id="{{ lead['id'] }}" data-lead-name="{{ lead['name'] }}">
+            <td class="checkbox-col">
+                <input type="checkbox" class="row-checkbox lead-checkbox" data-lead-id="{{ lead['id'] }}"
+                    onchange="updateBulkSelection()">
+            </td>
+            <td class="actions-col">
+                <div class="quick-actions">
+                    <a href="{{ url_for('edit_lead', id=lead['id']) }}" class="quick-action-btn" title="Edit">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                        </svg>
+                    </a>
+                    {% if lead['phone'] %}
+                    <a href="tel:{{ lead['phone'] }}" class="quick-action-btn" title="Call">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path
+                                d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z">
+                            </path>
+                        </svg>
+                    </a>
+                    {% endif %}
+                    {% if lead['email'] %}
+                    <a href="mailto:{{ lead['email'] }}" class="quick-action-btn" title="Email">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z">
+                            </path>
+                            <polyline points="22,6 12,13 2,6"></polyline>
+                        </svg>
+                    </a>
+                    {% endif %}
+                    <button class="quick-action-btn danger" title="Delete" data-lead-id="{{ lead['id'] }}"
+                        data-lead-name="{{ lead['name'] }}" onclick="deleteLead(this)">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path
+                                d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2">
+                            </path>
+                        </svg>
+                    </button>
+                </div>
+            </td>
+            <td class="lead-name" data-column="name">
+                <a href="{{ url_for('view_lead', id=lead['id']) }}">{{ lead['name'] }}</a>
+            </td>
+            <td data-column="email" {% if 'email' not in visible_default_fields %}style="display:none" {% endif %}>
+                <div class="editable-cell inline-cell" data-lead-id="{{ lead['id'] }}" data-field-name="email"
+                    data-field-type="email" data-value="{{ lead['email'] or '' }}" onclick="startDefaultEdit(this)">
+                    <span class="cell-display">{{ lead['email'] or '-' }}</span>
+                </div>
+                <div class="editable-cell inline-cell text-muted text-sm" data-lead-id="{{ lead['id'] }}"
+                    data-field-name="phone" data-field-type="phone" data-value="{{ lead['phone'] or '' }}"
+                    onclick="startDefaultEdit(this)">
+                    <span class="cell-display">{{ lead['phone'] or '' }}</span>
+                </div>
+            </td>
+            <td class="editable-cell" data-column="address" data-lead-id="{{ lead['id'] }}" data-field-name="address"
+                data-field-type="text" data-value="{{ lead['address'] or '' }}" onclick="startDefaultEdit(this)" {%
+                if 'address' not in visible_default_fields %}style="display:none" {% endif %}>
+                <span class="cell-display">{{ lead['address'] or '-' }}</span>
+            </td>
+            <td data-column="job_type" class="dropdown-cell" {% if 'job_type' not in visible_default_fields %}style="display:none" {% endif %}>
+                <div class="dropdown-badge {% if lead['job_type'] %}badge-job-{{ job_types.index(lead['job_type']) % 6 if lead['job_type'] in job_types else 0 }}{% else %}badge-neutral{% endif %}"
+                     onclick="openFieldDropdown(event, {{ lead['id'] }}, 'job_type', '{{ lead['job_type'] or '' }}')"
+                     data-lead-id="{{ lead['id'] }}"
+                     data-field="job_type"
+                     data-value="{{ lead['job_type'] or '' }}">
+                    {{ lead['job_type'] or '-' }}
+                </div>
+            </td>
+            <td data-column="property_type" class="dropdown-cell" {% if 'property_type' not in visible_default_fields %}style="display:none" {% endif %}>
+                <div class="dropdown-badge {% if lead['property_type'] %}badge-prop-{{ property_types.index(lead['property_type']) % 6 if lead['property_type'] in property_types else 0 }}{% else %}badge-neutral{% endif %}"
+                     onclick="openFieldDropdown(event, {{ lead['id'] }}, 'property_type', '{{ lead['property_type'] or '' }}')"
+                     data-lead-id="{{ lead['id'] }}"
+                     data-field="property_type"
+                     data-value="{{ lead['property_type'] or '' }}">
+                    {{ lead['property_type'] or '-' }}
+                </div>
+            </td>
+            {% for cf in all_custom_fields %}
+            {% set lead_vals = field_values.get(lead['id'], {}) %}
+            {% set val = lead_vals.get(cf['field_key'], {}).get('value', '') %}
+            {% if cf['field_type'] == 'file' %}
+            <td class="file-cell" data-column="custom_{{ cf['id'] }}" data-lead-id="{{ lead['id'] }}"
+                data-field-id="{{ cf['id'] }}" data-field-type="file" {% if cf['id'] not in visible_custom_field_ids %}style="display:none" {% endif %}>
+                <div class="file-field-container">
+                    {% if val %}
+                    {% set file_info = val | safe %}
+                    <div class="file-display" data-file-info="{{ val | e }}">
+                        <a href="{{ (val | fromjson).path }}" target="_blank" class="file-link" title="View file">
+                            <span class="file-icon">📎</span>
+                            <span class="file-name">{{ (val | fromjson).original_name }}</span>
+                        </a>
+                        <button class="file-delete-btn" onclick="deleteFile(event, {{ lead['id'] }}, {{ cf['id'] }})" title="Delete file">×</button>
+                    </div>
+                    {% else %}
+                    <label class="file-upload-btn">
+                        <input type="file" class="file-input" onchange="uploadFile(this, {{ lead['id'] }}, {{ cf['id'] }})" style="display:none">
+                        <span class="upload-icon">📤</span>
+                        <span class="upload-text">Upload</span>
+                    </label>
+                    {% endif %}
+                </div>
+            </td>
+            {% else %}
+            <td class="editable-cell" data-column="custom_{{ cf['id'] }}" data-lead-id="{{ lead['id'] }}"
+                data-field-id="{{ cf['id'] }}" data-field-type="{{ cf['field_type'] }}"
+                data-field-options="{{ cf['options'] or '' }}" data-value="{{ val }}" onclick="startEdit(this)" {% if
+                cf['id'] not in visible_custom_field_ids %}style="display:none" {% endif %}>
+                <span class="cell-display">
+                    {% if cf['field_type'] == 'checkbox' %}
+                    {% if val == '1' %}✓{% else %}-{% endif %}
+                    {% elif cf['field_type'] == 'multi_select' and val %}
+                    {{ val | replace('[', '') | replace(']', '') | replace('"', '') }}
+                    {% elif cf['field_type'] == 'currency' and val %}
+                    ${{ "%.2f"|format(val|float) }}
+                    {% elif cf['field_type'] == 'email' and val %}
+                    <a href="mailto:{{ val }}" onclick="event.stopPropagation()">{{ val }}</a>
+                    {% elif cf['field_type'] == 'phone' and val %}
+                    <a href="tel:{{ val }}" onclick="event.stopPropagation()">{{ val }}</a>
+                    {% elif cf['field_type'] == 'url' and val %}
+                    <a href="{{ val }}" target="_blank" onclick="event.stopPropagation()">{{ val | truncate(30) }}</a>
+                    {% else %}
+                    {{ val or '-' }}
+                    {% endif %}
+                </span>
+            </td>
+            {% endif %}
+            {% endfor %}
+            <td class="text-muted text-sm" data-column="created">{{ lead['created_at'] | strftime }}</td>
+            <td data-column="stage" class="stage-cell">
+                <div class="stage-badge badge badge-{{ lead['status'] | lower | replace(' ', '-') }}"
+                     onclick="openStatusDropdown(event, {{ lead['id'] }}, '{{ lead['status'] }}')"
+                     data-lead-id="{{ lead['id'] }}"
+                     data-current-status="{{ lead['status'] }}">
+                    {{ lead['status'] }}
+                </div>
+            </td>
+            <td class="add-field-cell"></td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endmacro %}
+
+{# Render grouped or flat leads #}
+{% if grouped_leads.__flat__ is defined %}
+{# No grouping - flat table #}
+<div class="grid-table-wrapper">
+    {% if grouped_leads.__flat__ %}
+    {{ render_leads_table(grouped_leads.__flat__) }}
+    {% else %}
+    <div class="empty-state">
+        <div class="empty-state-icon">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M20 7H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z"></path>
+                <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
+            </svg>
+        </div>
+        <div>No leads found</div>
+        <a href="{{ url_for('add_lead') }}" class="btn btn-secondary btn-sm" style="margin-top: 0.75rem;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 5v14M5 12h14"></path>
+            </svg>
+            Add Lead
+        </a>
+    </div>
+    {% endif %}
+</div>
+{% else %}
+{# Grouped display #}
+{% for group in grouped_leads %}
+<div class="grid-section" id="section-{{ group.label | replace(' ', '-') | lower }}"
+    data-stage="{{ group.label | replace(' ', '-') | lower }}" data-group-field="{{ group.field }}"
+    data-group-level="{{ group.level }}">
+    <div class="grid-section-header" onclick="toggleSection(this.parentElement)">
+        <span class="grid-section-toggle">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="m6 9 6 6 6-6"></path>
+            </svg>
+        </span>
+        <h3>{{ group.label }}</h3>
+        <span class="grid-section-count">{{ group.count }}</span>
+    </div>
+
+    <div class="grid-table-wrapper">
+        {% if group.children and group.children[0] is mapping and group.children[0].label is defined %}
+        {# Nested groups - render recursively #}
+        {% for subgroup in group.children %}
+        <div class="grid-section nested-group" id="section-{{ subgroup.label | replace(' ', '-') | lower }}"
+            data-group-field="{{ subgroup.field }}" data-group-level="{{ subgroup.level }}"
+            style="margin-left: {{ (subgroup.level - 1) * 1.5 }}rem;">
+            <div class="grid-section-header nested" onclick="toggleSection(this.parentElement)">
+                <span class="grid-section-toggle">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="m6 9 6 6 6-6"></path>
+                    </svg>
+                </span>
+                <h4>{{ subgroup.label }}</h4>
+                <span class="grid-section-count">{{ subgroup.count }}</span>
+            </div>
+            <div class="grid-table-wrapper">
+                {% if subgroup.children and subgroup.children[0] is mapping and subgroup.children[0].label is defined %}
+                {# Third level of nesting #}
+                {% for subsubgroup in subgroup.children %}
+                <div class="grid-section nested-group" style="margin-left: {{ (subsubgroup.level - 1) * 1.5 }}rem;">
+                    <div class="grid-section-header nested" onclick="toggleSection(this.parentElement)">
+                        <span class="grid-section-toggle">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2">
+                                <path d="m6 9 6 6 6-6"></path>
+                            </svg>
+                        </span>
+                        <h5>{{ subsubgroup.label }}</h5>
+                        <span class="grid-section-count">{{ subsubgroup.count }}</span>
+                    </div>
+                    <div class="grid-table-wrapper">
+                        {% if subsubgroup.children %}
+                        {{ render_leads_table(subsubgroup.children) }}
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+                {% else %}
+                {{ render_leads_table(subgroup.children) }}
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+        {% elif group.children %}
+        {{ render_leads_table(group.children) }}
+        {% else %}
+        <div class="empty-state">
+            <div>No leads in this group</div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endfor %}
+{% endif %}
+
+<!-- Context Menu for Custom Field Headers -->
+<div id="fieldContextMenu" class="context-menu">
+    <div class="context-menu-item" onclick="addFieldToRight()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 5v14M5 12h14"></path>
+        </svg>
+        Add field to right
+    </div>
+    <div class="context-menu-item" onclick="editField()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+        </svg>
+        Edit field
+    </div>
+    <div class="context-menu-item context-menu-item-danger" onclick="deleteField()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+        </svg>
+        Delete field
+    </div>
+</div>
+
+<!-- Context Menu for Default Column Headers -->
+<div id="columnContextMenu" class="context-menu">
+    <div class="context-menu-item" onclick="groupByColumn()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="3" width="18" height="6" rx="1"></rect>
+            <rect x="3" y="12" width="18" height="6" rx="1"></rect>
+        </svg>
+        Group by this Field
+    </div>
+    <div class="context-menu-divider"></div>
+    <div class="context-menu-item" onclick="hideColumnFromDisplay()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path
+                d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24">
+            </path>
+            <line x1="1" y1="1" x2="23" y2="23"></line>
+        </svg>
+        Remove from Display
+    </div>
+</div>
+
+<!-- Add Field Modal -->
+<div id="addFieldModal" class="modal-overlay">
+    <div class="modal">
+        <div class="modal-header">
+            <h3 id="modalTitle">Add New Field</h3>
+            <button class="modal-close" onclick="closeAddFieldModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <form id="addFieldForm">
+                <div class="form-group">
+                    <label class="form-label">Field Name *</label>
+                    <input type="text" name="name" id="fieldName" class="form-control" required
+                        placeholder="e.g., Estimated Value">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Field Type</label>
+                    <select name="field_type" id="fieldType" class="form-control" onchange="toggleOptionsField()">
+                        <option value="text">Text</option>
+                        <option value="number">Number</option>
+                        <option value="date">Date</option>
+                        <option value="dropdown">Dropdown</option>
+                        <option value="multi_select">Multi-Select</option>
+                        <option value="checkbox">Checkbox</option>
+                        <option value="contact">Contact</option>
+                        <option value="duration">Duration</option>
+                        <option value="auto_number">Auto-Number</option>
+                        <option value="symbol">Symbol</option>
+                    </select>
+                </div>
+                <div class="form-group" id="optionsGroup" style="display: none;">
+                    <label class="form-label">Options (one per line)</label>
+                    <textarea name="options" id="fieldOptions" class="form-control" rows="4"
+                        placeholder="Option 1&#10;Option 2&#10;Option 3"></textarea>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Default Value</label>
+                    <input type="text" name="default_value" id="fieldDefault" class="form-control"
+                        placeholder="Optional">
+                </div>
+                <div class="form-group">
+                    <label class="visibility-label" style="cursor: pointer;">
+                        <input type="checkbox" name="is_required" id="fieldRequired">
+                        <span>Required field</span>
+                    </label>
+                </div>
+                <input type="hidden" id="insertAfterFieldId" name="insert_after">
+            </form>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" onclick="closeAddFieldModal()">Cancel</button>
+            <button type="button" class="btn btn-primary" onclick="saveField()">Add Field</button>
+        </div>
+    </div>
+</div>
+
+<!-- Save View Modal -->
+<div id="saveViewModal" class="modal-overlay">
+    <div class="modal" style="max-width: 350px;">
+        <div class="modal-header">
+            <h3>Save View</h3>
+            <button class="modal-close" onclick="closeSaveViewModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="form-group">
+                <label class="form-label">View Name *</label>
+                <input type="text" id="viewName" class="form-control" placeholder="e.g., Sales Team View">
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" onclick="closeSaveViewModal()">Cancel</button>
+            <button type="button" class="btn btn-primary" onclick="saveView()">Save View</button>
+        </div>
+    </div>
+</div>
+
+    </div><!-- /.leads-table-card -->
+</div><!-- /.leads-page -->
+
+<!-- Bulk Actions Bar - OUTSIDE all containers for proper fixed positioning -->
+<div id="bulkActionsBar" class="bulk-actions-bar">
+    <span class="bulk-count"><span id="selectedCount">0</span> selected</span>
+    <select id="bulkStatusSelect" class="btn" onchange="bulkChangeStatus(this.value)">
+        <option value="">Change Status</option>
+        {% for status in statuses %}
+        <option value="{{ status }}">{{ status }}</option>
+        {% endfor %}
+    </select>
+    <button class="btn btn-danger" onclick="bulkDelete()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+        </svg>
+        Delete
     </button>
-  </div>
-</header>
-
-<!-- Pipeline Overview -->
-<div class="card project-flow" style="margin-bottom: var(--space-6);">
-  <div class="card-header">
-    <span class="card-title">Lead Pipeline</span>
-  </div>
-  <div class="flow-stages" id="pipelineFlow">
-    <div class="flow-stage" data-status="new">
-      <div class="flow-stage-count" id="count-new">-</div>
-      <div class="flow-stage-label">New</div>
-    </div>
-    <div class="flow-stage" data-status="contacted">
-      <div class="flow-stage-count" id="count-contacted">-</div>
-      <div class="flow-stage-label">Contacted</div>
-    </div>
-    <div class="flow-stage highlight" data-status="site_scheduled">
-      <div class="flow-stage-count" id="count-scheduled">-</div>
-      <div class="flow-stage-label">Site Visit</div>
-    </div>
-    <div class="flow-stage" data-status="estimate_sent">
-      <div class="flow-stage-count" id="count-estimate">-</div>
-      <div class="flow-stage-label">Estimate Sent</div>
-    </div>
-    <div class="flow-stage" data-status="won">
-      <div class="flow-stage-count" id="count-won">-</div>
-      <div class="flow-stage-label">Won</div>
-    </div>
-  </div>
-</div>
-
-<!-- Filters -->
-<div class="card" style="margin-bottom: var(--space-4); padding: var(--space-3) var(--space-4);">
-  <div style="display: flex; gap: var(--space-4); align-items: center; flex-wrap: wrap;">
-    <div style="display: flex; align-items: center; gap: var(--space-2);">
-      <label style="font-size: 12px; color: var(--text-muted); font-weight: 500;">Status:</label>
-      <select id="filterStatus" class="select-control" onchange="filterLeads()">
-        <option value="all">All</option>
-        <option value="new">New</option>
-        <option value="contacted">Contacted</option>
-        <option value="site_scheduled">Site Scheduled</option>
-        <option value="estimate_sent">Estimate Sent</option>
-        <option value="won">Won</option>
-        <option value="lost">Lost</option>
-      </select>
-    </div>
-    <div style="display: flex; align-items: center; gap: var(--space-2);">
-      <label style="font-size: 12px; color: var(--text-muted); font-weight: 500;">Service:</label>
-      <select id="filterService" class="select-control" onchange="filterLeads()">
-        <option value="all">All Services</option>
-        <option value="spalling">Spalling</option>
-        <option value="windows">Windows & Doors</option>
-        <option value="deck">Deck</option>
-        <option value="balcony">Balcony</option>
-        <option value="remodel">Remodel</option>
-      </select>
-    </div>
-    <div style="flex: 1;"></div>
-    <div style="display: flex; align-items: center; gap: var(--space-2);">
-      <input type="search" id="searchLeads" placeholder="Search leads..." class="input-control" style="width: 200px;" oninput="filterLeads()">
-    </div>
-  </div>
-</div>
-
-<!-- Leads Table -->
-<div class="card">
-  <div class="table-wrap">
-    <table>
-      <thead>
-        <tr>
-          <th>Name</th>
-          <th>Contact</th>
-          <th>Service</th>
-          <th>Source</th>
-          <th>Status</th>
-          <th>Priority</th>
-          <th>Added</th>
-          <th></th>
-        </tr>
-      </thead>
-      <tbody id="leadsTable">
-        <tr>
-          <td colspan="8" class="loading">Loading leads</td>
-        </tr>
-      </tbody>
-    </table>
-  </div>
-</div>
-
-<!-- Add Lead Modal (hidden by default) -->
-<div id="addLeadModal" class="modal" style="display: none;">
-  <div class="modal-content">
-    <div class="modal-header">
-      <h3>Add New Lead</h3>
-      <button class="modal-close" onclick="hideAddLeadModal()">&times;</button>
-    </div>
-    <form id="addLeadForm" onsubmit="submitNewLead(event)">
-      <div class="form-group">
-        <label>Name *</label>
-        <input type="text" name="name" required class="input-control">
-      </div>
-      <div class="form-row">
-        <div class="form-group">
-          <label>Phone *</label>
-          <input type="tel" name="phone" required class="input-control">
-        </div>
-        <div class="form-group">
-          <label>Email</label>
-          <input type="email" name="email" class="input-control">
-        </div>
-      </div>
-      <div class="form-group">
-        <label>Address</label>
-        <input type="text" name="address" class="input-control">
-      </div>
-      <div class="form-row">
-        <div class="form-group">
-          <label>Service Type *</label>
-          <select name="service" required class="select-control">
-            <option value="">Select service...</option>
-            <option value="spalling">Spalling Repair</option>
-            <option value="windows">Impact Windows & Doors</option>
-            <option value="deck">Deck</option>
-            <option value="balcony">Balcony Repair</option>
-            <option value="remodel">Remodeling</option>
-            <option value="other">Other</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label>Source</label>
-          <select name="source" class="select-control">
-            <option value="phone">Phone Call</option>
-            <option value="website">Website</option>
-            <option value="referral">Referral</option>
-            <option value="other">Other</option>
-          </select>
-        </div>
-      </div>
-      <div class="form-group">
-        <label>Project Details</label>
-        <textarea name="details" rows="3" class="input-control"></textarea>
-      </div>
-      <div class="form-actions">
-        <button type="button" class="btn btn-secondary" onclick="hideAddLeadModal()">Cancel</button>
-        <button type="submit" class="btn btn-primary">Add Lead</button>
-      </div>
-    </form>
-  </div>
+    <button class="bulk-close" onclick="clearBulkSelection()" title="Clear selection">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>
+    </button>
 </div>
 
 <style>
-/* Additional styles for leads page */
-.select-control, .input-control {
-  padding: 6px 10px;
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-sm);
-  font-size: 13px;
-  background: var(--bg-surface);
-  color: var(--text-primary);
-}
+    /* ========== GLOBAL OVERFLOW FIX ========== */
+    html, body {
+        overflow-x: hidden !important;
+        max-width: 100vw !important;
+    }
 
-.select-control:focus, .input-control:focus {
-  outline: none;
-  border-color: var(--accent-ocean);
-  box-shadow: 0 0 0 2px var(--accent-ocean-soft);
-}
+    /* Leads Page Layout */
+    .leads-page {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-5);
+        max-width: 100%;
+        overflow-x: hidden;
+    }
 
-.modal {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-}
+    /* Bulk Actions Bar - Fixed at bottom of screen, above everything */
+    .bulk-actions-bar {
+        display: none;
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        z-index: 9999;
+        align-items: center;
+        justify-content: center;
+        gap: var(--space-3);
+        padding: var(--space-3) var(--space-4);
+        background: white;
+        border-top: 1px solid var(--gray-200);
+        box-shadow: 0 -2px 10px rgba(0,0,0,0.15);
+    }
 
-.modal-content {
-  background: var(--bg-surface);
-  border-radius: var(--radius-lg);
-  width: 100%;
-  max-width: 500px;
-  box-shadow: var(--shadow-lg);
-}
+    .leads-toolbar-card {
+        background: white;
+        border-radius: var(--radius-lg);
+        padding: var(--space-4);
+        box-shadow: var(--shadow-sm);
+    }
 
-.modal-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: var(--space-4) var(--space-5);
-  border-bottom: 1px solid var(--border-subtle);
-}
+    .leads-toolbar {
+        display: flex;
+        align-items: center;
+        gap: var(--space-3);
+        flex-wrap: wrap;
+    }
 
-.modal-header h3 {
-  font-size: 16px;
-  font-weight: 600;
-}
+    .toolbar-divider {
+        width: 1px;
+        height: 28px;
+        background: var(--gray-200);
+        margin: 0 var(--space-2);
+    }
 
-.modal-close {
-  background: none;
-  border: none;
-  font-size: 20px;
-  color: var(--text-muted);
-  cursor: pointer;
-}
+    .toolbar-select {
+        border: 1px solid var(--gray-200);
+        border-radius: var(--radius-md);
+        padding: var(--space-2) var(--space-3);
+        font-size: 0.875rem;
+        background: white;
+        min-width: 140px;
+    }
 
-.modal-close:hover {
-  color: var(--text-primary);
-}
+    .leads-table-card {
+        background: white;
+        border-radius: var(--radius-lg);
+        box-shadow: var(--shadow-sm);
+        overflow: hidden;
+    }
 
-#addLeadForm {
-  padding: var(--space-5);
-}
+    /* Clean up old toolbar */
+    .toolbar {
+        display: none;
+    }
 
-.form-group {
-  margin-bottom: var(--space-4);
-}
+    /* Dropdown styles */
+    .dropdown-container {
+        position: relative;
+    }
 
-.form-group label {
-  display: block;
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--text-secondary);
-  margin-bottom: var(--space-1);
-}
+    .dropdown-toggle {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
 
-.form-group input, .form-group select, .form-group textarea {
-  width: 100%;
-}
+    .dropdown-menu {
+        display: none;
+        position: absolute;
+        top: 100%;
+        left: 0;
+        background: white;
+        border: 1px solid var(--gray-200);
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        min-width: 220px;
+        z-index: 1000;
+        padding: 0.5rem 0;
+        margin-top: 0.25rem;
+    }
 
-.form-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--space-4);
-}
+    .dropdown-menu.visible {
+        display: block;
+    }
 
-.form-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: var(--space-3);
-  margin-top: var(--space-5);
-  padding-top: var(--space-4);
-  border-top: 1px solid var(--border-subtle);
-}
+    .dropdown-header {
+        padding: 0.5rem 1rem;
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: var(--gray-500);
+        text-transform: uppercase;
+    }
 
-.table-actions {
-  display: flex;
-  gap: var(--space-2);
-}
+    .dropdown-divider {
+        height: 1px;
+        background: var(--gray-200);
+        margin: 0.5rem 0;
+    }
 
-.table-actions button {
-  padding: 4px 8px;
-  font-size: 11px;
-}
+    .dropdown-item {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.5rem 1rem;
+        cursor: pointer;
+        font-size: 0.875rem;
+        color: var(--gray-700);
+    }
+
+    .dropdown-item:hover {
+        background: var(--gray-100);
+    }
+
+    /* Two-Column Fields Dropdown */
+    .fields-dropdown {
+        min-width: 520px;
+        padding: 0;
+    }
+
+    .fields-dropdown-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.75rem 1rem;
+        border-bottom: 1px solid var(--gray-200);
+    }
+
+    .fields-dropdown-header h4 {
+        margin: 0;
+        font-size: 0.9375rem;
+        font-weight: 600;
+    }
+
+    .fields-unsaved-badge {
+        display: none;
+        font-size: 0.75rem;
+        color: var(--warning-dark, #b45309);
+        background: var(--warning-light, #fef3c7);
+        padding: 0.25rem 0.5rem;
+        border-radius: 4px;
+        font-weight: 500;
+    }
+
+    .fields-unsaved-badge.visible {
+        display: inline-block;
+    }
+
+    .fields-columns {
+        display: flex;
+        gap: 0;
+        min-height: 280px;
+        max-height: 400px;
+    }
+
+    .fields-column {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        border-right: 1px solid var(--gray-200);
+    }
+
+    .fields-column:last-child {
+        border-right: none;
+    }
+
+    .fields-column-header {
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: var(--gray-500);
+        text-transform: uppercase;
+        padding: 0.5rem 0.75rem;
+        background: var(--gray-50);
+        border-bottom: 1px solid var(--gray-200);
+    }
+
+    .fields-list {
+        flex: 1;
+        overflow-y: auto;
+        padding: 0.5rem;
+    }
+
+    .field-item {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.5rem 0.625rem;
+        cursor: grab;
+        border: 2px solid transparent;
+        border-radius: 0.375rem;
+        margin-bottom: 0.25rem;
+        transition: all 0.15s ease;
+        background: white;
+        font-size: 0.875rem;
+    }
+
+    .field-item:hover {
+        background: var(--gray-50);
+    }
+
+    .field-item.dragging {
+        opacity: 0.5;
+        background: var(--primary-light);
+        border-color: var(--primary);
+    }
+
+    .field-item.drag-over {
+        border-color: var(--primary);
+        border-style: dashed;
+        background: var(--primary-light);
+    }
+
+    .field-item:active {
+        cursor: grabbing;
+    }
+
+    .field-item.field-item-fixed {
+        cursor: default;
+        background: var(--gray-50);
+        border-color: var(--gray-200);
+    }
+
+    .field-item.field-item-fixed:hover {
+        background: var(--gray-50);
+    }
+
+    .field-item-name {
+        flex: 1;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .field-drag-handle {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--gray-400);
+        padding: 0.125rem;
+        border-radius: 0.25rem;
+        transition: color 0.15s ease;
+        cursor: grab;
+    }
+
+    .field-item:hover .field-drag-handle {
+        color: var(--gray-600);
+    }
+
+    .field-action-btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 24px;
+        height: 24px;
+        border: none;
+        background: transparent;
+        cursor: pointer;
+        border-radius: 4px;
+        color: var(--gray-500);
+        transition: all 0.15s ease;
+    }
+
+    .field-action-btn:hover {
+        background: var(--gray-100);
+    }
+
+    .field-action-btn.add-btn:hover {
+        color: var(--success, #16a34a);
+        background: var(--success-light, #dcfce7);
+    }
+
+    .field-action-btn.remove-btn:hover {
+        color: var(--danger, #dc2626);
+        background: var(--danger-light, #fee2e2);
+    }
+
+    .fields-dropdown-footer {
+        display: flex;
+        justify-content: flex-end;
+        gap: 0.5rem;
+        padding: 0.75rem 1rem;
+        border-top: 1px solid var(--gray-200);
+        background: var(--gray-50);
+    }
+
+    .fields-list-empty {
+        color: var(--gray-400);
+        font-size: 0.8125rem;
+        text-align: center;
+        padding: 2rem 1rem;
+        font-style: italic;
+    }
+
+    /* Group Panel */
+    .group-panel {
+        min-width: 320px;
+        padding: 0;
+    }
+
+    .group-panel-header {
+        padding: 0.75rem 1rem;
+        border-bottom: 1px solid var(--gray-200);
+    }
+
+    .group-panel-header h4 {
+        margin: 0;
+        font-size: 0.9375rem;
+        font-weight: 600;
+    }
+
+    .group-panel-body {
+        max-height: 250px;
+        overflow-y: auto;
+    }
+
+    .group-panel-footer {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.75rem 1rem;
+        border-top: 1px solid var(--gray-200);
+        background: var(--gray-50);
+    }
+
+    .group-panel-actions {
+        display: flex;
+        gap: 0.25rem;
+    }
+
+    .btn-link {
+        background: none;
+        border: none;
+        color: var(--primary);
+        cursor: pointer;
+        font-size: 0.8125rem;
+        padding: 0.25rem 0.5rem;
+    }
+
+    .btn-link:hover {
+        text-decoration: underline;
+    }
+
+    /* Badge count on buttons */
+    .badge-count {
+        background: var(--primary);
+        color: white;
+        font-size: 0.6875rem;
+        font-weight: 600;
+        padding: 0.125rem 0.4rem;
+        border-radius: 9999px;
+        margin-left: 0.25rem;
+    }
+
+    .group-badge {
+        background: var(--primary);
+    }
+
+    /* Nested group styles */
+    .nested-group .grid-section-header {
+        padding: 0.5rem 1rem;
+    }
+
+    .nested-group .grid-section-header.nested h4,
+    .nested-group .grid-section-header.nested h5 {
+        margin: 0;
+        font-size: 0.875rem;
+        font-weight: 500;
+    }
+
+    .nested-group .grid-section-count {
+        font-size: 0.75rem;
+    }
+
+    /* Context menu divider */
+    .context-menu-divider {
+        height: 1px;
+        background: var(--gray-200);
+        margin: 0.25rem 0;
+    }
+
+    /* Views dropdown */
+    .view-option {
+        justify-content: space-between;
+    }
+
+    .view-option.active {
+        background: var(--gray-50);
+        font-weight: 500;
+    }
+
+    .checkmark {
+        color: var(--primary);
+        font-weight: bold;
+    }
+
+    .view-delete-btn {
+        background: none;
+        border: none;
+        color: var(--gray-400);
+        cursor: pointer;
+        font-size: 1.25rem;
+        line-height: 1;
+        padding: 0 0.25rem;
+        margin-left: auto;
+    }
+
+    .view-delete-btn:hover {
+        color: var(--danger);
+    }
+
+    .save-view-btn {
+        color: var(--primary);
+        font-weight: 500;
+    }
+
+    .save-view-btn svg {
+        color: var(--primary);
+    }
+
+    /* Add Field Button in Header */
+    .add-field-header {
+        width: 40px;
+        text-align: center;
+        cursor: pointer;
+        background: var(--gray-50);
+        transition: background 0.2s;
+    }
+
+    .add-field-header:hover {
+        background: var(--gray-100);
+    }
+
+    .add-field-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 24px;
+        height: 24px;
+        border-radius: 4px;
+        background: var(--gray-200);
+        color: var(--gray-600);
+        font-size: 18px;
+        font-weight: 500;
+        line-height: 1;
+    }
+
+    .add-field-header:hover .add-field-btn {
+        background: var(--primary);
+        color: white;
+    }
+
+    .add-field-cell {
+        width: 40px;
+        background: var(--gray-50);
+    }
+
+    /* Checkbox column */
+    .checkbox-col {
+        width: 40px;
+        text-align: center;
+        padding: 0.5rem !important;
+    }
+
+    .checkbox-col input {
+        cursor: pointer;
+    }
+
+    tr.selected-row {
+        background: #EBF5FF !important;
+    }
+
+    tr.selected-row td {
+        background: #EBF5FF !important;
+    }
+
+    /* Custom field header hover */
+    .custom-field-header {
+        cursor: context-menu;
+        position: relative;
+    }
+
+    .custom-field-header:hover {
+        background: var(--gray-100);
+    }
+
+    /* Context Menu */
+    .context-menu {
+        display: none;
+        position: fixed;
+        background: white;
+        border: 1px solid var(--gray-200);
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        min-width: 180px;
+        z-index: 1000;
+        padding: 0.5rem 0;
+    }
+
+    .context-menu.visible {
+        display: block;
+    }
+
+    .context-menu-item {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.5rem 1rem;
+        cursor: pointer;
+        font-size: 0.875rem;
+        color: var(--gray-700);
+    }
+
+    .context-menu-item:hover {
+        background: var(--gray-100);
+    }
+
+    .context-menu-item-danger {
+        color: var(--danger);
+    }
+
+    .context-menu-item-danger:hover {
+        background: #fef2f2;
+    }
+
+    /* Modal */
+    .modal-overlay {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 1001;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .modal-overlay.visible {
+        display: flex;
+    }
+
+    .modal {
+        background: white;
+        border-radius: 12px;
+        width: 100%;
+        max-width: 450px;
+        max-height: 90vh;
+        overflow: auto;
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+    }
+
+    .modal-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 1rem 1.5rem;
+        border-bottom: 1px solid var(--gray-200);
+    }
+
+    .modal-header h3 {
+        margin: 0;
+        font-size: 1.125rem;
+    }
+
+    .modal-close {
+        background: none;
+        border: none;
+        font-size: 1.5rem;
+        color: var(--gray-500);
+        cursor: pointer;
+        padding: 0;
+        line-height: 1;
+    }
+
+    .modal-close:hover {
+        color: var(--gray-700);
+    }
+
+    .modal-body {
+        padding: 1.5rem;
+    }
+
+    .modal-footer {
+        display: flex;
+        justify-content: flex-end;
+        gap: 0.75rem;
+        padding: 1rem 1.5rem;
+        border-top: 1px solid var(--gray-200);
+        background: var(--gray-50);
+    }
+
+    /* Editable cells */
+    .editable-cell {
+        cursor: pointer;
+        position: relative;
+        transition: background 0.15s;
+    }
+
+    .editable-cell:hover {
+        background: var(--gray-100);
+    }
+
+    .editable-cell.editing {
+        padding: 0;
+        background: white;
+    }
+
+    /* Inline editable cells (within a td) */
+    .inline-cell {
+        padding: 0.125rem 0.25rem;
+        margin: -0.125rem -0.25rem;
+        border-radius: 3px;
+    }
+
+    .inline-cell:hover {
+        background: var(--gray-100);
+    }
+
+    .inline-cell.editing {
+        padding: 0;
+        margin: 0;
+    }
+
+    .editable-cell .cell-editor {
+        width: 100%;
+        padding: 0.5rem;
+        border: 2px solid var(--primary);
+        border-radius: 4px;
+        font-size: inherit;
+        font-family: inherit;
+        box-sizing: border-box;
+        outline: none;
+    }
+
+    .editable-cell .cell-editor:focus {
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+    }
+
+    .editable-cell select.cell-editor {
+        cursor: pointer;
+    }
+
+    /* Links in cells (email, phone, url) */
+    .cell-display a {
+        color: var(--primary, #3b82f6);
+        text-decoration: none;
+    }
+
+    .cell-display a:hover {
+        text-decoration: underline;
+    }
+
+    /* Stage cell - full width colored badge */
+    .stage-cell {
+        padding: 0.25rem !important;
+    }
+
+    .stage-badge {
+        cursor: pointer;
+        user-select: none;
+    }
+
+    /* Status Dropdown */
+    .status-dropdown-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 999;
+    }
+
+    .status-dropdown {
+        position: fixed;
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+        min-width: 180px;
+        z-index: 1000;
+        overflow: hidden;
+        animation: dropdownSlide 0.15s ease-out;
+    }
+
+    @keyframes dropdownSlide {
+        from {
+            opacity: 0;
+            transform: translateY(-8px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .status-dropdown-item {
+        display: flex;
+        align-items: center;
+        padding: 0;
+        cursor: pointer;
+        transition: filter 0.1s ease;
+    }
+
+    .status-dropdown-item:hover {
+        filter: brightness(0.95);
+    }
+
+    .status-dropdown-item .badge {
+        border-radius: 0;
+        width: 100%;
+    }
+
+    .status-dropdown-item:first-child .badge {
+        border-radius: 8px 8px 0 0;
+    }
+
+    .status-dropdown-item:last-child .badge {
+        border-radius: 0 0 8px 8px;
+    }
+
+    .status-dropdown-item:only-child .badge {
+        border-radius: 8px;
+    }
+
+    .status-dropdown-item.current {
+        position: relative;
+    }
+
+    .status-dropdown-item.current::after {
+        content: '✓';
+        position: absolute;
+        right: 12px;
+        font-size: 14px;
+        font-weight: bold;
+    }
+
+    /* Dropdown cell styling (job_type, property_type) */
+    .dropdown-cell {
+        padding: 0.5rem !important;
+    }
+
+    .dropdown-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0.4rem 1rem;
+        font-size: 0.75rem;
+        font-weight: 500;
+        text-align: center;
+        cursor: pointer;
+        border-radius: 20px;
+        transition: all 0.15s ease;
+        white-space: nowrap;
+    }
+
+    .badge-neutral {
+        background: #f0f2f5;
+        color: #1a1f36;
+        border: 1px solid #e4e7eb;
+    }
+
+    .badge-neutral:hover {
+        background: #e4e7eb;
+        border-color: #d0d4dc;
+    }
+
+    /* Job Type Colors - Cool tones */
+    .badge-job-0 { background: #e3f2fd; color: #1565c0; border: 1px solid #bbdefb; }
+    .badge-job-0:hover { background: #bbdefb; }
+    .badge-job-1 { background: #e0f2f1; color: #00796b; border: 1px solid #b2dfdb; }
+    .badge-job-1:hover { background: #b2dfdb; }
+    .badge-job-2 { background: #f3e5f5; color: #7b1fa2; border: 1px solid #e1bee7; }
+    .badge-job-2:hover { background: #e1bee7; }
+    .badge-job-3 { background: #e8eaf6; color: #3949ab; border: 1px solid #c5cae9; }
+    .badge-job-3:hover { background: #c5cae9; }
+    .badge-job-4 { background: #e0f7fa; color: #0097a7; border: 1px solid #b2ebf2; }
+    .badge-job-4:hover { background: #b2ebf2; }
+    .badge-job-5 { background: #fce4ec; color: #c2185b; border: 1px solid #f8bbd9; }
+    .badge-job-5:hover { background: #f8bbd9; }
+
+    /* Property Type Colors - Warm tones */
+    .badge-prop-0 { background: #fff3e0; color: #e65100; border: 1px solid #ffe0b2; }
+    .badge-prop-0:hover { background: #ffe0b2; }
+    .badge-prop-1 { background: #e8f5e9; color: #2e7d32; border: 1px solid #c8e6c9; }
+    .badge-prop-1:hover { background: #c8e6c9; }
+    .badge-prop-2 { background: #fff8e1; color: #f57f17; border: 1px solid #ffecb3; }
+    .badge-prop-2:hover { background: #ffecb3; }
+    .badge-prop-3 { background: #efebe9; color: #5d4037; border: 1px solid #d7ccc8; }
+    .badge-prop-3:hover { background: #d7ccc8; }
+    .badge-prop-4 { background: #fbe9e7; color: #d84315; border: 1px solid #ffccbc; }
+    .badge-prop-4:hover { background: #ffccbc; }
+    .badge-prop-5 { background: #f1f8e9; color: #558b2f; border: 1px solid #dcedc8; }
+    .badge-prop-5:hover { background: #dcedc8; }
+
+    /* Dropdown item colors */
+    .field-dropdown-item .color-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        margin-right: 8px;
+        flex-shrink: 0;
+    }
+
+    /* Field Dropdown (for job_type, property_type) */
+    .field-dropdown-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 999;
+    }
+
+    .field-dropdown {
+        position: fixed;
+        background: white;
+        border-radius: 10px;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+        min-width: 160px;
+        max-height: 280px;
+        overflow-y: auto;
+        z-index: 1000;
+        padding: 6px;
+        animation: dropdownSlide 0.15s ease-out;
+    }
+
+    .field-dropdown-item {
+        display: flex;
+        align-items: center;
+        padding: 0.5rem 0.875rem;
+        cursor: pointer;
+        border-radius: 6px;
+        font-size: 0.8125rem;
+        color: #1a1f36;
+        transition: background-color 0.1s ease;
+    }
+
+    .field-dropdown-item:hover {
+        background: #f0f2f5;
+    }
+
+    .field-dropdown-item.current {
+        background: #e6f4ff;
+        color: #0073ea;
+        font-weight: 500;
+    }
+
+    .field-dropdown-item.empty-option {
+        color: #9699a9;
+        font-style: italic;
+    }
+
+    /* Multi-select dropdown */
+    .multi-select-dropdown {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        background: white;
+        border: 1px solid var(--gray-200);
+        border-radius: 6px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        z-index: 100;
+        max-height: 200px;
+        overflow-y: auto;
+    }
+
+    .multi-select-option {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.5rem 0.75rem;
+        cursor: pointer;
+    }
+
+    .multi-select-option:hover {
+        background: var(--gray-100);
+    }
+
+    .multi-select-option input {
+        width: 16px;
+        height: 16px;
+    }
+
+    .multi-select-done {
+        padding: 0.5rem;
+        border-top: 1px solid var(--gray-200);
+        text-align: center;
+    }
+
+    .multi-select-done button {
+        width: 100%;
+    }
+
+    /* ========== Mobile Responsive Styles ========== */
+    @media (max-width: 768px) {
+        /* FORCE prevent horizontal overflow */
+        html, body, .ss-main, .leads-page {
+            width: 100% !important;
+            max-width: 100vw !important;
+            overflow-x: hidden !important;
+            box-sizing: border-box !important;
+        }
+
+        /* Leads page container */
+        .leads-page {
+            padding: 0 !important;
+            gap: 0 !important;
+        }
+
+        /* Page header - stack on mobile */
+        .leads-page .dashboard-header {
+            flex-direction: column;
+            gap: var(--space-3);
+            align-items: stretch !important;
+            padding: var(--space-4);
+        }
+
+        .leads-page .dashboard-header > div:first-child {
+            text-align: center;
+        }
+
+        .leads-page .dashboard-title {
+            font-size: 1.5rem;
+        }
+
+        .leads-page .dashboard-actions {
+            display: flex;
+            gap: var(--space-2);
+            justify-content: center;
+        }
+
+        .leads-page .dashboard-actions .btn {
+            flex: 1;
+            justify-content: center;
+            padding: var(--space-2) var(--space-3);
+            font-size: 0.875rem;
+
+        /* Hide import button on mobile */
+        .hide-mobile {
+            display: none !important;
+        }
+
+        /* Keep checkbox but make it bigger touch target */
+        .checkbox-col {
+            width: 48px !important;
+            padding: var(--space-2) !important;
+        }
+
+        .checkbox-col input {
+            width: 22px !important;
+            height: 22px !important;
+        }
+
+        /* Make quick action buttons bigger and more tappable */
+        .quick-actions {
+            display: flex !important;
+            gap: 8px !important;
+        }
+
+        .quick-action-btn {
+            width: 44px !important;
+            height: 44px !important;
+            min-width: 44px !important;
+            min-height: 44px !important;
+            padding: 10px !important;
+            border-radius: 8px !important;
+            background: var(--gray-100, #f3f4f6) !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+        }
+
+        .quick-action-btn svg {
+            width: 20px !important;
+            height: 20px !important;
+        }
+
+        .quick-action-btn:active {
+            background: var(--gray-200, #e5e7eb) !important;
+        }
+
+        /* Actions column needs more width */
+        .actions-col {
+            min-width: 180px !important;
+            padding: var(--space-2) !important;
+        }
+
+        /* Toolbar card - full width, no overflow */
+        .leads-toolbar-card {
+            border-radius: 0;
+            margin: 0;
+            padding: var(--space-3);
+        }
+
+        .leads-toolbar {
+            flex-direction: column;
+            gap: var(--space-2);
+            align-items: stretch;
+        }
+
+        .leads-toolbar .search-box {
+            width: 100%;
+            min-width: auto;
+        }
+
+        .leads-toolbar .toolbar-divider {
+            display: none;
+        }
+
+        .leads-toolbar .filter-group {
+            width: 100%;
+        }
+
+        .leads-toolbar .toolbar-select {
+            width: 100%;
+        }
+
+        /* Dropdown buttons - wrap to fit */
+        .leads-toolbar .dropdown-container {
+            width: 100%;
+        }
+
+        .leads-toolbar .dropdown-container .btn {
+            width: 100%;
+            justify-content: center;
+        }
+
+        /* Hide Group/Fields/Views text on very small screens */
+        .leads-toolbar .btn svg + span,
+        .leads-toolbar .dropdown-toggle span:not(.badge-count) {
+            /* Keep visible but buttons take full width */
+        }
+
+        /* Table card - scrollable horizontally */
+        .leads-table-card {
+            border-radius: 0;
+            margin: 0;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        /* Toolbar layout */
+        .toolbar {
+            flex-direction: column;
+            gap: 0.75rem;
+            padding-bottom: 0.5rem;
+        }
+
+        .toolbar > div[style*="margin-left: auto"] {
+            margin-left: 0 !important;
+            width: 100%;
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .toolbar > div[style*="margin-left: auto"] .btn {
+            flex: 1;
+            justify-content: center;
+        }
+
+        /* Filter groups stack */
+        .filter-group {
+            width: 100%;
+        }
+
+        .filter-group select {
+            flex: 1;
+        }
+
+        .dropdown-container {
+            position: static;
+        }
+
+        /* Bulk actions bar - already fixed positioned in base styles */
+        .bulk-actions-bar {
+            padding: var(--space-2) var(--space-3);
+            flex-wrap: wrap;
+        }
+
+        /* Group headers */
+        .group-section-header {
+            padding: var(--space-2) var(--space-3);
+            font-size: 0.875rem;
+        }
+
+        /* Dropdown menus - slide up from bottom on mobile */
+        .dropdown-menu {
+            position: fixed !important;
+            left: 0.75rem !important;
+            right: 0.75rem !important;
+            bottom: 0.75rem !important;
+            top: auto !important;
+            max-height: 70vh !important;
+            overflow-y: auto;
+            border-radius: 1rem;
+            box-shadow: 0 -4px 25px rgba(0, 0, 0, 0.2);
+            animation: slideUpMobile 0.25s ease;
+        }
+
+        /* Fields dropdown - stack columns on mobile */
+        .fields-dropdown {
+            min-width: auto !important;
+        }
+
+        .fields-columns {
+            flex-direction: column;
+            max-height: 50vh;
+        }
+
+        .fields-column {
+            border-right: none;
+            border-bottom: 1px solid var(--gray-200);
+        }
+
+        .fields-column:last-child {
+            border-bottom: none;
+        }
+
+        .fields-list {
+            max-height: 25vh;
+        }
+
+        @keyframes slideUpMobile {
+            from {
+                transform: translateY(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .dropdown-item {
+            padding: 0.75rem 1rem;
+            min-height: 44px;
+        }
+
+        .field-checkbox input {
+            width: 20px;
+            height: 20px;
+        }
+
+        /* Group panel adjustments */
+        .group-panel {
+            min-width: auto;
+        }
+
+        .group-panel-body {
+            max-height: 40vh;
+        }
+
+        .group-panel-footer {
+            flex-direction: column;
+            gap: 0.75rem;
+            align-items: stretch;
+        }
+
+        .group-panel-actions {
+            justify-content: space-between;
+        }
+
+        /* Context menus - similar treatment */
+        .context-menu {
+            position: fixed !important;
+            left: 0.75rem !important;
+            right: 0.75rem !important;
+            bottom: 0.75rem !important;
+            top: auto !important;
+            width: auto !important;
+            border-radius: 1rem;
+            box-shadow: 0 -4px 25px rgba(0, 0, 0, 0.2);
+        }
+
+        .context-menu-item {
+            padding: 0.875rem 1rem;
+            min-height: 44px;
+        }
+
+        /* Modals */
+        .modal-overlay {
+            padding: 0;
+            align-items: flex-end;
+        }
+
+        .modal {
+            max-width: 100%;
+            max-height: 90vh;
+            border-radius: 1rem 1rem 0 0;
+            margin: 0;
+        }
+
+        .modal-header {
+            padding: 1rem;
+        }
+
+        .modal-body {
+            padding: 1rem;
+        }
+
+        .modal-footer {
+            padding: 1rem;
+            flex-direction: column;
+        }
+
+        .modal-footer .btn {
+            width: 100%;
+            justify-content: center;
+        }
+
+        /* Table adjustments */
+        .grid-section-header {
+            padding: 0.625rem 0.75rem;
+        }
+
+        .grid-section-header h3 {
+            font-size: 0.875rem;
+        }
+
+        /* Editable cells - tap to edit */
+        .editable-cell {
+            padding: 0.75rem;
+        }
+
+        .editable-cell .cell-editor {
+            padding: 0.625rem;
+            font-size: 16px; /* Prevents zoom on iOS */
+        }
+
+        /* Multi-select dropdown */
+        .multi-select-dropdown {
+            position: fixed;
+            left: 0.75rem;
+            right: 0.75rem;
+            bottom: 0.75rem;
+            top: auto;
+            max-height: 50vh;
+            border-radius: 1rem;
+        }
+
+        .multi-select-option {
+            padding: 0.75rem 1rem;
+            min-height: 44px;
+        }
+
+        /* Bulk actions bar - full width */
+        .bulk-actions-bar {
+            left: 0.75rem !important;
+            right: 0.75rem !important;
+            transform: none !important;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+
+        .bulk-count {
+            width: 100%;
+            text-align: center;
+        }
+
+        /* Add field button */
+        .add-field-header,
+        .add-field-cell {
+            display: none;
+        }
+
+        /* Quick actions - always visible */
+        .quick-actions {
+            opacity: 1;
+        }
+
+        /* View dropdown */
+        .view-option {
+            min-height: 44px;
+            padding: 0.75rem 1rem;
+        }
+
+        .view-delete-btn {
+            min-width: 44px;
+            min-height: 44px;
+        }
+
+        /* Recently viewed section */
+        .recently-viewed-list {
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .recently-viewed-item {
+            width: 100%;
+        }
+    }
+
+    /* Extra small screens */
+    @media (max-width: 480px) {
+        .toolbar > div[style*="margin-left: auto"] {
+            flex-direction: column;
+        }
+
+        .toolbar > div[style*="margin-left: auto"] .btn {
+            width: 100%;
+        }
+
+        .dropdown-menu {
+            left: 0.5rem !important;
+            right: 0.5rem !important;
+            bottom: 0.5rem !important;
+        }
+
+        .grid-table th,
+        .grid-table td {
+            padding: 0.5rem 0.625rem;
+            font-size: 0.75rem;
+        }
+
+        .status-select {
+            font-size: 0.75rem;
+            padding: 0.375rem;
+        }
+
+        /* Badge sizes */
+        .badge {
+            font-size: 0.6875rem;
+            padding: 0.125rem 0.375rem;
+        }
+    }
+
+    /* Touch-friendly improvements */
+    @media (hover: none) and (pointer: coarse) {
+        .dropdown-item:active {
+            background: var(--gray-200);
+        }
+
+        .context-menu-item:active {
+            background: var(--gray-200);
+        }
+
+        .editable-cell:active {
+            background: var(--gray-200);
+        }
+    }
 </style>
 
 {% endblock %}
 
 {% block scripts %}
 <script>
-let allLeads = [];
+    // ========== Field Visibility State ==========
+    const visibleDefaultFields = {{ visible_default_fields | tojson }};
+    const visibleCustomFieldIds = {{ visible_custom_field_ids | tojson }};
+    const currentViewId = {{ current_view['id'] if current_view else 'null' }};
 
-async function loadLeads() {
-  try {
-    const response = await fetch('/api/leads');
-    const data = await response.json();
-    allLeads = data.leads || [];
-    updatePipelineCounts();
-    renderLeadsTable(allLeads);
-  } catch (error) {
-    console.error('Error loading leads:', error);
-  }
-}
+    function toggleSection(section) {
+        section.classList.toggle('collapsed');
+        // Save collapse state to localStorage
+        const sectionId = section.id;
+        const collapsed = section.classList.contains('collapsed');
+        saveStageState(sectionId, collapsed);
+    }
 
-function updatePipelineCounts() {
-  const counts = {};
-  allLeads.forEach(lead => {
-    const status = lead.status || 'new';
-    counts[status] = (counts[status] || 0) + 1;
-  });
-  
-  document.getElementById('count-new').textContent = counts.new || 0;
-  document.getElementById('count-contacted').textContent = counts.contacted || 0;
-  document.getElementById('count-scheduled').textContent = counts.site_scheduled || 0;
-  document.getElementById('count-estimate').textContent = counts.estimate_sent || 0;
-  document.getElementById('count-won').textContent = counts.won || 0;
-}
+    // Delete lead with confirmation dialog
+    function deleteLead(btn) {
+        const leadId = btn.dataset.leadId;
+        const leadName = btn.dataset.leadName;
 
-function filterLeads() {
-  const status = document.getElementById('filterStatus').value;
-  const service = document.getElementById('filterService').value;
-  const search = document.getElementById('searchLeads').value.toLowerCase();
-  
-  let filtered = allLeads;
-  
-  if (status !== 'all') {
-    filtered = filtered.filter(l => l.status === status);
-  }
-  
-  if (service !== 'all') {
-    filtered = filtered.filter(l => l.project?.service === service);
-  }
-  
-  if (search) {
-    filtered = filtered.filter(l => 
-      (l.contact?.name || '').toLowerCase().includes(search) ||
-      (l.contact?.phone || '').includes(search) ||
-      (l.contact?.email || '').toLowerCase().includes(search)
-    );
-  }
-  
-  renderLeadsTable(filtered);
-}
+        showConfirmDialog({
+            title: 'Delete Lead',
+            message: `Are you sure you want to delete "${leadName}"? This action cannot be undone.`,
+            confirmText: 'Delete',
+            cancelText: 'Cancel',
+            type: 'danger',
+            onConfirm: () => {
+                fetch(`/leads/${leadId}/delete`, {
+                    method: 'POST',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                }).then(response => {
+                    if (response.ok) {
+                        showToast(`"${leadName}" has been deleted`, 'success');
+                        // Remove the row from the table
+                        const row = btn.closest('tr');
+                        if (row) {
+                            row.style.transition = 'opacity 0.3s, transform 0.3s';
+                            row.style.opacity = '0';
+                            row.style.transform = 'translateX(-20px)';
+                            setTimeout(() => {
+                                row.remove();
+                                // Update count in section header
+                                const section = row.closest('.grid-section');
+                                if (section) {
+                                    const countSpan = section.querySelector('.grid-section-count');
+                                    if (countSpan) {
+                                        const currentCount = parseInt(countSpan.textContent) || 0;
+                                        countSpan.textContent = Math.max(0, currentCount - 1);
+                                    }
+                                }
+                            }, 300);
+                        }
+                    } else {
+                        showToast('Failed to delete lead', 'error');
+                    }
+                }).catch(() => {
+                    showToast('Failed to delete lead', 'error');
+                });
+            }
+        });
+    }
 
-function renderLeadsTable(leads) {
-  const tbody = document.getElementById('leadsTable');
-  
-  if (!leads.length) {
-    tbody.innerHTML = `
-      <tr>
-        <td colspan="8" class="empty-state">
-          <div class="empty-state-icon">👥</div>
-          <div class="empty-state-text">No leads found</div>
-        </td>
-      </tr>
-    `;
-    return;
-  }
-  
-  tbody.innerHTML = leads.map(l => {
-    const name = l.contact?.name || 'Unknown';
-    const phone = l.contact?.phone || '-';
-    const email = l.contact?.email || '';
-    const service = l.project?.service || 'other';
-    const source = l.source?.type || 'unknown';
-    const status = l.status || 'new';
-    const priority = l.priority || 'warm';
-    const created = l.source?.capturedAt;
-    
-    return `
-      <tr>
-        <td class="table-client">${escapeHtml(name)}</td>
-        <td>
-          <div>${escapeHtml(phone)}</div>
-          ${email ? `<div class="table-address">${escapeHtml(email)}</div>` : ''}
-        </td>
-        <td>${escapeHtml(service)}</td>
-        <td>${escapeHtml(source)}</td>
-        <td><span class="badge ${status}">${status.replace(/_/g, ' ')}</span></td>
-        <td><span class="badge ${priority}">${priority}</span></td>
-        <td class="table-date">${formatDate(created)}</td>
-        <td class="table-actions">
-          <button class="btn btn-secondary" onclick="editLead('${l.id}')">Edit</button>
-        </td>
-      </tr>
-    `;
-  }).join('');
-}
+    function updateStatus(leadId, status) {
+        fetch(`/leads/${leadId}/status`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: `status=${encodeURIComponent(status)}`
+        }).then(response => {
+            if (response.ok) {
+                showToast(`Lead moved to "${status}"`, 'success');
+                // Update the badge without full reload
+                const badge = document.querySelector(`.stage-badge[data-lead-id="${leadId}"]`);
+                if (badge) {
+                    // Remove old status class
+                    badge.className = badge.className.replace(/badge-[\w-]+/g, '');
+                    // Add new status class
+                    const statusClass = 'badge-' + status.toLowerCase().replace(/ /g, '-');
+                    badge.classList.add('stage-badge', 'badge', statusClass);
+                    badge.textContent = status;
+                    badge.dataset.currentStatus = status;
+                }
+            } else {
+                showToast('Failed to update status', 'error');
+            }
+        }).catch(() => {
+            showToast('Failed to update status', 'error');
+        });
+    }
 
-function showAddLeadModal() {
-  document.getElementById('addLeadModal').style.display = 'flex';
-}
+    // All available statuses for dropdown
+    const allStatuses = {{ statuses | tojson }};
 
-function hideAddLeadModal() {
-  document.getElementById('addLeadModal').style.display = 'none';
-  document.getElementById('addLeadForm').reset();
-}
+    function openStatusDropdown(e, leadId, currentStatus) {
+        e.stopPropagation();
 
-async function submitNewLead(event) {
-  event.preventDefault();
-  // TODO: Implement API call to add lead
-  alert('Lead adding will be implemented with API endpoint');
-  hideAddLeadModal();
-}
+        // Close any existing dropdown
+        closeStatusDropdown();
 
-function editLead(id) {
-  // TODO: Implement edit functionality
-  alert('Edit lead: ' + id);
-}
+        const badge = e.target;
+        const rect = badge.getBoundingClientRect();
 
-// Initialize
-document.addEventListener('DOMContentLoaded', loadLeads);
+        // Create overlay
+        const overlay = document.createElement('div');
+        overlay.className = 'status-dropdown-overlay';
+        overlay.onclick = closeStatusDropdown;
+
+        // Create dropdown
+        const dropdown = document.createElement('div');
+        dropdown.className = 'status-dropdown';
+        dropdown.id = 'activeStatusDropdown';
+
+        // Position dropdown below the badge
+        dropdown.style.top = (rect.bottom + 4) + 'px';
+        dropdown.style.left = rect.left + 'px';
+        dropdown.style.minWidth = rect.width + 'px';
+
+        // Add status options
+        allStatuses.forEach(status => {
+            const item = document.createElement('div');
+            item.className = 'status-dropdown-item' + (status === currentStatus ? ' current' : '');
+
+            const statusClass = 'badge-' + status.toLowerCase().replace(/ /g, '-');
+            item.innerHTML = `<div class="badge ${statusClass}">${status}</div>`;
+
+            item.onclick = (e) => {
+                e.stopPropagation();
+                if (status !== currentStatus) {
+                    updateStatus(leadId, status);
+                }
+                closeStatusDropdown();
+            };
+
+            dropdown.appendChild(item);
+        });
+
+        document.body.appendChild(overlay);
+        document.body.appendChild(dropdown);
+
+        // Adjust if dropdown goes off screen
+        const dropdownRect = dropdown.getBoundingClientRect();
+        if (dropdownRect.bottom > window.innerHeight) {
+            dropdown.style.top = (rect.top - dropdownRect.height - 4) + 'px';
+        }
+        if (dropdownRect.right > window.innerWidth) {
+            dropdown.style.left = (window.innerWidth - dropdownRect.width - 8) + 'px';
+        }
+    }
+
+    function closeStatusDropdown() {
+        const dropdown = document.getElementById('activeStatusDropdown');
+        const overlay = document.querySelector('.status-dropdown-overlay');
+        if (dropdown) dropdown.remove();
+        if (overlay) overlay.remove();
+    }
+
+    // Close status dropdown on escape
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            closeStatusDropdown();
+            closeFieldDropdown();
+        }
+    });
+
+    // ========== Field Dropdowns (job_type, property_type) ==========
+    const fieldOptions = {
+        job_type: {{ job_types | tojson }},
+        property_type: {{ property_types | tojson }}
+    };
+
+    // Color mapping for dropdown items
+    const fieldColors = {
+        job_type: ['#1565c0', '#00796b', '#7b1fa2', '#3949ab', '#0097a7', '#c2185b'],
+        property_type: ['#e65100', '#2e7d32', '#f57f17', '#5d4037', '#d84315', '#558b2f']
+    };
+
+    function getFieldColorClass(fieldName, value) {
+        const options = fieldOptions[fieldName] || [];
+        const index = options.indexOf(value);
+        if (index === -1 || !value) return 'badge-neutral';
+        const prefix = fieldName === 'job_type' ? 'badge-job-' : 'badge-prop-';
+        return prefix + (index % 6);
+    }
+
+    function openFieldDropdown(e, leadId, fieldName, currentValue) {
+        e.stopPropagation();
+        closeFieldDropdown();
+        closeStatusDropdown();
+
+        const badge = e.target;
+        const rect = badge.getBoundingClientRect();
+        const options = fieldOptions[fieldName] || [];
+        const colors = fieldColors[fieldName] || [];
+
+        // Create overlay
+        const overlay = document.createElement('div');
+        overlay.className = 'field-dropdown-overlay';
+        overlay.onclick = closeFieldDropdown;
+
+        // Create dropdown
+        const dropdown = document.createElement('div');
+        dropdown.className = 'field-dropdown';
+        dropdown.id = 'activeFieldDropdown';
+
+        // Position dropdown below the badge
+        dropdown.style.top = (rect.bottom + 4) + 'px';
+        dropdown.style.left = rect.left + 'px';
+
+        // Add empty option
+        const emptyItem = document.createElement('div');
+        emptyItem.className = 'field-dropdown-item empty-option' + (!currentValue ? ' current' : '');
+        emptyItem.innerHTML = '<span class="color-dot" style="background: #ccc;"></span>(None)';
+        emptyItem.onclick = (ev) => {
+            ev.stopPropagation();
+            updateFieldValue(leadId, fieldName, '', -1);
+            closeFieldDropdown();
+        };
+        dropdown.appendChild(emptyItem);
+
+        // Add options with color dots
+        options.forEach((option, index) => {
+            const item = document.createElement('div');
+            item.className = 'field-dropdown-item' + (option === currentValue ? ' current' : '');
+            const color = colors[index % colors.length];
+            item.innerHTML = `<span class="color-dot" style="background: ${color};"></span>${option}`;
+            item.onclick = (ev) => {
+                ev.stopPropagation();
+                if (option !== currentValue) {
+                    updateFieldValue(leadId, fieldName, option, index);
+                }
+                closeFieldDropdown();
+            };
+            dropdown.appendChild(item);
+        });
+
+        document.body.appendChild(overlay);
+        document.body.appendChild(dropdown);
+
+        // Adjust if dropdown goes off screen
+        const dropdownRect = dropdown.getBoundingClientRect();
+        if (dropdownRect.bottom > window.innerHeight) {
+            dropdown.style.top = (rect.top - dropdownRect.height - 4) + 'px';
+        }
+        if (dropdownRect.right > window.innerWidth) {
+            dropdown.style.left = (window.innerWidth - dropdownRect.width - 8) + 'px';
+        }
+    }
+
+    function closeFieldDropdown() {
+        const dropdown = document.getElementById('activeFieldDropdown');
+        const overlay = document.querySelector('.field-dropdown-overlay');
+        if (dropdown) dropdown.remove();
+        if (overlay) overlay.remove();
+    }
+
+    function updateFieldValue(leadId, fieldName, value, optionIndex) {
+        fetch(`/api/leads/${leadId}/update`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ field: fieldName, value: value })
+        }).then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Update the badge without full reload
+                const badge = document.querySelector(`.dropdown-badge[data-lead-id="${leadId}"][data-field="${fieldName}"]`);
+                if (badge) {
+                    badge.textContent = data.display_value || value || '-';
+                    badge.dataset.value = value;
+
+                    // Update color class
+                    badge.className = badge.className.replace(/badge-(job|prop)-\d|badge-neutral/g, '').trim();
+                    const newColorClass = getFieldColorClass(fieldName, value);
+                    badge.classList.add('dropdown-badge', newColorClass);
+                }
+                const label = fieldName.replace('_', ' ');
+                showToast(`Updated ${label}`, 'success');
+            } else {
+                showToast(data.error || 'Failed to update field', 'error');
+            }
+        }).catch(() => {
+            showToast('Failed to update field', 'error');
+        });
+    }
+
+    // ========== Dropdowns ==========
+    function toggleViewsDropdown(e) {
+        e.stopPropagation();
+        closeAllDropdowns();
+        document.getElementById('viewsDropdown').classList.toggle('visible');
+    }
+
+    function closeAllDropdowns() {
+        document.querySelectorAll('.dropdown-menu').forEach(d => d.classList.remove('visible'));
+    }
+
+    // Close dropdowns when clicking outside
+    document.addEventListener('click', function (e) {
+        if (!e.target.closest('.dropdown-container')) {
+            closeAllDropdowns();
+        }
+    });
+
+    // ========== Group By Panel ==========
+    let groupSettings = {{ group_prefs | tojson }};
+    const MAX_GROUP_LEVELS = 3;
+
+    const GROUPABLE_FIELDS = [
+        { key: 'status', name: 'Status' },
+        { key: 'job_type', name: 'Job Type' },
+        { key: 'property_type', name: 'Property Type' },
+        { key: 'created_at', name: 'Created Date' },
+        {% for cf in all_custom_fields %}
+    {% if cf['field_type'] in ['dropdown', 'multi_select', 'checkbox', 'date'] %}
+    { key: 'custom_{{ cf["id"] }}', name: '{{ cf["name"] }}' },
+    {% endif %}
+    {% endfor %}
+    ];
+
+    function toggleGroupPanel(e) {
+        e.stopPropagation();
+        closeAllDropdowns();
+        const panel = document.getElementById('groupPanel');
+        panel.classList.toggle('visible');
+        if (panel.classList.contains('visible')) {
+            renderGroupPanel();
+        }
+    }
+
+    function renderGroupPanel() {
+        const container = document.getElementById('groupLevelsList');
+
+        if (groupSettings.length === 0) {
+            container.innerHTML = `
+                <div class="group-empty-state" style="padding: 1rem; text-align: center; color: var(--gray-500);">
+                    <p style="margin: 0;">No grouping applied</p>
+                    <p style="margin: 0.25rem 0 0; font-size: 0.75rem;">Click "Add Group By" below</p>
+                </div>
+            `;
+        } else {
+            container.innerHTML = groupSettings.map((group, index) => `
+                <div class="group-level" data-level="${index}" style="display: flex; align-items: center; gap: 0.5rem; padding: 0.75rem 1rem; border-bottom: 1px solid var(--gray-100);">
+                    <span class="group-level-number" style="width: 20px; height: 20px; background: var(--gray-200); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.7rem; font-weight: 600;">${index + 1}</span>
+                    <select class="form-control" style="flex: 1; font-size: 0.875rem;" onchange="updateGroupField(${index}, this.value)">
+                        <option value="">Select field...</option>
+                        ${GROUPABLE_FIELDS.map(f => `
+                            <option value="${f.key}" ${group.field_name === f.key ? 'selected' : ''}>
+                                ${f.name}
+                            </option>
+                        `).join('')}
+                    </select>
+                    <div class="group-level-sort" style="display: flex; gap: 0.25rem;">
+                        <button class="btn btn-sm ${group.sort_direction === 'asc' ? 'btn-primary' : 'btn-secondary'}"
+                                onclick="updateGroupSort(${index}, 'asc')" title="A to Z" style="padding: 0.25rem 0.5rem; font-size: 0.7rem;">
+                            A→Z
+                        </button>
+                        <button class="btn btn-sm ${group.sort_direction === 'desc' ? 'btn-primary' : 'btn-secondary'}"
+                                onclick="updateGroupSort(${index}, 'desc')" title="Z to A" style="padding: 0.25rem 0.5rem; font-size: 0.7rem;">
+                            Z→A
+                        </button>
+                    </div>
+                    <button class="group-level-remove" onclick="removeGroupLevel(${index})" title="Remove" style="background: none; border: none; color: var(--gray-400); cursor: pointer; padding: 0.25rem; font-size: 1.25rem; line-height: 1;">
+                        &times;
+                    </button>
+                </div>
+            `).join('');
+        }
+
+        // Update add button state
+        const addBtn = document.getElementById('addGroupBtn');
+        addBtn.disabled = groupSettings.length >= MAX_GROUP_LEVELS;
+        addBtn.style.opacity = groupSettings.length >= MAX_GROUP_LEVELS ? '0.5' : '1';
+
+        // Update badge
+        updateGroupBadge();
+    }
+
+    function addGroupLevel() {
+        if (groupSettings.length >= MAX_GROUP_LEVELS) return;
+
+        // Find first unused field
+        const usedFields = new Set(groupSettings.map(g => g.field_name));
+        const availableField = GROUPABLE_FIELDS.find(f => !usedFields.has(f.key));
+
+        groupSettings.push({
+            field_name: availableField ? availableField.key : '',
+            sort_direction: 'asc'
+        });
+
+        renderGroupPanel();
+    }
+
+    function removeGroupLevel(index) {
+        groupSettings.splice(index, 1);
+        renderGroupPanel();
+        saveGroupSettings();
+    }
+
+    function updateGroupField(index, fieldKey) {
+        groupSettings[index].field_name = fieldKey;
+        saveGroupSettings();
+    }
+
+    function updateGroupSort(index, direction) {
+        groupSettings[index].sort_direction = direction;
+        renderGroupPanel();
+        saveGroupSettings();
+    }
+
+    function clearAllGroups() {
+        groupSettings = [];
+        renderGroupPanel();
+        saveGroupSettings();
+    }
+
+    function collapseAllGroups() {
+        document.querySelectorAll('.grid-section').forEach(section => {
+            section.classList.add('collapsed');
+        });
+        closeAllDropdowns();
+    }
+
+    function saveGroupSettings() {
+        const validGroups = groupSettings.filter(g => g.field_name);
+
+        fetch('/api/user/group-preferences', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify({ groups: validGroups })
+        }).then(response => {
+            if (response.ok) {
+                showToast('Grouping updated', 'success');
+                setTimeout(() => window.location.reload(), 500);
+            }
+        });
+    }
+
+    function updateGroupBadge() {
+        const badge = document.getElementById('groupCount');
+        const count = groupSettings.filter(g => g.field_name).length;
+        const isDefaultStatusOnly = count === 1 && groupSettings[0].field_name === 'status';
+
+        if (count > 0 && !isDefaultStatusOnly) {
+            badge.textContent = count;
+            badge.style.display = '';
+        } else {
+            badge.style.display = 'none';
+        }
+    }
+
+    // Initialize group panel on page load
+    document.addEventListener('DOMContentLoaded', () => {
+        updateGroupBadge();
+    });
+
+    // ========== Column Context Menu ==========
+    let contextColumn = null;
+
+    function showColumnContextMenu(event, element) {
+        event.preventDefault();
+
+        const columnKey = element.dataset.column;
+
+        contextColumn = {
+            key: columnKey,
+            element: element,
+            name: element.textContent.trim()
+        };
+
+        const menu = document.getElementById('columnContextMenu');
+        menu.style.left = event.clientX + 'px';
+        menu.style.top = event.clientY + 'px';
+        menu.classList.add('visible');
+    }
+
+    function hideColumnContextMenu() {
+        const menu = document.getElementById('columnContextMenu');
+        if (menu) menu.classList.remove('visible');
+    }
+
+    function groupByColumn() {
+        hideColumnContextMenu();
+        if (!contextColumn) return;
+
+        const existingIdx = groupSettings.findIndex(g => g.field_name === contextColumn.key);
+        if (existingIdx === -1 && groupSettings.length < MAX_GROUP_LEVELS) {
+            groupSettings.push({ field_name: contextColumn.key, sort_direction: 'asc' });
+            saveGroupSettings();
+        } else if (existingIdx === -1) {
+            showToast('Maximum 3 group levels allowed', 'warning');
+        } else {
+            showToast('Already grouping by this field', 'info');
+        }
+    }
+
+    function hideColumnFromDisplay() {
+        hideColumnContextMenu();
+        if (!contextColumn) return;
+
+        // Ensure field state is initialized
+        if (fieldState.visibleFields.length === 0) {
+            initializeFieldState();
+        }
+
+        // Move field to hidden in field state
+        const idx = fieldState.visibleFields.findIndex(f => f.key === contextColumn.key);
+        if (idx === -1) return;
+
+        const field = fieldState.visibleFields.splice(idx, 1)[0];
+        fieldState.hiddenFields.push(field);
+
+        // Hide column in DOM immediately
+        document.querySelectorAll(`[data-column="${contextColumn.key}"]`).forEach(el => {
+            el.style.display = 'none';
+        });
+
+        // Save changes to server
+        saveFieldChanges();
+        showToast(`"${contextColumn.name}" hidden`, 'success');
+    }
+
+    // Close column context menu on click outside
+    document.addEventListener('click', (e) => {
+        if (!e.target.closest('#columnContextMenu')) {
+            hideColumnContextMenu();
+        }
+    });
+
+    // ========== Two-Column Field Management ==========
+    // All available fields (passed from backend)
+    const allFields = {
+        default: [
+            { key: 'name', label: 'Name' },
+            { key: 'email', label: 'Email/Phone' },
+            { key: 'address', label: 'Address' },
+            { key: 'job_type', label: 'Job Type' },
+            { key: 'property_type', label: 'Property' },
+            { key: 'created', label: 'Created' },
+            { key: 'stage', label: 'Stage' }
+        ],
+        custom: {{ all_custom_fields | tojson }}
+    };
+
+    // Current field state (working copy for editing)
+    let fieldState = {
+        visibleFields: [],  // Ordered list of visible fields [{key, label, type, id?}]
+        hiddenFields: [],   // List of hidden fields [{key, label, type, id?}]
+        hasUnsavedChanges: false
+    };
+
+    // Original state for comparison
+    let originalFieldState = null;
+
+    function initializeFieldState() {
+        // Build visible fields list in order
+        fieldState.visibleFields = [];
+        fieldState.hiddenFields = [];
+
+        // Add default fields (excluding name - it's always first)
+        const defaultOrder = {{ field_order.default_fields | tojson }};
+        defaultOrder.forEach(f => {
+            if (f.key === 'name') return; // Handle name separately
+            const field = { key: f.key, label: f.label, type: 'default' };
+            if (f.visible) {
+                fieldState.visibleFields.push(field);
+            } else {
+                fieldState.hiddenFields.push(field);
+            }
+        });
+
+        // Add custom fields
+        const customOrder = {{ field_order.custom_fields | tojson }};
+        customOrder.forEach(cf => {
+            const field = { key: `custom_${cf.id}`, label: cf.name, type: 'custom', id: cf.id };
+            if (cf.visible) {
+                fieldState.visibleFields.push(field);
+            } else {
+                fieldState.hiddenFields.push(field);
+            }
+        });
+
+        // Add created and stage if not present
+        if (!fieldState.visibleFields.find(f => f.key === 'created') && !fieldState.hiddenFields.find(f => f.key === 'created')) {
+            fieldState.visibleFields.push({ key: 'created', label: 'Created', type: 'default' });
+        }
+        if (!fieldState.visibleFields.find(f => f.key === 'stage') && !fieldState.hiddenFields.find(f => f.key === 'stage')) {
+            fieldState.visibleFields.push({ key: 'stage', label: 'Stage', type: 'default' });
+        }
+
+        // Name field is ALWAYS first and ALWAYS visible
+        fieldState.visibleFields.unshift({ key: 'name', label: 'Name', type: 'default' });
+
+        // Save original state for comparison
+        originalFieldState = JSON.parse(JSON.stringify(fieldState));
+        fieldState.hasUnsavedChanges = false;
+    }
+
+    function renderFieldLists() {
+        const hiddenList = document.getElementById('hiddenFieldsList');
+        const visibleList = document.getElementById('visibleFieldsList');
+
+        // Render hidden fields
+        if (fieldState.hiddenFields.length === 0) {
+            hiddenList.innerHTML = '<div class="fields-list-empty">All fields are displayed</div>';
+        } else {
+            hiddenList.innerHTML = fieldState.hiddenFields.map(f => createFieldItemHTML(f, 'hidden')).join('');
+        }
+
+        // Render visible fields
+        if (fieldState.visibleFields.length === 0) {
+            visibleList.innerHTML = '<div class="fields-list-empty">No fields displayed</div>';
+        } else {
+            visibleList.innerHTML = fieldState.visibleFields.map(f => createFieldItemHTML(f, 'visible')).join('');
+        }
+
+        // Initialize drag and drop for visible fields
+        initVisibleFieldDragDrop();
+        updateUnsavedBadge();
+    }
+
+    function createFieldItemHTML(field, listType) {
+        const isNameField = field.key === 'name';
+
+        // Name field is fixed - no drag handle
+        const dragHandle = (listType === 'visible' && !isNameField) ? `
+            <span class="field-drag-handle">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                    <circle cx="9" cy="6" r="2"></circle><circle cx="15" cy="6" r="2"></circle>
+                    <circle cx="9" cy="12" r="2"></circle><circle cx="15" cy="12" r="2"></circle>
+                    <circle cx="9" cy="18" r="2"></circle><circle cx="15" cy="18" r="2"></circle>
+                </svg>
+            </span>` : '';
+
+        // Name field can't be hidden - no action button
+        let actionBtn = '';
+        if (isNameField) {
+            actionBtn = '<span class="text-muted text-sm" style="margin-left: auto;">(fixed)</span>';
+        } else if (listType === 'hidden') {
+            actionBtn = `
+            <button type="button" class="field-action-btn add-btn" onclick="addFieldToVisible('${field.key}')" title="Add to display">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M5 12h14M12 5l7 7-7 7"/>
+                </svg>
+            </button>`;
+        } else {
+            actionBtn = `
+            <button type="button" class="field-action-btn remove-btn" onclick="removeFieldFromVisible('${field.key}')" title="Remove from display">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M18 6L6 18M6 6l12 12"/>
+                </svg>
+            </button>`;
+        }
+
+        // Name field is not draggable
+        const isDraggable = listType === 'visible' && !isNameField;
+
+        return `
+            <div class="field-item${isNameField ? ' field-item-fixed' : ''}" draggable="${isDraggable}" data-field-key="${field.key}" data-field-type="${field.type}">
+                ${dragHandle}
+                <span class="field-item-name">${field.label}</span>
+                ${actionBtn}
+            </div>`;
+    }
+
+    function addFieldToVisible(fieldKey) {
+        const idx = fieldState.hiddenFields.findIndex(f => f.key === fieldKey);
+        if (idx === -1) return;
+
+        const field = fieldState.hiddenFields.splice(idx, 1)[0];
+        fieldState.visibleFields.push(field);
+        fieldState.hasUnsavedChanges = true;
+        renderFieldLists();
+    }
+
+    function removeFieldFromVisible(fieldKey) {
+        // Name field cannot be hidden
+        if (fieldKey === 'name') return;
+
+        const idx = fieldState.visibleFields.findIndex(f => f.key === fieldKey);
+        if (idx === -1) return;
+
+        const field = fieldState.visibleFields.splice(idx, 1)[0];
+        fieldState.hiddenFields.push(field);
+        fieldState.hasUnsavedChanges = true;
+        renderFieldLists();
+    }
+
+    // ========== Drag & Drop for Visible Fields ==========
+    let draggedFieldItem = null;
+
+    function initVisibleFieldDragDrop() {
+        const visibleList = document.getElementById('visibleFieldsList');
+        const items = visibleList.querySelectorAll('.field-item[draggable="true"]');
+
+        items.forEach(item => {
+            item.addEventListener('dragstart', handleVisibleDragStart);
+            item.addEventListener('dragend', handleVisibleDragEnd);
+            item.addEventListener('dragover', handleVisibleDragOver);
+            item.addEventListener('dragleave', handleVisibleDragLeave);
+            item.addEventListener('drop', handleVisibleDrop);
+        });
+    }
+
+    function handleVisibleDragStart(e) {
+        draggedFieldItem = this;
+        this.classList.add('dragging');
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', this.dataset.fieldKey);
+    }
+
+    function handleVisibleDragEnd(e) {
+        this.classList.remove('dragging');
+        document.querySelectorAll('.field-item.drag-over').forEach(el => el.classList.remove('drag-over'));
+        draggedFieldItem = null;
+    }
+
+    function handleVisibleDragOver(e) {
+        e.preventDefault();
+        if (this === draggedFieldItem) return;
+        // Don't allow dropping on the Name field (it stays first)
+        if (this.dataset.fieldKey === 'name') return;
+        e.dataTransfer.dropEffect = 'move';
+        this.classList.add('drag-over');
+    }
+
+    function handleVisibleDragLeave(e) {
+        this.classList.remove('drag-over');
+    }
+
+    function handleVisibleDrop(e) {
+        e.preventDefault();
+        this.classList.remove('drag-over');
+
+        if (this === draggedFieldItem) return;
+
+        const draggedKey = draggedFieldItem.dataset.fieldKey;
+        const targetKey = this.dataset.fieldKey;
+
+        // Don't allow dropping on Name field
+        if (targetKey === 'name') return;
+
+        const draggedIdx = fieldState.visibleFields.findIndex(f => f.key === draggedKey);
+        let targetIdx = fieldState.visibleFields.findIndex(f => f.key === targetKey);
+
+        if (draggedIdx === -1 || targetIdx === -1) return;
+
+        // Ensure we never move anything before Name (index 0)
+        if (targetIdx === 0) targetIdx = 1;
+
+        // Remove dragged item and insert at new position
+        const [draggedField] = fieldState.visibleFields.splice(draggedIdx, 1);
+        fieldState.visibleFields.splice(targetIdx, 0, draggedField);
+
+        fieldState.hasUnsavedChanges = true;
+        renderFieldLists();
+    }
+
+    function updateUnsavedBadge() {
+        const badge = document.getElementById('fieldsUnsavedBadge');
+        if (fieldState.hasUnsavedChanges) {
+            badge.classList.add('visible');
+        } else {
+            badge.classList.remove('visible');
+        }
+    }
+
+    // ========== Save & Cancel ==========
+    function saveFieldChanges() {
+        // Get visible field keys in order
+        const defaultFieldOrder = fieldState.visibleFields
+            .filter(f => f.type === 'default' && f.key !== 'name' && f.key !== 'created' && f.key !== 'stage')
+            .map(f => f.key);
+        const customFieldOrder = fieldState.visibleFields
+            .filter(f => f.type === 'custom')
+            .map(f => f.id);
+
+        // Also need to save the full order including name, created, stage
+        const fullFieldOrder = fieldState.visibleFields.map(f => f.key);
+
+        fetch('/api/fields/order', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify({
+                default_fields: defaultFieldOrder,
+                custom_fields: customFieldOrder,
+                full_order: fullFieldOrder,
+                visible_fields: fieldState.visibleFields.map(f => f.key),
+                hidden_fields: fieldState.hiddenFields.map(f => f.key)
+            })
+        }).then(response => {
+            if (response.ok) {
+                showToast('Column settings saved', 'success');
+                originalFieldState = JSON.parse(JSON.stringify(fieldState));
+                fieldState.hasUnsavedChanges = false;
+                updateUnsavedBadge();
+
+                // Apply changes to table
+                applyFieldChangesToTable();
+                closeFieldsDropdown();
+            } else {
+                showToast('Failed to save settings', 'error');
+            }
+        });
+    }
+
+    function cancelFieldChanges() {
+        if (fieldState.hasUnsavedChanges) {
+            showConfirmDialog({
+                title: 'Discard Changes?',
+                message: 'You have unsaved changes to column settings. Are you sure you want to discard them?',
+                confirmText: 'Discard',
+                cancelText: 'Keep Editing',
+                type: 'warning',
+                onConfirm: () => {
+                    fieldState = JSON.parse(JSON.stringify(originalFieldState));
+                    fieldState.hasUnsavedChanges = false;
+                    renderFieldLists();
+                    closeFieldsDropdown();
+                }
+            });
+        } else {
+            closeFieldsDropdown();
+        }
+    }
+
+    function closeFieldsDropdown() {
+        document.getElementById('fieldsDropdown').classList.remove('visible');
+    }
+
+    // ========== Apply Changes to Table ==========
+    function applyFieldChangesToTable() {
+        const tables = document.querySelectorAll('.grid-table');
+        if (!tables.length) return;
+
+        // Build field order from visible fields (Name is always first)
+        const fieldOrder = fieldState.visibleFields.map(f => f.key);
+
+        tables.forEach(table => {
+            const thead = table.querySelector('thead tr');
+            if (!thead) return;
+
+            // Get all header cells with data-column
+            const headerCells = [...thead.querySelectorAll('th[data-column]')];
+            const addFieldHeader = thead.querySelector('.add-field-header');
+            const actionsHeader = thead.querySelector('.actions-col-header');
+
+            // Reorder headers: insert each in order after actions column
+            let insertPoint = actionsHeader ? actionsHeader.nextSibling : thead.firstChild;
+            fieldOrder.forEach(fieldKey => {
+                const cell = headerCells.find(th => th.dataset.column === fieldKey);
+                if (cell) {
+                    cell.style.display = '';
+                    thead.insertBefore(cell, addFieldHeader);
+                }
+            });
+
+            // Hide fields not in visible list
+            headerCells.forEach(cell => {
+                if (!fieldOrder.includes(cell.dataset.column)) {
+                    cell.style.display = 'none';
+                }
+            });
+
+            // Reorder body cells to match header order
+            table.querySelectorAll('tbody tr').forEach(row => {
+                const actionsCol = row.querySelector('.actions-col');
+                const cells = [...row.querySelectorAll('td[data-column]')];
+
+                // First, hide all data cells
+                cells.forEach(cell => {
+                    cell.style.display = 'none';
+                });
+
+                // Then show and reorder only visible fields
+                // Insert after actions column, in order
+                let insertAfter = actionsCol;
+                fieldOrder.forEach(fieldKey => {
+                    const cell = cells.find(td => td.dataset.column === fieldKey);
+                    if (cell) {
+                        cell.style.display = '';
+                        // Insert after the previous cell
+                        if (insertAfter && insertAfter.nextSibling) {
+                            row.insertBefore(cell, insertAfter.nextSibling);
+                        } else {
+                            row.appendChild(cell);
+                        }
+                        insertAfter = cell;
+                    }
+                });
+            });
+        });
+    }
+
+    // ========== Toggle Fields Dropdown ==========
+    function toggleFieldsDropdown(e) {
+        e.stopPropagation();
+        const dropdown = document.getElementById('fieldsDropdown');
+        const isVisible = dropdown.classList.contains('visible');
+
+        closeAllDropdowns();
+
+        if (!isVisible) {
+            // Just render current state - don't re-initialize (that would reset to page load state)
+            renderFieldLists();
+            dropdown.classList.add('visible');
+        }
+    }
+
+    // Prevent closing dropdown when clicking inside
+    document.getElementById('fieldsDropdown').addEventListener('click', (e) => {
+        e.stopPropagation();
+    });
+
+    // Initialize on page load
+    document.addEventListener('DOMContentLoaded', () => {
+        initializeFieldState();
+    });
+
+    // ========== Views ==========
+    function loadView(viewId) {
+        fetch('/api/views/select', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify({ view_id: viewId })
+        }).then(response => {
+            if (response.ok) {
+                window.location.reload();
+            }
+        });
+    }
+
+    function openSaveViewModal() {
+        closeAllDropdowns();
+        document.getElementById('saveViewModal').classList.add('visible');
+        document.getElementById('viewName').focus();
+    }
+
+    function closeSaveViewModal() {
+        document.getElementById('saveViewModal').classList.remove('visible');
+        document.getElementById('viewName').value = '';
+    }
+
+    function saveView() {
+        const name = document.getElementById('viewName').value.trim();
+        if (!name) {
+            alert('Please enter a view name');
+            return;
+        }
+
+        // Get current visibility state from checkboxes
+        const defaultFields = [];
+        const customFieldIds = [];
+
+        document.querySelectorAll('#fieldsDropdown input[type="checkbox"]:checked').forEach(cb => {
+            const col = cb.dataset.column;
+            if (col && col !== 'name') {
+                if (col.startsWith('custom_')) {
+                    customFieldIds.push(parseInt(col.replace('custom_', '')));
+                } else {
+                    defaultFields.push(col);
+                }
+            }
+        });
+
+        fetch('/api/views/save', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify({
+                name: name,
+                default_fields: defaultFields,
+                custom_field_ids: customFieldIds
+            })
+        })
+            .then(response => response.json())
+            .then(result => {
+                if (result.success) {
+                    window.location.reload();
+                } else {
+                    alert(result.error || 'Failed to save view');
+                }
+            });
+    }
+
+    function deleteViewFromBtn(e, btn) {
+        e.stopPropagation();
+        const viewItem = btn.closest('.view-option');
+        const viewId = viewItem.dataset.viewId;
+        const viewName = viewItem.dataset.viewName;
+        if (confirm(`Delete the view "${viewName}"?`)) {
+            fetch(`/api/views/${viewId}/delete`, {
+                method: 'POST',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            }).then(response => {
+                if (response.ok) {
+                    window.location.reload();
+                }
+            });
+        }
+    }
+
+    // ========== Search & Filters ==========
+    let searchTimeout;
+    let instantSearchTimeout;
+    let highlightedIndex = -1;
+    const searchInput = document.getElementById('searchInput');
+    const searchResults = document.getElementById('searchResults');
+
+    // All leads data for instant search
+    const allLeads = [
+        {% for lead in all_leads %}
+    { id: {{ lead['id'] }}, name: "{{ lead['name'] | replace('"', '\\"') }}", email: "{{ lead['email'] or '' }}", phone: "{{ lead['phone'] or '' }}", status: "{{ lead['status'] }}" },
+    {% endfor %}
+    ];
+
+    searchInput.addEventListener('input', function (e) {
+        const query = e.target.value.trim().toLowerCase();
+
+        // Clear previous timeouts
+        clearTimeout(searchTimeout);
+        clearTimeout(instantSearchTimeout);
+
+        if (query.length === 0) {
+            hideSearchResults();
+            return;
+        }
+
+        // Instant search with short delay
+        instantSearchTimeout = setTimeout(() => {
+            const matches = allLeads.filter(lead =>
+                lead.name.toLowerCase().includes(query) ||
+                lead.email.toLowerCase().includes(query) ||
+                lead.phone.toLowerCase().includes(query)
+            ).slice(0, 8); // Limit to 8 results
+
+            if (matches.length > 0) {
+                showSearchResults(matches, query);
+            } else {
+                searchResults.innerHTML = '<div class="search-no-results">No leads found</div>';
+                searchResults.classList.add('visible');
+            }
+        }, 100);
+
+        // Full page search after longer delay
+        searchTimeout = setTimeout(() => {
+            updateFilters();
+        }, 800);
+    });
+
+    searchInput.addEventListener('keydown', function (e) {
+        const items = searchResults.querySelectorAll('.search-result-item');
+        if (items.length === 0) return;
+
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            highlightedIndex = Math.min(highlightedIndex + 1, items.length - 1);
+            updateHighlight(items);
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            highlightedIndex = Math.max(highlightedIndex - 1, 0);
+            updateHighlight(items);
+        } else if (e.key === 'Enter' && highlightedIndex >= 0) {
+            e.preventDefault();
+            items[highlightedIndex].click();
+        } else if (e.key === 'Escape') {
+            hideSearchResults();
+            searchInput.blur();
+        }
+    });
+
+    searchInput.addEventListener('focus', function () {
+        if (this.value.trim().length > 0) {
+            const query = this.value.trim().toLowerCase();
+            const matches = allLeads.filter(lead =>
+                lead.name.toLowerCase().includes(query) ||
+                lead.email.toLowerCase().includes(query)
+            ).slice(0, 8);
+            if (matches.length > 0) {
+                showSearchResults(matches, query);
+            }
+        }
+    });
+
+    function showSearchResults(leads, query) {
+        highlightedIndex = -1;
+        searchResults.innerHTML = leads.map((lead, index) => {
+            const highlightedName = highlightMatch(lead.name, query);
+            const meta = lead.email || lead.phone || lead.status;
+            return `
+                <div class="search-result-item" data-index="${index}" onclick="window.location.href='/leads/${lead.id}'">
+                    <span class="status-dot status-dot-${lead.status.toLowerCase().replace(/ /g, '-')}"></span>
+                    <div>
+                        <div class="search-result-name">${highlightedName}</div>
+                        <div class="search-result-meta">${meta}</div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+        searchResults.classList.add('visible');
+    }
+
+    function highlightMatch(text, query) {
+        const regex = new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+        return text.replace(regex, '<mark>$1</mark>');
+    }
+
+    function updateHighlight(items) {
+        items.forEach((item, i) => {
+            item.classList.toggle('highlighted', i === highlightedIndex);
+        });
+        if (highlightedIndex >= 0) {
+            items[highlightedIndex].scrollIntoView({ block: 'nearest' });
+        }
+    }
+
+    function hideSearchResults() {
+        searchResults.classList.remove('visible');
+        highlightedIndex = -1;
+    }
+
+    // Close search results when clicking outside
+    document.addEventListener('click', function (e) {
+        if (!e.target.closest('.search-box')) {
+            hideSearchResults();
+        }
+    });
+
+    document.getElementById('statusFilter').addEventListener('change', updateFilters);
+
+    function updateFilters() {
+        const search = document.getElementById('searchInput').value;
+        const status = document.getElementById('statusFilter').value;
+
+        let url = '/leads?';
+        if (search) url += `search=${encodeURIComponent(search)}&`;
+        if (status) url += `status=${encodeURIComponent(status)}`;
+
+        window.location.href = url;
+    }
+
+    // ========== Context Menu ==========
+    let contextMenuFieldId = null;
+    let contextMenuFieldName = null;
+
+    function showFieldContextMenu(event, element) {
+        event.preventDefault();
+        contextMenuFieldId = element.dataset.fieldId;
+        contextMenuFieldName = element.dataset.fieldName;
+
+        const menu = document.getElementById('fieldContextMenu');
+        menu.style.left = event.clientX + 'px';
+        menu.style.top = event.clientY + 'px';
+        menu.classList.add('visible');
+    }
+
+    document.addEventListener('click', function (e) {
+        const menu = document.getElementById('fieldContextMenu');
+        if (!menu.contains(e.target)) {
+            menu.classList.remove('visible');
+        }
+    });
+
+    function addFieldToRight() {
+        document.getElementById('fieldContextMenu').classList.remove('visible');
+        document.getElementById('insertAfterFieldId').value = contextMenuFieldId;
+        document.getElementById('modalTitle').textContent = 'Add Field After "' + contextMenuFieldName + '"';
+        openAddFieldModal();
+    }
+
+    function editField() {
+        document.getElementById('fieldContextMenu').classList.remove('visible');
+        window.location.href = '/fields/' + contextMenuFieldId + '/edit';
+    }
+
+    function deleteField() {
+        document.getElementById('fieldContextMenu').classList.remove('visible');
+        if (confirm('Delete the field "' + contextMenuFieldName + '"? All data for this field will be lost.')) {
+            fetch('/api/fields/' + contextMenuFieldId + '/delete', {
+                method: 'POST',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            }).then(response => {
+                if (response.ok) {
+                    window.location.reload();
+                } else {
+                    alert('Failed to delete field');
+                }
+            });
+        }
+    }
+
+    // ========== Add Field Modal ==========
+    function openAddFieldModal() {
+        document.getElementById('addFieldModal').classList.add('visible');
+        document.getElementById('fieldName').focus();
+    }
+
+    function closeAddFieldModal() {
+        document.getElementById('addFieldModal').classList.remove('visible');
+        document.getElementById('addFieldForm').reset();
+        document.getElementById('insertAfterFieldId').value = '';
+        document.getElementById('modalTitle').textContent = 'Add New Field';
+        document.getElementById('optionsGroup').style.display = 'none';
+    }
+
+    function toggleOptionsField() {
+        const fieldType = document.getElementById('fieldType').value;
+        const optionsGroup = document.getElementById('optionsGroup');
+        if (['dropdown', 'multi_select', 'symbol'].includes(fieldType)) {
+            optionsGroup.style.display = 'block';
+        } else {
+            optionsGroup.style.display = 'none';
+        }
+    }
+
+    function saveField() {
+        const name = document.getElementById('fieldName').value.trim();
+        if (!name) {
+            alert('Field name is required');
+            return;
+        }
+
+        const data = {
+            name: name,
+            field_type: document.getElementById('fieldType').value,
+            options: document.getElementById('fieldOptions').value,
+            default_value: document.getElementById('fieldDefault').value,
+            is_required: document.getElementById('fieldRequired').checked ? 1 : 0,
+            insert_after: document.getElementById('insertAfterFieldId').value || null
+        };
+
+        fetch('/api/fields/add', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify(data)
+        }).then(response => response.json())
+            .then(result => {
+                if (result.success) {
+                    window.location.reload();
+                } else {
+                    alert(result.error || 'Failed to create field');
+                }
+            });
+    }
+
+    // ========== Keyboard Shortcuts ==========
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') {
+            closeAddFieldModal();
+            closeSaveViewModal();
+            closeAllDropdowns();
+            document.getElementById('fieldContextMenu').classList.remove('visible');
+        }
+    });
+
+    // Close modals when clicking overlay
+    document.querySelectorAll('.modal-overlay').forEach(modal => {
+        modal.addEventListener('click', function (e) {
+            if (e.target === this) {
+                this.classList.remove('visible');
+            }
+        });
+    });
+
+    // ========== Inline Editing ==========
+    let currentEditingCell = null;
+
+    function startEdit(cell) {
+        if (cell.classList.contains('editing')) return;
+
+        if (currentEditingCell && currentEditingCell !== cell) {
+            cancelEdit(currentEditingCell);
+        }
+
+        const leadId = cell.dataset.leadId;
+        const fieldId = cell.dataset.fieldId;
+        const fieldType = cell.dataset.fieldType;
+        const options = cell.dataset.fieldOptions;
+        const currentValue = cell.dataset.value;
+
+        cell.classList.add('editing');
+        currentEditingCell = cell;
+
+        const displaySpan = cell.querySelector('.cell-display');
+        displaySpan.style.display = 'none';
+
+        let editor;
+
+        switch (fieldType) {
+            case 'checkbox':
+                const newCheckboxValue = currentValue === '1' ? '0' : '1';
+                saveFieldValue(cell, leadId, fieldId, newCheckboxValue);
+                return;
+
+            case 'dropdown':
+                editor = document.createElement('select');
+                editor.className = 'cell-editor';
+                editor.innerHTML = '<option value="">-</option>';
+                if (options) {
+                    options.split('\n').forEach(opt => {
+                        const trimmed = opt.trim();
+                        if (trimmed) {
+                            const selected = trimmed === currentValue ? 'selected' : '';
+                            editor.innerHTML += `<option value="${trimmed}" ${selected}>${trimmed}</option>`;
+                        }
+                    });
+                }
+                editor.addEventListener('change', () => saveFieldValue(cell, leadId, fieldId, editor.value));
+                editor.addEventListener('blur', () => setTimeout(() => cancelEdit(cell), 100));
+                break;
+
+            case 'multi_select':
+                createMultiSelectEditor(cell, leadId, fieldId, options, currentValue);
+                return;
+
+            case 'date':
+                editor = document.createElement('input');
+                editor.type = 'date';
+                editor.className = 'cell-editor';
+                editor.value = currentValue || '';
+                editor.addEventListener('change', () => saveFieldValue(cell, leadId, fieldId, editor.value));
+                editor.addEventListener('blur', () => cancelEdit(cell));
+                break;
+
+            case 'number':
+                editor = document.createElement('input');
+                editor.type = 'number';
+                editor.className = 'cell-editor';
+                editor.value = currentValue || '';
+                editor.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') {
+                        saveFieldValue(cell, leadId, fieldId, editor.value);
+                    } else if (e.key === 'Escape') {
+                        cancelEdit(cell);
+                    }
+                });
+                editor.addEventListener('blur', () => saveFieldValue(cell, leadId, fieldId, editor.value));
+                break;
+
+            case 'currency':
+                editor = document.createElement('input');
+                editor.type = 'number';
+                editor.step = '0.01';
+                editor.className = 'cell-editor';
+                editor.value = currentValue || '';
+                editor.placeholder = '0.00';
+                editor.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') {
+                        saveFieldValue(cell, leadId, fieldId, editor.value);
+                    } else if (e.key === 'Escape') {
+                        cancelEdit(cell);
+                    }
+                });
+                editor.addEventListener('blur', () => saveFieldValue(cell, leadId, fieldId, editor.value));
+                break;
+
+            case 'email':
+                editor = document.createElement('input');
+                editor.type = 'email';
+                editor.className = 'cell-editor';
+                editor.value = currentValue || '';
+                editor.placeholder = 'email@example.com';
+                editor.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') {
+                        saveFieldValue(cell, leadId, fieldId, editor.value);
+                    } else if (e.key === 'Escape') {
+                        cancelEdit(cell);
+                    }
+                });
+                editor.addEventListener('blur', () => saveFieldValue(cell, leadId, fieldId, editor.value));
+                break;
+
+            case 'phone':
+                editor = document.createElement('input');
+                editor.type = 'tel';
+                editor.className = 'cell-editor';
+                editor.value = currentValue || '';
+                editor.placeholder = '(555) 555-5555';
+                editor.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') {
+                        saveFieldValue(cell, leadId, fieldId, editor.value);
+                    } else if (e.key === 'Escape') {
+                        cancelEdit(cell);
+                    }
+                });
+                editor.addEventListener('blur', () => saveFieldValue(cell, leadId, fieldId, editor.value));
+                break;
+
+            case 'url':
+                editor = document.createElement('input');
+                editor.type = 'url';
+                editor.className = 'cell-editor';
+                editor.value = currentValue || '';
+                editor.placeholder = 'https://...';
+                editor.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') {
+                        saveFieldValue(cell, leadId, fieldId, editor.value);
+                    } else if (e.key === 'Escape') {
+                        cancelEdit(cell);
+                    }
+                });
+                editor.addEventListener('blur', () => saveFieldValue(cell, leadId, fieldId, editor.value));
+                break;
+
+            default:
+                editor = document.createElement('input');
+                editor.type = 'text';
+                editor.className = 'cell-editor';
+                editor.value = currentValue || '';
+                editor.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') {
+                        saveFieldValue(cell, leadId, fieldId, editor.value);
+                    } else if (e.key === 'Escape') {
+                        cancelEdit(cell);
+                    }
+                });
+                editor.addEventListener('blur', () => saveFieldValue(cell, leadId, fieldId, editor.value));
+                break;
+        }
+
+        cell.appendChild(editor);
+        editor.focus();
+        if (editor.select) editor.select();
+    }
+
+    function createMultiSelectEditor(cell, leadId, fieldId, options, currentValue) {
+        let selectedValues = [];
+        if (currentValue) {
+            try {
+                selectedValues = JSON.parse(currentValue);
+            } catch {
+                selectedValues = currentValue.split(',').map(v => v.trim());
+            }
+        }
+
+        const dropdown = document.createElement('div');
+        dropdown.className = 'multi-select-dropdown';
+
+        if (options) {
+            options.split('\n').forEach(opt => {
+                const trimmed = opt.trim();
+                if (trimmed) {
+                    const isChecked = selectedValues.includes(trimmed);
+                    const optionDiv = document.createElement('div');
+                    optionDiv.className = 'multi-select-option';
+                    optionDiv.innerHTML = `
+                        <input type="checkbox" value="${trimmed}" ${isChecked ? 'checked' : ''}>
+                        <span>${trimmed}</span>
+                    `;
+                    optionDiv.addEventListener('click', (e) => {
+                        if (e.target.tagName !== 'INPUT') {
+                            const checkbox = optionDiv.querySelector('input');
+                            checkbox.checked = !checkbox.checked;
+                        }
+                    });
+                    dropdown.appendChild(optionDiv);
+                }
+            });
+        }
+
+        const doneDiv = document.createElement('div');
+        doneDiv.className = 'multi-select-done';
+        doneDiv.innerHTML = '<button class="btn btn-primary btn-sm">Done</button>';
+        doneDiv.querySelector('button').addEventListener('click', () => {
+            const checkboxes = dropdown.querySelectorAll('input[type="checkbox"]:checked');
+            const values = Array.from(checkboxes).map(cb => cb.value);
+            saveFieldValue(cell, leadId, fieldId, values);
+        });
+        dropdown.appendChild(doneDiv);
+
+        cell.appendChild(dropdown);
+
+        const closeHandler = (e) => {
+            if (!cell.contains(e.target)) {
+                document.removeEventListener('click', closeHandler);
+                cancelEdit(cell);
+            }
+        };
+        setTimeout(() => document.addEventListener('click', closeHandler), 10);
+    }
+
+    function cancelEdit(cell) {
+        if (!cell || !cell.classList.contains('editing')) return;
+
+        cell.classList.remove('editing');
+        const editor = cell.querySelector('.cell-editor');
+        if (editor) editor.remove();
+        const dropdown = cell.querySelector('.multi-select-dropdown');
+        if (dropdown) dropdown.remove();
+        const displaySpan = cell.querySelector('.cell-display');
+        if (displaySpan) displaySpan.style.display = '';
+
+        if (currentEditingCell === cell) {
+            currentEditingCell = null;
+        }
+    }
+
+    function saveFieldValue(cell, leadId, fieldId, value) {
+        fetch(`/api/leads/${leadId}/fields/${fieldId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify({ value: value })
+        })
+            .then(response => response.json())
+            .then(result => {
+                if (result.success) {
+                    const displaySpan = cell.querySelector('.cell-display');
+                    displaySpan.textContent = result.display_value || '-';
+
+                    if (Array.isArray(value)) {
+                        cell.dataset.value = JSON.stringify(value);
+                    } else {
+                        cell.dataset.value = value;
+                    }
+                } else {
+                    alert(result.error || 'Failed to save');
+                }
+            })
+            .catch(err => {
+                console.error('Save error:', err);
+                alert('Failed to save field value');
+            })
+            .finally(() => {
+                cancelEdit(cell);
+            });
+    }
+
+    // ========== Default Field Inline Editing ==========
+    function startDefaultEdit(cell) {
+        if (cell.classList.contains('editing')) return;
+
+        if (currentEditingCell && currentEditingCell !== cell) {
+            cancelEdit(currentEditingCell);
+        }
+
+        const leadId = cell.dataset.leadId;
+        const fieldName = cell.dataset.fieldName;
+        const fieldType = cell.dataset.fieldType;
+        const options = cell.dataset.fieldOptions || '';
+        const currentValue = cell.dataset.value;
+
+        cell.classList.add('editing');
+        currentEditingCell = cell;
+
+        const displaySpan = cell.querySelector('.cell-display');
+        displaySpan.style.display = 'none';
+
+        let editor;
+
+        switch (fieldType) {
+            case 'dropdown':
+                editor = document.createElement('select');
+                editor.className = 'cell-editor';
+                editor.innerHTML = '<option value="">-</option>';
+                if (options) {
+                    options.split('\n').forEach(opt => {
+                        const trimmed = opt.trim();
+                        if (trimmed) {
+                            const selected = trimmed === currentValue ? 'selected' : '';
+                            editor.innerHTML += `<option value="${trimmed}" ${selected}>${trimmed}</option>`;
+                        }
+                    });
+                }
+                editor.addEventListener('change', () => saveDefaultFieldValue(cell, leadId, fieldName, editor.value));
+                editor.addEventListener('blur', () => setTimeout(() => cancelEdit(cell), 100));
+                break;
+
+            case 'email':
+                editor = document.createElement('input');
+                editor.type = 'email';
+                editor.className = 'cell-editor';
+                editor.value = currentValue || '';
+                editor.placeholder = 'email@example.com';
+                editor.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') {
+                        saveDefaultFieldValue(cell, leadId, fieldName, editor.value);
+                    } else if (e.key === 'Escape') {
+                        cancelEdit(cell);
+                    }
+                });
+                editor.addEventListener('blur', () => saveDefaultFieldValue(cell, leadId, fieldName, editor.value));
+                break;
+
+            case 'phone':
+                editor = document.createElement('input');
+                editor.type = 'tel';
+                editor.className = 'cell-editor';
+                editor.value = currentValue || '';
+                editor.placeholder = '(555) 123-4567';
+                editor.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') {
+                        saveDefaultFieldValue(cell, leadId, fieldName, editor.value);
+                    } else if (e.key === 'Escape') {
+                        cancelEdit(cell);
+                    }
+                });
+                editor.addEventListener('blur', () => saveDefaultFieldValue(cell, leadId, fieldName, editor.value));
+                break;
+
+            default: // text
+                editor = document.createElement('input');
+                editor.type = 'text';
+                editor.className = 'cell-editor';
+                editor.value = currentValue || '';
+                editor.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') {
+                        saveDefaultFieldValue(cell, leadId, fieldName, editor.value);
+                    } else if (e.key === 'Escape') {
+                        cancelEdit(cell);
+                    }
+                });
+                editor.addEventListener('blur', () => saveDefaultFieldValue(cell, leadId, fieldName, editor.value));
+                break;
+        }
+
+        cell.appendChild(editor);
+        editor.focus();
+        if (editor.select) editor.select();
+    }
+
+    function saveDefaultFieldValue(cell, leadId, fieldName, value) {
+        fetch(`/api/leads/${leadId}/update`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify({ field: fieldName, value: value })
+        })
+            .then(response => response.json())
+            .then(result => {
+                if (result.success) {
+                    const displaySpan = cell.querySelector('.cell-display');
+                    displaySpan.textContent = result.display_value || '-';
+                    cell.dataset.value = value;
+                } else {
+                    alert(result.error || 'Failed to save');
+                }
+            })
+            .catch(err => {
+                console.error('Save error:', err);
+                alert('Failed to save field value');
+            })
+            .finally(() => {
+                cancelEdit(cell);
+            });
+    }
+
+    // ========== File Upload Functions ==========
+    function uploadFile(input, leadId, fieldId) {
+        const file = input.files[0];
+        if (!file) return;
+
+        const formData = new FormData();
+        formData.append('file', file);
+
+        const container = input.closest('.file-field-container');
+        container.innerHTML = '<span class="uploading-indicator">Uploading...</span>';
+
+        fetch(`/api/leads/${leadId}/fields/${fieldId}/upload`, {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(result => {
+            if (result.success) {
+                const fileInfo = result.file_info;
+                container.innerHTML = `
+                    <div class="file-display" data-file-info='${JSON.stringify(fileInfo)}'>
+                        <a href="${fileInfo.path}" target="_blank" class="file-link" title="View file">
+                            <span class="file-icon">📎</span>
+                            <span class="file-name">${fileInfo.original_name}</span>
+                        </a>
+                        <button class="file-delete-btn" onclick="deleteFile(event, ${leadId}, ${fieldId})" title="Delete file">×</button>
+                    </div>
+                `;
+            } else {
+                alert(result.error || 'Upload failed');
+                container.innerHTML = `
+                    <label class="file-upload-btn">
+                        <input type="file" class="file-input" onchange="uploadFile(this, ${leadId}, ${fieldId})" style="display:none">
+                        <span class="upload-icon">📤</span>
+                        <span class="upload-text">Upload</span>
+                    </label>
+                `;
+            }
+        })
+        .catch(err => {
+            console.error('Upload error:', err);
+            alert('Upload failed');
+            container.innerHTML = `
+                <label class="file-upload-btn">
+                    <input type="file" class="file-input" onchange="uploadFile(this, ${leadId}, ${fieldId})" style="display:none">
+                    <span class="upload-icon">📤</span>
+                    <span class="upload-text">Upload</span>
+                </label>
+            `;
+        });
+    }
+
+    function deleteFile(event, leadId, fieldId) {
+        event.preventDefault();
+        event.stopPropagation();
+
+        if (!confirm('Delete this file?')) return;
+
+        const container = event.target.closest('.file-field-container');
+
+        fetch(`/api/leads/${leadId}/fields/${fieldId}/delete-file`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => response.json())
+        .then(result => {
+            if (result.success) {
+                container.innerHTML = `
+                    <label class="file-upload-btn">
+                        <input type="file" class="file-input" onchange="uploadFile(this, ${leadId}, ${fieldId})" style="display:none">
+                        <span class="upload-icon">📤</span>
+                        <span class="upload-text">Upload</span>
+                    </label>
+                `;
+            } else {
+                alert(result.error || 'Delete failed');
+            }
+        })
+        .catch(err => {
+            console.error('Delete error:', err);
+            alert('Delete failed');
+        });
+    }
+
+    // ========== Bulk Selection ==========
+    let selectedLeadIds = new Set();
+
+    function toggleSelectAll(checkbox) {
+        const section = checkbox.closest('.grid-section');
+        const checkboxes = section.querySelectorAll('.lead-checkbox');
+        checkboxes.forEach(cb => {
+            cb.checked = checkbox.checked;
+            const row = cb.closest('tr');
+            const leadId = cb.dataset.leadId;
+            if (checkbox.checked) {
+                selectedLeadIds.add(leadId);
+                row.classList.add('selected-row');
+            } else {
+                selectedLeadIds.delete(leadId);
+                row.classList.remove('selected-row');
+            }
+        });
+        updateBulkActionsBar();
+    }
+
+    function updateBulkSelection() {
+        selectedLeadIds.clear();
+        document.querySelectorAll('.lead-checkbox:checked').forEach(cb => {
+            selectedLeadIds.add(cb.dataset.leadId);
+            cb.closest('tr').classList.add('selected-row');
+        });
+        document.querySelectorAll('.lead-checkbox:not(:checked)').forEach(cb => {
+            cb.closest('tr').classList.remove('selected-row');
+        });
+        updateBulkActionsBar();
+    }
+
+    function updateBulkActionsBar() {
+        const bar = document.getElementById('bulkActionsBar');
+        const count = document.getElementById('selectedCount');
+        count.textContent = selectedLeadIds.size;
+
+        // Use direct style manipulation instead of CSS class
+        if (selectedLeadIds.size > 0) {
+            bar.style.display = 'flex';
+        } else {
+            bar.style.display = 'none';
+        }
+    }
+
+    function clearBulkSelection() {
+        document.querySelectorAll('.lead-checkbox').forEach(cb => {
+            cb.checked = false;
+            cb.closest('tr').classList.remove('selected-row');
+        });
+        document.querySelectorAll('.select-all-checkbox').forEach(cb => {
+            cb.checked = false;
+        });
+        selectedLeadIds.clear();
+        updateBulkActionsBar();
+    }
+
+    function bulkChangeStatus(status) {
+        if (!status || selectedLeadIds.size === 0) return;
+
+        const count = selectedLeadIds.size;
+        
+        // Function to actually perform the status change
+        const doStatusChange = () => {
+            const promises = Array.from(selectedLeadIds).map(leadId =>
+                fetch(`/leads/${leadId}/status`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    body: `status=${encodeURIComponent(status)}`
+                })
+            );
+
+            Promise.all(promises).then(() => {
+                showToast(`${count} lead${count > 1 ? 's' : ''} moved to "${status}"`, 'success');
+                setTimeout(() => window.location.reload(), 500);
+            }).catch(() => {
+                showToast('Failed to update some leads', 'error');
+            });
+        };
+
+        // No confirmation needed - just do it
+        doStatusChange();
+
+        // Reset the select dropdown
+        document.getElementById('bulkStatusSelect').value = '';
+    }
+
+    function bulkDelete() {
+        if (selectedLeadIds.size === 0) return;
+
+        const count = selectedLeadIds.size;
+        showConfirmDialog({
+            title: 'Delete Leads',
+            message: `Are you sure you want to delete ${count} lead${count > 1 ? 's' : ''}? This action cannot be undone.`,
+            confirmText: 'Delete',
+            cancelText: 'Cancel',
+            type: 'danger',
+            onConfirm: () => {
+                const promises = Array.from(selectedLeadIds).map(leadId =>
+                    fetch(`/leads/${leadId}/delete`, {
+                        method: 'POST',
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest'
+                        }
+                    })
+                );
+
+                Promise.all(promises).then(() => {
+                    showToast(`${count} lead${count > 1 ? 's' : ''} deleted`, 'success');
+                    // Remove the rows
+                    selectedLeadIds.forEach(leadId => {
+                        const row = document.querySelector(`tr[data-lead-id="${leadId}"]`);
+                        if (row) row.remove();
+                    });
+                    clearBulkSelection();
+                }).catch(() => {
+                    showToast('Failed to delete some leads', 'error');
+                });
+            }
+        });
+    }
+
+    // ========== Recently Viewed Leads ==========
+    function displayRecentlyViewed() {
+        const recent = getRecentlyViewed();
+        const section = document.getElementById('recentlyViewedSection');
+        const list = document.getElementById('recentlyViewedList');
+
+        if (recent.length === 0) {
+            section.style.display = 'none';
+            return;
+        }
+
+        // Filter out leads that no longer exist
+        const existingLeadIds = new Set(allLeads.map(l => l.id));
+        const validRecent = recent.filter(l => existingLeadIds.has(l.id));
+
+        if (validRecent.length === 0) {
+            section.style.display = 'none';
+            return;
+        }
+
+        list.innerHTML = validRecent.map(lead => `
+            <a href="/leads/${lead.id}" class="recently-viewed-item">
+                <span class="status-dot status-dot-${lead.status.toLowerCase().replace(/ /g, '-')}"></span>
+                ${lead.name}
+            </a>
+        `).join('');
+
+        section.style.display = 'block';
+    }
+
+    // Initialize on page load
+    document.addEventListener('DOMContentLoaded', displayRecentlyViewed);
 </script>
 {% endblock %}

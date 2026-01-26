@@ -6,6 +6,7 @@ import io
 from datetime import datetime, timedelta
 from functools import wraps
 from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify, g
+from flask_cors import CORS
 from werkzeug.security import generate_password_hash, check_password_hash
 
 # JobTread API integration
@@ -21,8 +22,25 @@ app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'your-secret-key-change-in-production')
 DATABASE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'crm.db')
 
+# CORS configuration - allow website to submit leads
+CORS(app, resources={
+    r"/api/leads": {
+        "origins": [
+            "https://islabuilders.com",
+            "https://www.islabuilders.com",
+            "http://localhost:8888",
+            "http://127.0.0.1:8888"
+        ],
+        "methods": ["GET", "POST", "OPTIONS"],
+        "allow_headers": ["Content-Type", "X-API-Key"]
+    }
+})
+
 # Zapier webhook URL - set this in your environment or config
 ZAPIER_WEBHOOK_URL = os.environ.get('ZAPIER_WEBHOOK_URL', '')
+
+# Lead notification webhook - Clawdbot or other service
+LEAD_NOTIFY_WEBHOOK = os.environ.get('LEAD_NOTIFY_WEBHOOK', '')
 
 # Database helper functions
 def get_db():
@@ -511,6 +529,27 @@ def send_to_zapier(lead_dict):
             requests.post(ZAPIER_WEBHOOK_URL, json=lead_dict, timeout=5)
         except Exception as e:
             print(f"Zapier webhook error: {e}")
+
+def notify_new_lead(lead_dict):
+    """
+    Send notification when a new lead is created.
+    Calls LEAD_NOTIFY_WEBHOOK if configured.
+    """
+    global LEAD_NOTIFY_WEBHOOK
+    if LEAD_NOTIFY_WEBHOOK:
+        try:
+            import requests
+            payload = {
+                'event': 'new_lead',
+                'lead': lead_dict,
+                'message': f"🔔 New Lead: {lead_dict.get('name')} - {lead_dict.get('job_type', 'General')} - {lead_dict.get('phone', 'No phone')}"
+            }
+            requests.post(LEAD_NOTIFY_WEBHOOK, json=payload, timeout=10)
+            print(f"[Lead Notify] Sent notification for lead {lead_dict.get('id')}")
+        except Exception as e:
+            print(f"[Lead Notify] Webhook error: {e}")
+    else:
+        print(f"[Lead Notify] No webhook configured, skipping notification for {lead_dict.get('name')}")
 
 def lead_to_dict(lead):
     return {
@@ -1452,6 +1491,9 @@ def api_create_lead():
 
     # Send to Zapier if webhook is configured
     send_to_zapier(lead_to_dict(lead))
+    
+    # Send new lead notification
+    notify_new_lead(lead_to_dict(lead))
 
     return jsonify({'success': True, 'lead': lead_to_dict(lead)}), 201
 
